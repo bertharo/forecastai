@@ -1,20 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0b0d10;
-  --panel: #12151a;
-  --panel-2: #161a21;
-  --border: #1e2430;
-  --border-strong: #2a3344;
-  --text: #e8eaed;
-  --muted: #8b93a7;
-  --accent: #3d9a7a;
-  --accent-dim: #2a6b55;
-  --warning: #d4a017;
-  --danger: #c45c5c;
-  --info: #5b8def;
-  --mono: var(--font-plex-mono), ui-monospace, monospace;
-  --sans: var(--font-plex-sans), system-ui, sans-serif;
+  --bg: #f4f5f8;
+  --bg-warm: #fafafb;
+  --sidebar: #e8eaf6;
+  --panel: #ffffff;
+  --panel-soft: #f0f2f7;
+  --card-blue: #dce8ff;
+  --card-pink: #ffe4e4;
+  --card-green: #dff5e6;
+  --card-mint: #e3f6ea;
+  --border: #e4e6ee;
+  --border-strong: #d0d3de;
+  --text: #12141a;
+  --muted: #6b7285;
+  --accent: #12141a;
+  --accent-dim: #e8eaf0;
+  --warning: #c45a2a;
+  --danger: #c43b3b;
+  --info: #3b6fd4;
+  --success: #1f7a45;
+  --mono: var(--font-geist-mono), ui-monospace, monospace;
+  --sans: var(--font-outfit), system-ui, sans-serif;
+  --radius: 1.25rem;
+  --radius-sm: 0.75rem;
+  --radius-pill: 999px;
 }
 
 @theme inline {
@@ -33,9 +43,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   min-height: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -50,6 +61,7 @@ button {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .muted {
@@ -62,81 +74,82 @@ button {
 }
 
 .kpi {
-  font-family: var(--mono);
-  font-size: 1.5rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.65rem;
-  border-radius: 2px;
+  gap: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-pill);
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .nav-link:hover {
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.55);
   color: var(--text);
 }
 
 .nav-link[data-active="true"] {
-  background: var(--panel-2);
-  color: var(--text);
-  border-left: 2px solid var(--accent);
-  padding-left: calc(0.65rem - 2px);
+  background: #12141a;
+  color: #fff;
 }
 
 table.data {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 table.data th {
   text-align: left;
   color: var(--muted);
   font-weight: 500;
-  padding: 0.45rem 0.6rem;
+  padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 table.data td {
-  padding: 0.4rem 0.6rem;
+  padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
 }
 
 table.data tr:hover td {
-  background: var(--panel-2);
+  background: var(--panel-soft);
 }
 
 .badge {
-  display: inline-block;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.15rem 0.4rem;
-  border: 1px solid var(--border-strong);
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--muted);
 }
 
 .badge-tier1 {
-  color: var(--accent);
-  border-color: var(--accent-dim);
+  color: var(--success);
+  background: rgba(31, 122, 69, 0.1);
 }
 .badge-tier2 {
   color: var(--info);
-  border-color: #2a4570;
+  background: rgba(59, 111, 212, 0.1);
 }
 .badge-tier3 {
   color: var(--warning);
-  border-color: #6b5410;
+  background: rgba(196, 90, 42, 0.1);
 }
 .badge-tier4 {
   color: var(--muted);
@@ -144,37 +157,112 @@ table.data tr:hover td {
 
 .input,
 .select {
-  background: var(--bg);
+  background: var(--panel);
   border: 1px solid var(--border-strong);
   color: var(--text);
-  padding: 0.35rem 0.5rem;
-  font-size: 12.5px;
-  border-radius: 2px;
+  padding: 0.45rem 0.75rem;
+  font-size: 13px;
+  border-radius: var(--radius-pill);
 }
 
 .btn {
-  background: var(--accent-dim);
-  color: var(--text);
-  border: 1px solid var(--accent);
-  padding: 0.35rem 0.75rem;
-  font-size: 12.5px;
+  background: #12141a;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 13px;
+  font-weight: 550;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
+  transition: opacity 0.15s ease;
 }
 
 .btn:hover {
-  background: var(--accent);
-  color: #06110c;
+  opacity: 0.88;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--border-strong);
-  color: var(--muted);
+  color: var(--text);
 }
 
 .page-title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.pill-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pill-tab:hover {
+  border-color: #12141a;
+}
+
+.pill-tab[data-active="true"] {
+  background: #12141a;
+  border-color: #12141a;
+  color: #fff;
+}
+
+.soft-card {
+  border-radius: var(--radius);
+  padding: 1.25rem 1.35rem;
+}
+
+.row-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+}
+
+.wave {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  animation: wave 1.2s ease-in-out 1;
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(14deg);
+  }
+  50% {
+    transform: rotate(-8deg);
+  }
+}
+
+.meter-shell-main {
+  animation: fade-up 0.45s ease-out;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

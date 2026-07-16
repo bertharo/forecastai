@@ -107,6 +107,8 @@ export const dimensionNodes = pgTable(
     parentId: uuid("parent_id"),
     path: text("path").notNull(), // materialized path e.g. /product/platform/ai-platform
     externalId: text("external_id"),
+    costCenterCode: text("cost_center_code"),
+    ownerEmail: text("owner_email"),
     active: boolean("active").notNull().default(true),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   },
@@ -142,6 +144,8 @@ export const usageEvents = pgTable(
     latencyMs: integer("latency_ms"),
     tags: jsonb("tags").$type<Record<string, string>>().notNull().default({}),
     connectorId: uuid("connector_id"),
+    importBatchId: uuid("import_batch_id"), // → import_batches (set without FK to avoid cycle)
+    contentHash: text("content_hash"),
     chargePeriodStart: timestamp("charge_period_start", { withTimezone: true }),
     chargePeriodEnd: timestamp("charge_period_end", { withTimezone: true }),
     allocationStatus: text("allocation_status").notNull().default("allocated"), // allocated|unallocated
@@ -151,6 +155,8 @@ export const usageEvents = pgTable(
     index("usage_events_provider_idx").on(t.providerId),
     index("usage_events_sku_idx").on(t.skuId),
     index("usage_events_meter_idx").on(t.meterId),
+    index("usage_events_batch_idx").on(t.importBatchId),
+    uniqueIndex("usage_events_org_content_hash").on(t.orgId, t.contentHash),
   ]
 );
 
@@ -300,10 +306,14 @@ export const costRecords = pgTable(
     commitmentSavings: numeric("commitment_savings", { precision: 18, scale: 6 }).default("0"),
     tags: jsonb("tags").$type<Record<string, string>>().notNull().default({}),
     allocationStatus: text("allocation_status").notNull().default("allocated"),
+    importBatchId: uuid("import_batch_id"),
+    contentHash: text("content_hash"),
   },
   (t) => [
     index("cost_records_org_period_idx").on(t.orgId, t.chargePeriodStart),
     index("cost_records_provider_idx").on(t.providerId),
+    index("cost_records_batch_idx").on(t.importBatchId),
+    uniqueIndex("cost_records_org_content_hash").on(t.orgId, t.contentHash),
   ]
 );
 
@@ -442,7 +452,52 @@ export const budgets = pgTable("budgets", {
   includeDescendants: boolean("include_descendants").notNull().default(true),
   thresholds: jsonb("thresholds").$type<number[]>().notNull().default([0.5, 0.8, 1.0]),
   alertChannels: jsonb("alert_channels").$type<Record<string, unknown>>().default({}),
+  parentBudgetId: uuid("parent_budget_id"),
+  currentVersionId: uuid("current_version_id"),
 });
+
+export type BudgetPolicyAction =
+  | "notify"
+  | "require_approval"
+  | "advisory_downgrade"
+  | "advisory_block";
+
+export type BudgetPolicyRule = {
+  pct: number;
+  action: BudgetPolicyAction;
+  recommendedModel?: string;
+};
+
+export const budgetVersions = pgTable(
+  "budget_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    budgetId: uuid("budget_id")
+      .notNull()
+      .references(() => budgets.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    currency: text("currency").notNull().default("USD"),
+    period: text("period").notNull().default("monthly"),
+    scopeType: text("scope_type").notNull().default("org"),
+    dimensionTypeId: uuid("dimension_type_id"),
+    dimensionNodeId: uuid("dimension_node_id"),
+    featureKey: text("feature_key"),
+    includeDescendants: boolean("include_descendants").notNull().default(true),
+    thresholds: jsonb("thresholds").$type<number[]>().notNull().default([0.5, 0.8, 1.0]),
+    policy: jsonb("policy").$type<BudgetPolicyRule[]>().notNull().default([]),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+    author: text("author").notNull().default("system"),
+    changeNote: text("change_note").notNull(),
+    reallocationGroupId: uuid("reallocation_group_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("budget_versions_budget_version").on(t.budgetId, t.version),
+    index("budget_versions_effective_idx").on(t.budgetId, t.effectiveFrom),
+  ]
+);
 
 export const budgetAlerts = pgTable("budget_alerts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -453,20 +508,74 @@ export const budgetAlerts = pgTable("budget_alerts", {
   thresholdPct: numeric("threshold_pct", { precision: 6, scale: 4 }).notNull(),
   projectedBreachDate: date("projected_breach_date"),
   message: text("message").notNull(),
+  policyAction: text("policy_action"),
   acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
 });
 
+export const budgetStatusSnapshots = pgTable(
+  "budget_status_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    budgetId: uuid("budget_id")
+      .notNull()
+      .references(() => budgets.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    dimensionNodeId: uuid("dimension_node_id"),
+    featureKey: text("feature_key"),
+    status: text("status").notNull().default("ok"), // ok|warn|exceeded
+    policyAction: text("policy_action"),
+    remaining: numeric("remaining", { precision: 14, scale: 2 }).notNull().default("0"),
+    spent: numeric("spent", { precision: 14, scale: 2 }).notNull().default("0"),
+    projectedP50: numeric("projected_p50", { precision: 14, scale: 2 }),
+    breachDate: date("breach_date"),
+    periodEnd: date("period_end"),
+    recommendedModel: text("recommended_model"),
+    refreshedAt: timestamp("refreshed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("budget_status_budget").on(t.budgetId)]
+);
+
 export const mappingTemplates = pgTable("mapping_templates", {
   id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => organizations.id),
-  providerId: uuid("provider_id")
-    .notNull()
-    .references(() => providers.id),
+  orgId: uuid("org_id").references(() => organizations.id), // null = system template
+  providerId: uuid("provider_id").references(() => providers.id),
   name: text("name").notNull(),
+  sourceFormat: text("source_format").notNull().default("usage_export"),
+  // usage_export | invoice | org_structure | value_metric
+  isSystem: boolean("is_system").notNull().default(false),
   columnMap: jsonb("column_map").$type<Record<string, string>>().notNull().default({}),
+  sampleHeaders: jsonb("sample_headers").$type<string[]>().default([]),
 });
+
+export const importBatches = pgTable(
+  "import_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    sourceKind: text("source_kind").notNull(), // csv | jsonl | invoice
+    fileName: text("file_name").notNull(),
+    contentHash: text("content_hash").notNull(),
+    mappingTemplateId: uuid("mapping_template_id").references(() => mappingTemplates.id),
+    status: text("status").notNull().default("previewing"),
+    // previewing|importing|completed|failed|rolled_back
+    rowCount: integer("row_count").notNull().default(0),
+    rowsWritten: integer("rows_written").notNull().default(0),
+    rowsSkipped: integer("rows_skipped").notNull().default(0),
+    rowsErrored: integer("rows_errored").notNull().default(0),
+    errorReport: jsonb("error_report")
+      .$type<{ row: number; field?: string; message: string }[]>()
+      .notNull()
+      .default([]),
+    createdBy: text("created_by").notNull().default("demo"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    rolledBackAt: timestamp("rolled_back_at", { withTimezone: true }),
+  },
+  (t) => [index("import_batches_org_hash_idx").on(t.orgId, t.contentHash)]
+);
 
 export const connectors = pgTable("connectors", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -478,9 +587,17 @@ export const connectors = pgTable("connectors", {
     .references(() => providers.id),
   tier: integer("tier").notNull(),
   status: text("status").notNull().default("disconnected"),
-  // disconnected|authenticating|backfilling|healthy|degraded|error
+  // disconnected|authenticating|backfilling|healthy|degraded|error|stale
   authConfig: jsonb("auth_config").$type<Record<string, unknown>>().default({}),
+  credentialsEncrypted: text("credentials_encrypted"),
+  credentialsKeyId: text("credentials_key_id"),
+  syncCursor: jsonb("sync_cursor").$type<Record<string, unknown>>().default({}),
+  demoMode: boolean("demo_mode").notNull().default(false),
+  staleAfterHours: integer("stale_after_hours").notNull().default(24),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+  lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+  lastErrorMessage: text("last_error_message"),
   backfillProgressPct: numeric("backfill_progress_pct", { precision: 6, scale: 2 }).default("0"),
   spendCoveredPct: numeric("spend_covered_pct", { precision: 6, scale: 2 }),
   allocatedPct: numeric("allocated_pct", { precision: 6, scale: 2 }),
@@ -504,16 +621,25 @@ export const connectorSyncRuns = pgTable("connector_sync_runs", {
   errors: jsonb("errors").$type<unknown[]>().default([]),
 });
 
-export const otelIngestKeys = pgTable("otel_ingest_keys", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id")
-    .notNull()
-    .references(() => organizations.id),
-  keyHash: text("key_hash").notNull(),
-  label: text("label").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  revokedAt: timestamp("revoked_at", { withTimezone: true }),
-});
+export const otelIngestKeys = pgTable(
+  "otel_ingest_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    keyHash: text("key_hash").notNull(),
+    keyPrefix: text("key_prefix").notNull().default("meter_"),
+    label: text("label").notNull(),
+    envTag: text("env_tag").notNull().default("prod"), // prod|staging|dev
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull().default("system"),
+    rotatedFromId: uuid("rotated_from_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("otel_keys_org_hash").on(t.orgId, t.keyHash)]
+);
 
 export const seatSnapshots = pgTable(
   "seat_snapshots",
@@ -532,4 +658,139 @@ export const seatSnapshots = pgTable(
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   },
   (t) => [uniqueIndex("seat_snapshots_org_provider_day").on(t.orgId, t.providerId, t.asOf)]
+);
+
+/** Retroactive allocation rule applications (WS2) */
+export const allocationRuleApplications = pgTable("allocation_rule_applications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  ruleId: uuid("rule_id")
+    .notNull()
+    .references(() => allocationRules.id, { onDelete: "cascade" }),
+  appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+  eventsTouched: integer("events_touched").notNull().default(0),
+  allocatedPctBefore: numeric("allocated_pct_before", { precision: 6, scale: 4 }),
+  allocatedPctAfter: numeric("allocated_pct_after", { precision: 6, scale: 4 }),
+  appliedBy: text("applied_by").notNull().default("demo"),
+});
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    href: text("href"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("notifications_org_created").on(t.orgId, t.createdAt)]
+);
+
+export const orgWebhooks = pgTable("org_webhooks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  url: text("url").notNull(),
+  secret: text("secret").notNull(),
+  events: jsonb("events").$type<string[]>().notNull().default([]),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** WS5 — outcome / ROI */
+export const valueMetrics = pgTable(
+  "value_metrics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    featureKey: text("feature_key").notNull(),
+    unitKey: text("unit_key").notNull(), // tickets_resolved, prs_merged, …
+    displayName: text("display_name").notNull(),
+    source: text("source").notNull().default("manual"), // manual|csv|otel_tag
+    otelTagKey: text("otel_tag_key"),
+    dollarPerUnit: numeric("dollar_per_unit", { precision: 14, scale: 4 }),
+    owningDimensionNodeId: uuid("owning_dimension_node_id").references(
+      () => dimensionNodes.id
+    ),
+  },
+  (t) => [uniqueIndex("value_metrics_org_feature_unit").on(t.orgId, t.featureKey, t.unitKey)]
+);
+
+export const valueEvents = pgTable(
+  "value_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    valueMetricId: uuid("value_metric_id")
+      .notNull()
+      .references(() => valueMetrics.id, { onDelete: "cascade" }),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    quantity: numeric("quantity", { precision: 18, scale: 4 }).notNull(),
+    source: text("source").notNull().default("manual"),
+    importBatchId: uuid("import_batch_id"),
+    tags: jsonb("tags").$type<Record<string, string>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("value_events_metric_period").on(t.valueMetricId, t.periodStart)]
+);
+
+/** WS6 — Auth.js + RBAC + audit (tables ready; Auth.js wiring later) */
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  image: text("image"),
+  emailVerified: timestamp("email_verified", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("viewer"), // org_admin|finance|node_owner|viewer
+    scopedDimensionNodeId: uuid("scoped_dimension_node_id").references(
+      () => dimensionNodes.id
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("memberships_org_user").on(t.orgId, t.userId)]
+);
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    actorLabel: text("actor_label").notNull().default("system"),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id"),
+    before: jsonb("before").$type<Record<string, unknown>>(),
+    after: jsonb("after").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("audit_logs_org_created").on(t.orgId, t.createdAt)]
 );

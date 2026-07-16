@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { getDemoOrg } from "@/lib/queries/org";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentOrg } from "@/lib/queries/org";
 import { runConnectorSync } from "@/lib/connectors";
 
 export async function POST(
-  _req: Request,
+  req: NextRequest,
   ctx: { params: Promise<{ provider: string }> }
 ) {
   const { provider } = await ctx.params;
-  const org = await getDemoOrg();
+  const org = await getCurrentOrg();
   if (!org) {
     return NextResponse.json({ error: "No org" }, { status: 500 });
   }
@@ -19,11 +19,22 @@ export async function POST(
     );
   }
 
+  const body = (await req.json().catch(() => ({}))) as {
+    phase?: "backfill" | "incremental";
+    backfillDays?: number;
+  };
+
   try {
-    const { result, run } = await runConnectorSync(provider, org.id, "incremental");
+    const { result, run, persisted } = await runConnectorSync(
+      provider,
+      org.id,
+      body.phase ?? "incremental",
+      { backfillDays: body.backfillDays }
+    );
     return NextResponse.json({
       ok: true,
       runId: run?.id,
+      persisted,
       result: {
         phase: result.phase,
         rowsIn: result.rowsIn,

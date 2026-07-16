@@ -1,12 +1,13 @@
 import { DataTable } from "@/components/DataTable";
 import { Money } from "@/components/Money";
-import { db } from "@/db";
+import { assertDb, db } from "@/db";
 import * as s from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export default async function PriceCardsPage() {
+  await assertDb();
   const cards = await db.select().from(s.priceCards).orderBy(asc(s.priceCards.effectiveFrom));
   const lines = await db
     .select({

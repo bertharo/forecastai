@@ -1,207 +1,492 @@
-import { Suspense } from "react";
-import { DataTable } from "@/components/DataTable";
-import { SliceFilter } from "@/components/SliceFilter";
-import { StackedSpend } from "@/components/charts/StackedSpend";
+import Link from "next/link";
+import { Suspense, type ReactNode } from "react";
+import { FilterBar } from "@/components/FilterBar";
 import { assertDb } from "@/db";
-import { getDemoOrg, getDimensionNodes, getDimensionTypes } from "@/lib/queries/org";
-import { getSeatUtilization, getSpendSummary } from "@/lib/queries/spend";
+import {
+  getCurrentOrg,
+  getDimensionNodes,
+  getDimensionTypes,
+} from "@/lib/queries/org";
+import { parseAnalyticsFilters } from "@/lib/queries/filters";
+import { getFilterOptions, getSpendSummary } from "@/lib/queries/spend";
+import { getUnallocatedClusters } from "@/lib/queries/allocation";
+import { getStaleConnectors } from "@/lib/connectors/staleness";
 import { pct, usd } from "@/lib/format";
+import { IconChevron } from "@/components/shell/icons";
 
 export const dynamic = "force-dynamic";
 
-export default async function SpendPage({
+function ActionOrb({
+  label,
+  href,
+  icon,
+}: {
+  label: string;
+  href: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link href={href} className="flex flex-col items-center gap-1.5">
+      <span
+        className="flex h-11 w-11 items-center justify-center rounded-full text-white"
+        style={{ background: "#12141a" }}
+      >
+        {icon}
+      </span>
+      <span className="text-[12px] font-medium">{label}</span>
+    </Link>
+  );
+}
+
+function BriefView({
+  orgName,
+  summary,
+  clusters,
+}: {
+  orgName: string;
+  summary: Awaited<ReturnType<typeof getSpendSummary>>;
+  clusters: Awaited<ReturnType<typeof getUnallocatedClusters>>;
+}) {
+  const plan = summary.budget?.amount ?? summary.runRate * 0.85;
+  const forecast = summary.runRate * 12 || summary.trailing30 * 12;
+  const gap = forecast - plan;
+  const overPct = plan > 0 ? gap / plan : 0;
+
+  const attention = [
+    {
+      initials: "AC",
+      color: "#e8843a",
+      name: "Alex Chen",
+      role: "SVP Engineering",
+      body: `Cursor + code assist at elevated run rate — ${usd(summary.byFeature.find((f) => f.feature === "code_assist")?.effective ?? summary.trailing30 * 0.2)} trailing 30d. Consider per-seat caps.`,
+    },
+    {
+      initials: "PR",
+      color: "#7c5cbf",
+      name: "Priya Ramanathan",
+      role: "VP Product Eng",
+      body: `Support Copilot is ${pct(summary.budget?.mtdPct ?? 0.84, 0)} of org budget pace. Review Sonnet routing on /scenarios.`,
+    },
+    {
+      initials: "MK",
+      color: "#2a9d8f",
+      name: "Marcus Kim",
+      role: "Legal + FinOps",
+      body:
+        clusters[0]
+          ? `${clusters.length} unallocated clusters · top ${usd(clusters[0].spend)} (${clusters[0].feature ?? clusters[0].source ?? "unknown"}). Triage on Alerts.`
+          : "Allocation looks clean this week — keep tagging spans with feature + team.",
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
+        <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[13px] font-semibold">FY26 Forecast</div>
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
+              style={{
+                background: "rgba(196,59,59,0.12)",
+                color: "var(--danger)",
+              }}
+            >
+              ▲ {pct(Math.abs(overPct), 1)} {overPct >= 0 ? "over" : "under"} plan
+            </span>
+          </div>
+          <div className="kpi mt-3">{usd(forecast)}</div>
+          <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
+            {orgName} annualized run rate vs plan of record ({usd(plan)}).{" "}
+            {pct(summary.allocatedPct, 0)} of trailing spend is allocated.{" "}
+            {summary.anomalies.length > 0
+              ? `${summary.anomalies.length} anomaly day(s) in the last 60d.`
+              : "No spend anomalies flagged in the last 60d."}{" "}
+            Top features drive most of the gap — open Model a change to shift routing.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-5">
+            <ActionOrb
+              label="Model"
+              href="/scenarios"
+              icon={
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 11 L8 3 L13 11 Z" stroke="white" strokeWidth="1.5" />
+                </svg>
+              }
+            />
+            <ActionOrb
+              label="Share"
+              href="/budgets"
+              icon={
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="12" cy="4" r="1.5" fill="white" />
+                  <circle cx="4" cy="8" r="1.5" fill="white" />
+                  <circle cx="12" cy="12" r="1.5" fill="white" />
+                  <path d="M5.5 7.5 L10.5 4.5M5.5 8.5 L10.5 11.5" stroke="white" strokeWidth="1.25" />
+                </svg>
+              }
+            />
+            <ActionOrb
+              label="Approve"
+              href="/budgets"
+              icon={
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3.5 8.5 L6.5 11.5 L12.5 4.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
+                </svg>
+              }
+            />
+            <ActionOrb
+              label="Compare"
+              href="/?tab=breakdown"
+              icon={
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 12 V6M7 12 V3M11 12 V8" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              }
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="soft-card" style={{ background: "var(--card-pink)" }}>
+            <div className="text-[13px] font-semibold">Plan of record</div>
+            <div className="kpi mt-2">{usd(plan)}</div>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+              {summary.budget
+                ? `${summary.budget.name} · MTD ${pct(summary.budget.mtdPct, 0)} used`
+                : "No org budget — set one under Plan"}
+            </p>
+          </div>
+          <div className="soft-card" style={{ background: "var(--card-green)" }}>
+            <div className="text-[13px] font-semibold">Gap to plan</div>
+            <div className="kpi mt-2" style={{ color: gap >= 0 ? "var(--danger)" : "var(--success)" }}>
+              {gap >= 0 ? "+" : ""}
+              {usd(gap)}
+            </div>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+              Run rate {usd(summary.runRate)}/mo · allocated {pct(summary.allocatedPct, 0)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-[17px] font-bold tracking-tight">Needs your attention</h2>
+            <p className="text-[13px]" style={{ color: "var(--muted)" }}>
+              {attention.length} drivers · top of the gap
+            </p>
+          </div>
+          <Link href="/allocation" className="text-[13px] font-semibold">
+            See all →
+          </Link>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {attention.map((a) => (
+            <div key={a.name} className="row-card">
+              <div className="mb-3 flex items-center gap-2.5">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                  style={{ background: a.color }}
+                >
+                  {a.initials}
+                </div>
+                <div>
+                  <div className="text-[14px] font-semibold">{a.name}</div>
+                  <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+                    {a.role}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[13px] leading-relaxed" style={{ color: "#3a4050" }}>
+                {a.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BreakdownView({
+  summary,
+  mode,
+}: {
+  summary: Awaited<ReturnType<typeof getSpendSummary>>;
+  mode: "vendor" | "team" | "feature";
+}) {
+  const rows =
+    mode === "team"
+      ? summary.byTeam.map((r) => ({
+          key: r.nodeId,
+          label: r.team,
+          sub: "Team slice",
+          value: r.effective,
+          abbr: r.team.slice(0, 3).toUpperCase(),
+        }))
+      : mode === "feature"
+        ? summary.byFeature.map((r) => ({
+            key: r.feature,
+            label: r.feature,
+            sub: "Feature",
+            value: r.effective,
+            abbr: r.feature.slice(0, 3).toUpperCase(),
+          }))
+        : summary.bySku.map((r) => ({
+            key: r.skuId,
+            label: r.sku,
+            sub: "From cost records",
+            value: r.effective,
+            abbr: r.sku.slice(0, 3).toUpperCase(),
+          }));
+
+  const total = rows.reduce((a, r) => a + r.value, 0) || 1;
+  const max = Math.max(...rows.map((r) => r.value), 1);
+
+  return (
+    <div className="space-y-4">
+      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+        <div
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--muted)" }}
+        >
+          Breakdown
+        </div>
+        <p className="mt-2 max-w-2xl text-[16px] font-medium leading-snug">
+          {usd(summary.trailing30)} trailing 30d, sliced three ways. Same total — a
+          different lens on where it runs, who you pay, and who&apos;s consuming it.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[17px] font-bold">
+            Spend breakdown{" "}
+            <span className="font-medium" style={{ color: "var(--muted)" }}>
+              {rows.length} · {usd(total)} total
+            </span>
+          </h2>
+          <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
+            Click a row to drill into filters. Aggregated from live cost records.
+          </p>
+        </div>
+        <div className="flex gap-1.5">
+          {(
+            [
+              ["vendor", "By vendor"],
+              ["feature", "By feature"],
+              ["team", "By department"],
+            ] as const
+          ).map(([key, label]) => (
+            <Link
+              key={key}
+              href={`/?tab=breakdown&slice=${key}`}
+              className="pill-tab"
+              data-active={mode === key}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {rows.slice(0, 12).map((r) => (
+          <Link
+            key={r.key}
+            href={
+              mode === "team"
+                ? `/?tab=org&node=${r.key}`
+                : mode === "feature"
+                  ? `/?tab=breakdown&feature=${encodeURIComponent(r.label)}`
+                  : `/?tab=breakdown&model=${encodeURIComponent(r.key)}`
+            }
+            className="row-card flex items-center gap-3 transition-shadow hover:shadow-sm"
+          >
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+              style={{ background: "var(--card-blue)" }}
+            >
+              {r.abbr}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[14px] font-semibold">{r.label}</div>
+              <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+                {r.sub}
+              </div>
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full"
+                style={{ background: "var(--panel-soft)" }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(r.value / max) * 100}%`,
+                    background: "#2f5bd8",
+                  }}
+                />
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[15px] font-bold">{usd(r.value)}</div>
+              <div className="text-[12px]" style={{ color: "var(--success)" }}>
+                {pct(r.value / total, 0)}
+              </div>
+            </div>
+            <span style={{ color: "var(--muted)" }}>
+              <IconChevron />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ByOrgView({
+  summary,
+}: {
+  summary: Awaited<ReturnType<typeof getSpendSummary>>;
+}) {
+  const teams = summary.byTeam;
+  const total = teams.reduce((a, t) => a + t.effective, 0) || 1;
+
+  return (
+    <div className="space-y-4">
+      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+        <div
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--muted)" }}
+        >
+          By org
+        </div>
+        <p className="mt-2 max-w-2xl text-[16px] font-medium leading-snug">
+          Team slices for the trailing 30 days — {teams.length} teams, {usd(total)}{" "}
+          attributed.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {teams.map((t) => (
+          <Link
+            key={t.nodeId}
+            href={`/?dim=team&node=${t.nodeId}`}
+            className="row-card transition-shadow hover:shadow-sm"
+          >
+            <div className="text-[14px] font-semibold">{t.team}</div>
+            <div className="kpi mt-2" style={{ fontSize: "1.5rem" }}>
+              {usd(t.effective)}
+            </div>
+            <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
+              {pct(t.effective / total, 0)} of attributed spend
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ dim?: string; node?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   try {
     await assertDb();
     const sp = await searchParams;
-    const org = await getDemoOrg();
+    const tab = typeof sp.tab === "string" ? sp.tab : "brief";
+    const slice =
+      typeof sp.slice === "string" && ["vendor", "team", "feature"].includes(sp.slice)
+        ? (sp.slice as "vendor" | "team" | "feature")
+        : "vendor";
+    const filters = parseAnalyticsFilters(sp);
+    const org = await getCurrentOrg({
+      orgParam: typeof sp.org === "string" ? sp.org : null,
+    });
     if (!org) {
-      return <p className="muted">No org — run npm run db:seed</p>;
-    }
-
-    const [types, nodes, summary, seats] = await Promise.all([
-      getDimensionTypes(org.id),
-      getDimensionNodes(org.id),
-      getSpendSummary(org.id, sp.node),
-      getSeatUtilization(org.id),
-    ]);
-
-    const dayMap = new Map<string, Record<string, string | number>>();
-    const providerKeys = new Set<string>();
-    for (const row of summary.daily) {
-      const day = String(row.day);
-      providerKeys.add(row.provider);
-      const cur = dayMap.get(day) ?? { day };
-      cur[row.provider] = Number(row.effective);
-      dayMap.set(day, cur);
-    }
-    const keys = [...providerKeys];
-    const stacked = [...dayMap.values()]
-      .sort((a, b) => String(a.day).localeCompare(String(b.day)))
-      .map((row) => {
-        const out: Record<string, string | number> = { day: String(row.day) };
-        for (const k of keys) out[k] = Number(row[k] ?? 0);
-        return out;
-      });
-
-    const sliceTypes = types.map((t) => ({
-      id: t.id,
-      key: t.key,
-      displayName: t.displayName,
-    }));
-    const sliceNodes = nodes.map((n) => ({
-      id: n.id,
-      key: n.key,
-      displayName: n.displayName,
-      dimensionTypeId: n.dimensionTypeId,
-    }));
-
-    return (
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="page-title">Spend</h1>
-            <p className="muted mt-1">Run rate, MTD vs budget, allocation health</p>
-          </div>
-          <Suspense fallback={<div className="muted text-[12px]">Loading filters…</div>}>
-            <SliceFilter types={sliceTypes} nodes={sliceNodes} />
-          </Suspense>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="panel p-3">
-            <div className="muted text-[11px] uppercase tracking-wide">MTD effective</div>
-            <div className="kpi mt-1 mono">{usd(summary.mtd)}</div>
-          </div>
-          <div className="panel p-3">
-            <div className="muted text-[11px] uppercase tracking-wide">30d run rate (mo)</div>
-            <div className="kpi mt-1 mono">{usd(summary.runRate)}</div>
-          </div>
-          <div className="panel p-3">
-            <div className="muted text-[11px] uppercase tracking-wide">Budget used</div>
-            <div className="kpi mt-1">
-              {summary.budget ? pct(summary.budget.mtdPct, 0) : "—"}
-            </div>
-            {summary.budget && (
-              <div className="muted mt-1 text-[11px] mono">of {usd(summary.budget.amount)}</div>
-            )}
-          </div>
-          <div className="panel p-3">
-            <div className="muted text-[11px] uppercase tracking-wide">Allocated</div>
-            <div className="kpi mt-1">{pct(summary.allocatedPct, 0)}</div>
-          </div>
-        </div>
-
-        <div className="panel p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-medium">Spend by provider (60d)</h2>
-          </div>
-          <StackedSpend data={stacked} keys={keys} />
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-2">
-          <div className="panel p-3">
-            <h2 className="mb-2 text-sm font-medium">By model / SKU</h2>
-            <DataTable
-              columns={[
-                { key: "sku", label: "SKU" },
-                { key: "effective", label: "30d effective", align: "right" },
-              ]}
-              rows={summary.bySku.map((r) => ({
-                sku: r.sku,
-                effective: usd(r.effective),
-              }))}
-            />
-          </div>
-          <div className="panel p-3">
-            <h2 className="mb-2 text-sm font-medium">By feature</h2>
-            <DataTable
-              columns={[
-                { key: "feature", label: "Feature" },
-                { key: "effective", label: "30d effective", align: "right" },
-              ]}
-              rows={summary.byFeature.map((r) => ({
-                feature: r.feature,
-                effective: usd(r.effective),
-              }))}
-            />
-          </div>
-          <div className="panel p-3">
-            <h2 className="mb-2 text-sm font-medium">By team</h2>
-            <DataTable
-              columns={[
-                { key: "team", label: "Team" },
-                { key: "effective", label: "30d effective", align: "right" },
-              ]}
-              rows={summary.byTeam.map((r) => ({
-                team: r.team,
-                effective: usd(r.effective),
-              }))}
-            />
-          </div>
-          <div className="panel p-3">
-            <h2 className="mb-2 text-sm font-medium">Anomalies vs 60d baseline</h2>
-            <DataTable
-              columns={[
-                { key: "day", label: "Day" },
-                { key: "amount", label: "Spend", align: "right" },
-                { key: "vs", label: "vs mean", align: "right" },
-              ]}
-              rows={summary.anomalies.map((a) => ({
-                day: String(a.day),
-                amount: usd(a.amount),
-                vs: `${a.vsBaseline.toFixed(1)}×`,
-              }))}
-            />
-            {summary.anomalies.length === 0 && (
-              <p className="muted mt-2 text-[12px]">No spikes &gt; 2× trailing mean</p>
-            )}
-          </div>
-        </div>
-
-        <div className="panel p-3">
-          <h2 className="mb-2 text-sm font-medium">Cursor seat utilization</h2>
-          <DataTable
-            columns={[
-              { key: "asOf", label: "As of" },
-              { key: "purchased", label: "Purchased", align: "right" },
-              { key: "active", label: "Active", align: "right" },
-              { key: "heavy", label: "Heavy", align: "right" },
-              { key: "util", label: "Utilization", align: "right" },
-            ]}
-            rows={seats.map((r) => ({
-              asOf: String(r.asOf),
-              purchased: String(r.purchased),
-              active: String(r.active),
-              heavy: String(r.heavy),
-              util: pct(r.active / Math.max(1, r.purchased), 0),
-            }))}
-          />
-          <p className="muted mt-2 text-[12px]">
-            Paying for 180 seats while ~90 are active — fastest ROI story in the product.
+      return (
+        <div className="soft-card" style={{ background: "var(--panel)" }}>
+          <p className="muted">
+            No org yet —{" "}
+            <a href="/onboarding" className="font-semibold underline">
+              start onboarding
+            </a>{" "}
+            or run <span className="mono">npm run db:seed</span>.
           </p>
         </div>
+      );
+    }
+
+    const [types, nodes, summary, options, stale, clusters] = await Promise.all([
+      getDimensionTypes(org.id),
+      getDimensionNodes(org.id),
+      getSpendSummary(org.id, filters),
+      getFilterOptions(org.id),
+      getStaleConnectors(org.id),
+      getUnallocatedClusters(org.id, 30),
+    ]);
+
+    return (
+      <div className="space-y-4">
+        {stale.length > 0 && (
+          <div
+            className="soft-card text-[13px]"
+            style={{ background: "#fff6e8", color: "var(--warning)" }}
+          >
+            <strong>Stale data sources</strong> —{" "}
+            {stale
+              .map(
+                (c) =>
+                  `${c.displayName} last synced ${c.hoursAgo}h ago (threshold ${c.staleAfterHours}h)`
+              )
+              .join(" · ")}
+          </div>
+        )}
+
+        {(tab === "org" || tab === "breakdown") && (
+          <Suspense fallback={null}>
+            <div className="mb-2">
+              <FilterBar
+                types={types.map((t) => ({
+                  id: t.id,
+                  key: t.key,
+                  displayName: t.displayName,
+                }))}
+                nodes={nodes.map((n) => ({
+                  id: n.id,
+                  key: n.key,
+                  displayName: n.displayName,
+                  dimensionTypeId: n.dimensionTypeId,
+                  parentId: n.parentId,
+                  path: n.path,
+                  costCenterCode: n.costCenterCode,
+                }))}
+                providers={options.providers}
+                models={options.models}
+                features={options.features}
+                showMetric={false}
+              />
+            </div>
+          </Suspense>
+        )}
+
+        {tab === "breakdown" ? (
+          <BreakdownView summary={summary} mode={slice} />
+        ) : tab === "org" ? (
+          <ByOrgView summary={summary} />
+        ) : (
+          <BriefView orgName={org.name} summary={summary} clusters={clusters} />
+        )}
       </div>
     );
-  } catch (err) {
-    console.error("[spend] render failed", err);
-    const message = err instanceof Error ? err.message : String(err);
+  } catch (e) {
     return (
-      <div className="panel space-y-2 p-4">
-        <h1 className="page-title">Spend unavailable</h1>
-        <p className="muted text-[13px]">
-          Could not load spend data. Check Postgres (`brew services start postgresql@16`) and run{" "}
-          <span className="mono">npm run db:setup</span>.
+      <div className="soft-card">
+        <p style={{ color: "var(--danger)" }}>
+          Failed to load: {e instanceof Error ? e.message : String(e)}
         </p>
-        <pre
-          className="mono overflow-auto p-2 text-[11px]"
-          style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-        >
-          {message}
-        </pre>
       </div>
     );
   }

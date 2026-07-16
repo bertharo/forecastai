@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 
-const plexSans = IBM_Plex_Sans({
+const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-sans",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-outfit",
 });
 
-const plexMono = IBM_Plex_Mono({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
-  variable: "--font-plex-mono",
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
+    <html lang="en" className={`${outfit.variable} ${geistMono.variable}`}>
       <body>{children}</body>
     </html>
   );

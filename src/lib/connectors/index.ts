@@ -6,7 +6,9 @@ import { stubAdapters } from "./stubs";
 import { getAdapter, listAdapters } from "./registry";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { decryptSecret } from "@/lib/crypto/secrets";
+import { persistUsageEvents } from "@/lib/ingest/persist";
 
 let registered = false;
 
@@ -22,7 +24,8 @@ export function ensureRegistry() {
 export async function runConnectorSync(
   providerKey: string,
   orgId: string,
-  phase: "backfill" | "incremental" = "incremental"
+  phase: "backfill" | "incremental" = "incremental",
+  opts?: { backfillDays?: number }
 ) {
   ensureRegistry();
   const adapter = getAdapter(providerKey);
@@ -32,45 +35,85 @@ export async function runConnectorSync(
     .select()
     .from(s.connectors)
     .innerJoin(s.providers, eq(s.connectors.providerId, s.providers.id))
-    .where(eq(s.providers.key, providerKey))
+    .where(and(eq(s.providers.key, providerKey), eq(s.connectors.orgId, orgId)))
     .limit(1);
 
-  const config = { mock: true, ...(connector?.connectors.authConfig ?? {}) };
+  if (!connector) throw new Error(`No connector for ${providerKey} on this org`);
+
+  let apiKey: string | undefined;
+  if (connector.connectors.credentialsEncrypted) {
+    try {
+      apiKey = decryptSecret(connector.connectors.credentialsEncrypted);
+    } catch {
+      apiKey = undefined;
+    }
+  }
+
+  const config = {
+    mock: connector.connectors.demoMode || !apiKey,
+    demoMode: connector.connectors.demoMode,
+    apiKey,
+    ...(connector.connectors.authConfig ?? {}),
+  };
+
+  const days =
+    opts?.backfillDays ??
+    (phase === "backfill" ? 365 : 7);
   const since = new Date();
   since.setUTCHours(0, 0, 0, 0);
-  since.setUTCDate(since.getUTCDate() - (phase === "backfill" ? 30 : 7));
+  since.setUTCDate(since.getUTCDate() - Math.min(days, 365));
 
   const result =
     phase === "backfill"
       ? await adapter.backfill(config, since)
       : await adapter.incremental(config, since);
 
-  if (connector) {
-    const [run] = await db
-      .insert(s.connectorSyncRuns)
-      .values({
-        connectorId: connector.connectors.id,
-        phase,
-        finishedAt: new Date(),
-        rowsIn: result.rowsIn,
-        rowsWritten: result.rowsWritten,
-        errors: result.errors,
-      })
-      .returning();
-
-    await db
-      .update(s.connectors)
-      .set({
-        lastSyncedAt: new Date(),
-        status: result.errors.length ? "degraded" : "healthy",
-        healthMessage: result.errors[0] ?? "Sync OK",
-      })
-      .where(eq(s.connectors.id, connector.connectors.id));
-
-    return { run, result, orgId };
+  let persisted = { written: 0, costed: 0, allocated: 0 };
+  if (result.events.length > 0) {
+    persisted = await persistUsageEvents(orgId, result.events);
   }
 
-  return { run: null, result, orgId };
+  const [run] = await db
+    .insert(s.connectorSyncRuns)
+    .values({
+      connectorId: connector.connectors.id,
+      phase,
+      finishedAt: new Date(),
+      rowsIn: result.rowsIn,
+      rowsWritten: persisted.written,
+      errors: result.errors,
+    })
+    .returning();
+
+  const now = new Date();
+  await db
+    .update(s.connectors)
+    .set({
+      lastSyncedAt: now,
+      lastSuccessAt: result.errors.length ? connector.connectors.lastSuccessAt : now,
+      lastErrorAt: result.errors.length ? now : connector.connectors.lastErrorAt,
+      lastErrorMessage: result.errors[0] ? String(result.errors[0]) : null,
+      status: result.errors.length ? "degraded" : "healthy",
+      healthMessage: result.errors[0]
+        ? String(result.errors[0])
+        : config.mock
+          ? "Sync OK (demo)"
+          : "Sync OK",
+      syncCursor: {
+        ...(connector.connectors.syncCursor as Record<string, unknown>),
+        lastPhase: phase,
+        lastSince: since.toISOString(),
+      },
+      backfillProgressPct: phase === "backfill" ? "100" : connector.connectors.backfillProgressPct,
+    })
+    .where(eq(s.connectors.id, connector.connectors.id));
+
+  return {
+    run,
+    result: { ...result, rowsWritten: persisted.written },
+    persisted,
+    orgId,
+  };
 }
 
 export { listAdapters, getAdapter };

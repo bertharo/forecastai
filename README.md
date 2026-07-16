@@ -58,15 +58,19 @@ npm run dev         # http://localhost:3000
 
 Demo org: **Northstar Analytics** — 6 months of synthetic usage across 4 AI features, mid-history Haiku migration + Anthropic price cut, 180 Cursor seats, Perplexity invoice history.
 
+Use the sidebar **Organization** switcher, or go to **Onboarding** to create a new org and issue an OTel key.
+
 ## UI surfaces
 
-1. **Spend** — run rate, MTD vs budget, by provider/model/team/feature, allocation %, anomalies, seat utilization, dimension slice filter
-2. **Forecast** — fitted driver tree + P10/P50/P90 fan chart + budget burn
+1. **Spend** — run rate, MTD vs budget; filter by metric (spend / consumption / adoption), org slice, provider, model, feature
+2. **Forecast** — fitted driver tree + P10/P50/P90 fan; filter by feature / model / slice
 3. **Scenarios** — compare baseline vs routing/adoption overrides
 4. **Model Switch** — routing + verbosity sliders; qualitative quality/latency fields required
 5. **Price Cards** — versioned cards + Anthropic cut diff
 6. **Budgets** — org / dimension scopes + alerts
 7. **Connectors** — tier badges, sync health, % covered, OTel ingest docs
+8. **Onboarding** — create org → dimensions → OTel key → test span
+
 
 ## Forecast engine
 
@@ -103,6 +107,8 @@ Same path for `azure_cost_export` and `gcp_billing_export`.
 
 ## OTel ingest
 
+Ingest writes **usage events + cost records + dimension junctions** (via allocation rules / tag fallbacks).
+
 ```bash
 curl -X POST http://localhost:3000/api/otel/v1/traces \
   -H 'content-type: application/json' \
@@ -118,9 +124,11 @@ curl -X POST http://localhost:3000/api/otel/v1/traces \
   }'
 ```
 
+Demo key `meter_demo_otel_key` targets the Northstar org. New orgs get a unique key in **Onboarding** (shown once).
+
 ## SDK / proxy tagging
 
-Tag at call time (`team`, `feature`, `customer_id`, `environment`, cost center). Untagged spend still lands as **unallocated**. Connector health shows `% allocated` per dimension — the enterprise readiness metric.
+Tag at call time (`team`, `feature`, `customer_id`, `environment`, cost center). Untagged spend still lands as **unallocated**. Allocation rules match tags (e.g. `feature=support_copilot`) to BU/team/cost center nodes.
 
 ## Scripts
 
@@ -134,4 +142,4 @@ Tag at call time (`team`, `feature`, `customer_id`, `environment`, cost center).
 
 ## Non-goals (v1)
 
-No real-time streaming (hourly batch fine). No model quality evals. No Meter multi-tenant billing. Hyperscaler adapters schema-ready only.
+No real-time streaming (hourly batch fine). No model quality evals. No Meter multi-tenant billing / SSO. Hyperscaler adapters schema-ready only. Org switcher is cookie-based (no auth yet).

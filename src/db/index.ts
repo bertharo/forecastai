@@ -3,7 +3,7 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 const connectionString =
-  process.env.DATABASE_URL ?? "postgresql://localhost:5432/meter";
+  process.env.DATABASE_URL ?? "postgresql://127.0.0.1:5432/meter";
 
 type Sql = ReturnType<typeof postgres>;
 

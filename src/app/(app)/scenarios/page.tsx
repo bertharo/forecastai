@@ -55,15 +55,39 @@ export default async function ScenariosPage() {
     at: new Date(),
   });
 
+  const savingsPct = delta.baselineCost
+    ? (delta.delta / delta.baselineCost) * 100
+    : 0;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="page-title">Scenarios</h1>
-        <p className="muted mt-1">Named overrides on drivers, prices, routing, and commitments</p>
+      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+        <div
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--muted)" }}
+        >
+          Model a change
+        </div>
+        <p className="mt-2 max-w-3xl text-[16px] font-medium leading-snug">
+          As modeled, Support Copilot lands at{" "}
+          <span style={{ color: "var(--success)" }}>
+            ${(delta.targetCost / 1e6).toFixed(2)}M
+          </span>{" "}
+          monthly —{" "}
+          <span style={{ color: "var(--success)" }}>
+            {savingsPct.toFixed(1)}% vs baseline
+          </span>
+          . That&apos;s{" "}
+          <span style={{ color: "var(--success)" }}>
+            ${Math.abs(delta.delta).toLocaleString(undefined, { maximumFractionDigits: 0 })}{" "}
+            {delta.delta < 0 ? "headroom" : "uplift"}
+          </span>
+          .
+        </p>
       </div>
 
-      <div className="panel p-3">
-        <h2 className="mb-2 text-sm font-medium">Workspace</h2>
+      <div className="panel p-4">
+        <h2 className="mb-2 text-sm font-semibold">Scenario workspace</h2>
         <DataTable
           columns={[
             { key: "name", label: "Scenario" },

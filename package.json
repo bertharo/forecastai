@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bash scripts/ensure-db.sh && next dev",
+    "dev": "bash scripts/dev.sh",
     "build": "next build",
-    "start": "bash scripts/ensure-db.sh && next start",
+    "start": "bash scripts/dev.sh start",
     "lint": "eslint",
     "db:up": "bash scripts/ensure-db.sh",
     "db:generate": "drizzle-kit generate",

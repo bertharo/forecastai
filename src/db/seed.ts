@@ -46,7 +46,17 @@ const rand = mulberry32(42);
 async function clearAll() {
   // Order matters for FKs
   const tables = [
+    s.auditLogs,
+    s.memberships,
+    s.users,
+    s.valueEvents,
+    s.valueMetrics,
+    s.notifications,
+    s.orgWebhooks,
+    s.allocationRuleApplications,
+    s.budgetStatusSnapshots,
     s.budgetAlerts,
+    s.budgetVersions,
     s.budgets,
     s.scenarioResults,
     s.scenarioOverrides,
@@ -62,6 +72,7 @@ async function clearAll() {
     s.seatSnapshots,
     s.connectorSyncRuns,
     s.connectors,
+    s.importBatches,
     s.mappingTemplates,
     s.otelIngestKeys,
     s.allocationRules,
@@ -272,9 +283,9 @@ async function seed() {
     return row;
   };
 
-  // Dimensions: business_unit, team, cost_center
+  // Dimensions: BU → department → team (+ flat cost centers)
   console.log("Seeding dimensions…");
-  const [dtBu, dtTeam, dtCc] = await db
+  const [dtBu, dtDept, dtTeam, dtCc] = await db
     .insert(s.dimensionTypes)
     .values([
       {
@@ -287,11 +298,19 @@ async function seed() {
       },
       {
         orgId: org.id,
+        key: "department",
+        displayName: "Department",
+        isHierarchical: true,
+        isRequired: false,
+        sortOrder: 2,
+      },
+      {
+        orgId: org.id,
         key: "team",
         displayName: "Team",
         isHierarchical: true,
         isRequired: true,
-        sortOrder: 2,
+        sortOrder: 3,
       },
       {
         orgId: org.id,
@@ -299,7 +318,7 @@ async function seed() {
         displayName: "Cost Center",
         isHierarchical: false,
         isRequired: false,
-        sortOrder: 3,
+        sortOrder: 4,
       },
     ])
     .returning();
@@ -313,6 +332,7 @@ async function seed() {
         key: "product",
         displayName: "Product",
         path: "/product",
+        ownerEmail: "vp-product@northstar.demo",
       },
       {
         orgId: org.id,
@@ -320,6 +340,7 @@ async function seed() {
         key: "platform",
         displayName: "Platform",
         path: "/platform",
+        ownerEmail: "vp-platform@northstar.demo",
       },
       {
         orgId: org.id,
@@ -327,15 +348,87 @@ async function seed() {
         key: "gtm",
         displayName: "GTM",
         path: "/gtm",
+        ownerEmail: "vp-gtm@northstar.demo",
       },
     ])
     .returning();
 
+  const [deptProductEng, deptProductSupport, deptPlatformCore, deptGtmField] =
+    await db
+      .insert(s.dimensionNodes)
+      .values([
+        {
+          orgId: org.id,
+          dimensionTypeId: dtDept.id,
+          key: "product-eng",
+          displayName: "Product Engineering",
+          parentId: buProduct.id,
+          path: "/product/product-eng",
+          ownerEmail: "eng-lead@northstar.demo",
+        },
+        {
+          orgId: org.id,
+          dimensionTypeId: dtDept.id,
+          key: "product-support",
+          displayName: "Product Support",
+          parentId: buProduct.id,
+          path: "/product/product-support",
+          ownerEmail: "support-lead@northstar.demo",
+        },
+        {
+          orgId: org.id,
+          dimensionTypeId: dtDept.id,
+          key: "platform-core",
+          displayName: "Platform Core",
+          parentId: buPlatform.id,
+          path: "/platform/platform-core",
+          ownerEmail: "platform-lead@northstar.demo",
+        },
+        {
+          orgId: org.id,
+          dimensionTypeId: dtDept.id,
+          key: "gtm-field",
+          displayName: "GTM Field",
+          parentId: buGtm.id,
+          path: "/gtm/gtm-field",
+          ownerEmail: "gtm-lead@northstar.demo",
+        },
+      ])
+      .returning();
+
   const teamDefs = [
-    { key: "ai-platform", displayName: "AI Platform", parent: buPlatform, path: "/platform/ai-platform", bu: "platform" },
-    { key: "support", displayName: "Support", parent: buProduct, path: "/product/support", bu: "product" },
-    { key: "docs", displayName: "Docs", parent: buProduct, path: "/product/docs", bu: "product" },
-    { key: "sales-eng", displayName: "Sales Engineering", parent: buGtm, path: "/gtm/sales-eng", bu: "gtm" },
+    {
+      key: "ai-platform",
+      displayName: "AI Platform",
+      parent: deptPlatformCore,
+      path: "/platform/platform-core/ai-platform",
+      bu: "platform",
+      dept: "platform-core",
+    },
+    {
+      key: "support",
+      displayName: "Support",
+      parent: deptProductSupport,
+      path: "/product/product-support/support",
+      bu: "product",
+      dept: "product-support",
+    },
+    {
+      key: "docs",
+      displayName: "Docs",
+      parent: deptProductEng,
+      path: "/product/product-eng/docs",
+      bu: "product",
+      dept: "product-eng",
+    },
+    {
+      key: "sales-eng",
+      displayName: "Sales Engineering",
+      parent: deptGtmField,
+      path: "/gtm/gtm-field/sales-eng",
+      bu: "gtm",
+      dept: "gtm-field",
+    },
   ];
 
   const teamRows = await db
@@ -348,17 +441,48 @@ async function seed() {
         displayName: t.displayName,
         parentId: t.parent.id,
         path: t.path,
+        ownerEmail: `${t.key}@northstar.demo`,
       }))
     )
     .returning();
   const team = Object.fromEntries(teamRows.map((r) => [r.key, r]));
+  const deptByKey = {
+    "product-eng": deptProductEng,
+    "product-support": deptProductSupport,
+    "platform-core": deptPlatformCore,
+    "gtm-field": deptGtmField,
+  };
 
   const ccRows = await db
     .insert(s.dimensionNodes)
     .values([
-      { orgId: org.id, dimensionTypeId: dtCc.id, key: "cc-100", displayName: "CC-100 Platform AI", path: "/cc-100" },
-      { orgId: org.id, dimensionTypeId: dtCc.id, key: "cc-220", displayName: "CC-220 Product Copilot", path: "/cc-220" },
-      { orgId: org.id, dimensionTypeId: dtCc.id, key: "cc-310", displayName: "CC-310 GTM", path: "/cc-310" },
+      {
+        orgId: org.id,
+        dimensionTypeId: dtCc.id,
+        key: "cc-100",
+        displayName: "CC-100 Platform AI",
+        path: "/cc-100",
+        costCenterCode: "CC-100",
+        ownerEmail: "finance-platform@northstar.demo",
+      },
+      {
+        orgId: org.id,
+        dimensionTypeId: dtCc.id,
+        key: "cc-220",
+        displayName: "CC-220 Product Copilot",
+        path: "/cc-220",
+        costCenterCode: "CC-220",
+        ownerEmail: "finance-product@northstar.demo",
+      },
+      {
+        orgId: org.id,
+        dimensionTypeId: dtCc.id,
+        key: "cc-310",
+        displayName: "CC-310 GTM",
+        path: "/cc-310",
+        costCenterCode: "CC-310",
+        ownerEmail: "finance-gtm@northstar.demo",
+      },
     ])
     .returning();
   const cc = Object.fromEntries(ccRows.map((r) => [r.key, r]));
@@ -369,28 +493,48 @@ async function seed() {
       name: "Copilot → Support + CC-220",
       priority: 10,
       match: { feature: "support_copilot" },
-      set: { team: "support", cost_center: "cc-220", business_unit: "product" },
+      set: {
+        team: "support",
+        cost_center: "cc-220",
+        business_unit: "product",
+        department: "product-support",
+      },
     },
     {
       orgId: org.id,
       name: "Doc QA → Docs + CC-220",
       priority: 10,
       match: { feature: "doc_qa" },
-      set: { team: "docs", cost_center: "cc-220", business_unit: "product" },
+      set: {
+        team: "docs",
+        cost_center: "cc-220",
+        business_unit: "product",
+        department: "product-eng",
+      },
     },
     {
       orgId: org.id,
       name: "Code assist → AI Platform + CC-100",
       priority: 10,
       match: { feature: "code_assist" },
-      set: { team: "ai-platform", cost_center: "cc-100", business_unit: "platform" },
+      set: {
+        team: "ai-platform",
+        cost_center: "cc-100",
+        business_unit: "platform",
+        department: "platform-core",
+      },
     },
     {
       orgId: org.id,
       name: "Sales email → Sales Eng + CC-310",
       priority: 10,
       match: { feature: "sales_email" },
-      set: { team: "sales-eng", cost_center: "cc-310", business_unit: "gtm" },
+      set: {
+        team: "sales-eng",
+        cost_center: "cc-310",
+        business_unit: "gtm",
+        department: "gtm-field",
+      },
     },
   ]);
 
@@ -577,6 +721,7 @@ async function seed() {
     teamKey: string;
     ccKey: string;
     buKey: string;
+    deptKey: keyof typeof deptByKey;
     // before migration day: primary sku; after: routing split
     migrationDay: number; // days ago
     providerBefore: string;
@@ -595,6 +740,7 @@ async function seed() {
       teamKey: "support",
       ccKey: "cc-220",
       buKey: "product",
+      deptKey: "product-support",
       migrationDay: 100, // ~3 months ago: migrate 80% to haiku
       providerBefore: "anthropic",
       skuBefore: "claude-sonnet-4",
@@ -613,6 +759,7 @@ async function seed() {
       teamKey: "docs",
       ccKey: "cc-220",
       buKey: "product",
+      deptKey: "product-eng",
       migrationDay: -1,
       providerBefore: "openai",
       skuBefore: "gpt-4o",
@@ -628,6 +775,7 @@ async function seed() {
       teamKey: "ai-platform",
       ccKey: "cc-100",
       buKey: "platform",
+      deptKey: "platform-core",
       migrationDay: -1,
       providerBefore: "anthropic",
       skuBefore: "claude-sonnet-4",
@@ -643,6 +791,7 @@ async function seed() {
       teamKey: "sales-eng",
       ccKey: "cc-310",
       buKey: "gtm",
+      deptKey: "gtm-field",
       migrationDay: -1,
       providerBefore: "google",
       skuBefore: "gemini-2.5-flash",
@@ -741,7 +890,7 @@ async function seed() {
               serviceName,
               focusSkuId: route.sku,
               tags,
-              allocationStatus: rand() < 0.06 ? "unallocated" : "allocated",
+              allocationStatus: rand() < 0.15 ? "unallocated" : "allocated",
             },
             lookupLines
           );
@@ -783,6 +932,7 @@ async function seed() {
           if (computed.allocationStatus === "allocated") {
             costDims.push(
               { costIdx, typeId: dtBu.id, nodeId: buNode[f.buKey as keyof typeof buNode].id },
+              { costIdx, typeId: dtDept.id, nodeId: deptByKey[f.deptKey].id },
               { costIdx, typeId: dtTeam.id, nodeId: team[f.teamKey].id },
               { costIdx, typeId: dtCc.id, nodeId: cc[f.ccKey].id }
             );
@@ -797,7 +947,7 @@ async function seed() {
             eventTime.setUTCHours(8 + Math.floor(rand() * 12), Math.floor(rand() * 60));
             const meter = meterByProvKey(route.provider, "input_tokens");
             const eventIdx = eventSample.length;
-            const allocated = rand() >= 0.06;
+            const allocated = rand() >= 0.15;
             eventSample.push({
               orgId: org.id,
               eventTime,
@@ -816,6 +966,7 @@ async function seed() {
             if (allocated) {
               eventDims.push(
                 { eventIdx, typeId: dtBu.id, nodeId: buNode[f.buKey as keyof typeof buNode].id },
+                { eventIdx, typeId: dtDept.id, nodeId: deptByKey[f.deptKey].id },
                 { eventIdx, typeId: dtTeam.id, nodeId: team[f.teamKey].id },
                 { eventIdx, typeId: dtCc.id, nodeId: cc[f.ccKey].id }
               );
@@ -880,6 +1031,7 @@ async function seed() {
         });
         costDims.push(
           { costIdx, typeId: dtBu.id, nodeId: buProduct.id },
+          { costIdx, typeId: dtDept.id, nodeId: deptProductEng.id },
           { costIdx, typeId: dtTeam.id, nodeId: team.docs.id },
           { costIdx, typeId: dtCc.id, nodeId: cc["cc-220"].id }
         );
@@ -895,6 +1047,75 @@ async function seed() {
     const seatsHeavy = 22 + Math.floor(rand() * 8);
     if (dow === 1 || dayOffset === HORIZON) {
       // weekly snapshot
+    }
+  }
+
+  // Clustered unallocated spend for allocation triage demos
+  const unallocClusters: {
+    tags: Record<string, string>;
+    provider: "anthropic" | "openai" | "google";
+    sku: string;
+    days: number;
+    dailyCost: number;
+  }[] = [
+    {
+      tags: {
+        feature: "shadow_eval",
+        api_key: "sk-ant-shadow-***",
+        source: "litellm",
+        environment: "staging",
+      },
+      provider: "anthropic",
+      sku: "claude-sonnet-4",
+      days: 12,
+      dailyCost: 180,
+    },
+    {
+      tags: {
+        feature: "batch_rewrite",
+        api_key: "sk-oai-batch-***",
+        source: "openai_batch",
+        environment: "production",
+      },
+      provider: "openai",
+      sku: "gpt-4o",
+      days: 10,
+      dailyCost: 95,
+    },
+    {
+      tags: {
+        feature: "unknown_gateway",
+        source: "portkey",
+        environment: "dev",
+      },
+      provider: "google",
+      sku: "gemini-2.5-flash",
+      days: 8,
+      dailyCost: 40,
+    },
+  ];
+  for (const cluster of unallocClusters) {
+    for (let d = 0; d < cluster.days; d++) {
+      const day = daysAgo(d);
+      const meter = meterByProvKey(cluster.provider, "input_tokens");
+      costRows.push({
+        orgId: org.id,
+        chargePeriodStart: day,
+        chargePeriodEnd: addDays(day, 1),
+        providerId: p[cluster.provider].id,
+        skuId: sku[cluster.sku].id,
+        meterId: meter.id,
+        serviceName: `${cluster.provider} API`,
+        focusSkuId: cluster.sku,
+        consumedQuantity: String(Math.round(cluster.dailyCost * 400)),
+        consumedUnit: "Tokens",
+        billedCost: String(cluster.dailyCost.toFixed(6)),
+        effectiveCost: String(cluster.dailyCost.toFixed(6)),
+        listUnitPrice: "0",
+        effectiveUnitPrice: "0",
+        tags: cluster.tags,
+        allocationStatus: "unallocated",
+      });
     }
   }
 
@@ -1138,7 +1359,7 @@ async function seed() {
     },
   });
 
-  // Budgets
+  // Budgets (versioned, hierarchical, one projected-breach child)
   const [orgBudget] = await db
     .insert(s.budgets)
     .values({
@@ -1151,51 +1372,118 @@ async function seed() {
     })
     .returning();
 
-  await db.insert(s.budgets).values([
-    {
-      orgId: org.id,
-      name: "CC-220 Product Copilot",
-      amount: "35000",
+  const [ccBudget, teamBudget] = await db
+    .insert(s.budgets)
+    .values([
+      {
+        orgId: org.id,
+        name: "CC-220 Product Copilot",
+        amount: "35000",
+        period: "monthly",
+        scopeType: "dimension",
+        dimensionTypeId: dtCc.id,
+        dimensionNodeId: cc["cc-220"].id,
+        includeDescendants: true,
+        thresholds: [0.8, 1.0],
+        parentBudgetId: orgBudget.id,
+      },
+      {
+        orgId: org.id,
+        name: "AI Platform team",
+        amount: "12000",
+        period: "monthly",
+        scopeType: "dimension",
+        dimensionTypeId: dtTeam.id,
+        dimensionNodeId: team["ai-platform"].id,
+        thresholds: [0.8, 1.0],
+        parentBudgetId: orgBudget.id,
+      },
+    ])
+    .returning();
+
+  const seedPolicy = [
+    { pct: 0.8, action: "advisory_downgrade" as const, recommendedModel: "claude-haiku-3.5" },
+    { pct: 1.0, action: "advisory_block" as const, recommendedModel: "claude-haiku-3.5" },
+  ];
+
+  for (const b of [orgBudget, ccBudget, teamBudget]) {
+    const isOrg = b.id === orgBudget.id;
+    const [ver] = await db
+      .insert(s.budgetVersions)
+      .values({
+        budgetId: b.id,
+        version: 1,
+        amount: b.amount,
+        currency: b.currency,
+        period: b.period,
+        scopeType: b.scopeType,
+        dimensionTypeId: b.dimensionTypeId,
+        dimensionNodeId: b.dimensionNodeId,
+        featureKey: b.featureKey,
+        includeDescendants: b.includeDescendants,
+        thresholds: b.thresholds,
+        policy: seedPolicy,
+        effectiveFrom: daysAgo(45),
+        effectiveTo: isOrg ? daysAgo(20) : null,
+        author: "seed",
+        changeNote: "Initial FY26 budget",
+      })
+      .returning();
+    if (!isOrg) {
+      await db
+        .update(s.budgets)
+        .set({ currentVersionId: ver.id })
+        .where(eq(s.budgets.id, b.id));
+    }
+  }
+
+  const [orgV2] = await db
+    .insert(s.budgetVersions)
+    .values({
+      budgetId: orgBudget.id,
+      version: 2,
+      amount: "85000",
+      currency: "USD",
       period: "monthly",
-      scopeType: "dimension",
-      dimensionTypeId: dtCc.id,
-      dimensionNodeId: cc["cc-220"].id,
-      includeDescendants: true,
-      thresholds: [0.8, 1.0],
-    },
-    {
-      orgId: org.id,
-      name: "AI Platform team",
-      amount: "28000",
-      period: "monthly",
-      scopeType: "dimension",
-      dimensionTypeId: dtTeam.id,
-      dimensionNodeId: team["ai-platform"].id,
-      thresholds: [0.8, 1.0],
-    },
-  ]);
+      scopeType: "org",
+      thresholds: [0.5, 0.8, 1.0],
+      policy: seedPolicy,
+      effectiveFrom: daysAgo(20),
+      author: "seed",
+      changeNote: "Confirmed after Q2 forecast review",
+    })
+    .returning();
+  await db
+    .update(s.budgets)
+    .set({ currentVersionId: orgV2.id })
+    .where(eq(s.budgets.id, orgBudget.id));
 
   await db.insert(s.budgetAlerts).values({
     budgetId: orgBudget.id,
     thresholdPct: "0.8",
     projectedBreachDate: addDays(new Date(), 18).toISOString().slice(0, 10),
     message: "Org AI monthly budget projected to breach in ~18 days at current run rate",
+    policyAction: "advisory_downgrade",
   });
 
   // Connectors
   const connectorDefs = [
-    { provider: "anthropic", tier: 1, status: "healthy", covered: 42, allocated: 94 },
-    { provider: "openai", tier: 1, status: "healthy", covered: 28, allocated: 91 },
-    { provider: "cursor", tier: 1, status: "healthy", covered: 15, allocated: 100 },
-    { provider: "google", tier: 2, status: "degraded", covered: 8, allocated: 72 },
-    { provider: "perplexity", tier: 4, status: "healthy", covered: 4, allocated: 0 },
-    { provider: "replit", tier: 4, status: "disconnected", covered: 0, allocated: 0 },
-    { provider: "lovable", tier: 4, status: "disconnected", covered: 0, allocated: 0 },
-    { provider: "aws_bedrock", tier: 2, status: "disconnected", covered: 0, allocated: 0 },
-    { provider: "azure_openai", tier: 2, status: "disconnected", covered: 0, allocated: 0 },
+    { provider: "anthropic", tier: 1, status: "healthy", covered: 42, allocated: 86, staleHoursAgo: 0 },
+    { provider: "openai", tier: 1, status: "healthy", covered: 28, allocated: 84, staleHoursAgo: 0 },
+    { provider: "cursor", tier: 1, status: "healthy", covered: 15, allocated: 100, staleHoursAgo: 0 },
+    { provider: "google", tier: 2, status: "stale", covered: 8, allocated: 68, staleHoursAgo: 26 },
+    { provider: "perplexity", tier: 4, status: "healthy", covered: 4, allocated: 0, staleHoursAgo: 0 },
+    { provider: "replit", tier: 4, status: "disconnected", covered: 0, allocated: 0, staleHoursAgo: null as number | null },
+    { provider: "lovable", tier: 4, status: "disconnected", covered: 0, allocated: 0, staleHoursAgo: null as number | null },
+    { provider: "aws_bedrock", tier: 2, status: "disconnected", covered: 0, allocated: 0, staleHoursAgo: null as number | null },
+    { provider: "azure_openai", tier: 2, status: "disconnected", covered: 0, allocated: 0, staleHoursAgo: null as number | null },
   ];
 
   for (const c of connectorDefs) {
+    const lastSync =
+      c.staleHoursAgo == null
+        ? null
+        : new Date(Date.now() - c.staleHoursAgo * 3600_000);
     const [conn] = await db
       .insert(s.connectors)
       .values({
@@ -1203,7 +1491,9 @@ async function seed() {
         providerId: p[c.provider].id,
         tier: c.tier,
         status: c.status,
-        lastSyncedAt: c.status === "disconnected" ? null : daysAgo(0),
+        demoMode: c.tier === 1,
+        lastSyncedAt: lastSync,
+        lastSuccessAt: lastSync,
         backfillProgressPct: c.status === "disconnected" ? "0" : "100",
         spendCoveredPct: String(c.covered),
         allocatedPct: String(c.allocated),
@@ -1215,9 +1505,11 @@ async function seed() {
         healthMessage:
           c.status === "healthy"
             ? "Sync OK"
-            : c.status === "degraded"
-              ? "Billing export delayed 12h"
-              : "Not connected",
+            : c.status === "stale"
+              ? "Last synced 26h ago — numbers may be incomplete"
+              : c.status === "degraded"
+                ? "Billing export delayed 12h"
+                : "Not connected",
         authConfig: c.tier === 1 ? { mode: "api_key", mock: true } : { mode: "export" },
       })
       .returning();
@@ -1237,8 +1529,89 @@ async function seed() {
   await db.insert(s.otelIngestKeys).values({
     orgId: org.id,
     keyHash: createHash("sha256").update("meter_demo_otel_key").digest("hex"),
+    keyPrefix: "meter_de",
     label: "Demo OTel ingest",
+    envTag: "prod",
+    createdBy: "seed",
   });
+
+  // System + org mapping templates (WS1a)
+  await db.insert(s.mappingTemplates).values([
+    {
+      orgId: null,
+      providerId: p.anthropic.id,
+      name: "Anthropic console export",
+      sourceFormat: "usage_export",
+      isSystem: true,
+      columnMap: {
+        timestamp: "created_at",
+        provider: "_literal:anthropic",
+        model: "model",
+        meter: "type",
+        quantity: "tokens",
+        cost: "cost_usd",
+        "tags.feature": "workspace",
+      },
+      sampleHeaders: ["created_at", "model", "type", "tokens", "cost_usd", "workspace"],
+    },
+    {
+      orgId: null,
+      providerId: p.openai.id,
+      name: "OpenAI usage export",
+      sourceFormat: "usage_export",
+      isSystem: true,
+      columnMap: {
+        timestamp: "start_time",
+        provider: "_literal:openai",
+        model: "model",
+        meter: "n_context_tokens_total",
+        quantity: "n_context_tokens_total",
+        cost: "cost",
+        "tags.feature": "project_id",
+      },
+      sampleHeaders: ["start_time", "model", "n_context_tokens_total", "cost", "project_id"],
+    },
+    {
+      orgId: null,
+      providerId: null,
+      name: "Generic invoice",
+      sourceFormat: "invoice",
+      isSystem: true,
+      columnMap: {
+        timestamp: "period_end",
+        provider: "vendor",
+        model: "_literal:invoice",
+        meter: "_literal:seats",
+        quantity: "seats",
+        cost: "amount",
+        "tags.source": "_literal:invoice",
+      },
+      sampleHeaders: ["vendor", "period_start", "period_end", "amount", "seats"],
+    },
+    {
+      orgId: null,
+      providerId: null,
+      name: "Org structure (BU / dept / team)",
+      sourceFormat: "org_structure",
+      isSystem: true,
+      columnMap: {
+        node_name: "node_name",
+        parent_name: "parent_name",
+        dimension_type: "dimension_type",
+        cost_center_code: "cost_center_code",
+        owner_email: "owner_email",
+        node_key: "node_key",
+      },
+      sampleHeaders: [
+        "node_name",
+        "parent_name",
+        "dimension_type",
+        "cost_center_code",
+        "owner_email",
+        "node_key",
+      ],
+    },
+  ]);
 
   // Quick spend sanity
   const [{ total }] = await db

@@ -1,7 +1,15 @@
+import { Suspense } from "react";
 import { FanChart } from "@/components/charts/FanChart";
 import { DataTable } from "@/components/DataTable";
+import { FilterBar } from "@/components/FilterBar";
 import { Money } from "@/components/Money";
-import { getDemoOrg } from "@/lib/queries/org";
+import {
+  getCurrentOrg,
+  getDimensionNodes,
+  getDimensionTypes,
+} from "@/lib/queries/org";
+import { parseAnalyticsFilters } from "@/lib/queries/filters";
+import { getFilterOptions } from "@/lib/queries/spend";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
@@ -61,8 +69,25 @@ function demoTree(): { features: FeatureDrivers[]; lines: PriceLine[] } {
   return { features, lines };
 }
 
-export default async function ForecastPage() {
-  const org = await getDemoOrg();
+export default async function ForecastPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const filters = parseAnalyticsFilters(sp);
+  const org = await getCurrentOrg({
+    orgParam: typeof sp.org === "string" ? sp.org : null,
+  });
+
+  const [types, nodes, options] = org
+    ? await Promise.all([
+        getDimensionTypes(org.id),
+        getDimensionNodes(org.id),
+        getFilterOptions(org.id),
+      ])
+    : [[], [], { providers: [], models: [], features: [] }];
+
   const drivers = org
     ? await db
         .select()
@@ -96,26 +121,50 @@ export default async function ForecastPage() {
         .limit(1)
     : [];
 
-  const { features, lines } = demoTree();
+  let { features, lines } = demoTree();
+  if (filters.feature) {
+    features = features.filter((f) => f.featureKey === filters.feature);
+  }
+  if (filters.model) {
+    features = features
+      .map((f) => ({
+        ...f,
+        routes: f.routes.filter((r) => r.skuId === filters.model),
+      }))
+      .filter((f) => f.routes.length > 0);
+  }
+  if (features.length === 0) {
+    features = demoTree().features;
+  }
+
+  const adoptionByFeature: Record<
+    string,
+    { curve: "logistic" | "linear"; current: number; target: number; weeksToSaturation: number }
+  > = {};
+  for (const f of features) {
+    if (f.featureKey === "support_copilot") {
+      adoptionByFeature[f.featureKey] = {
+        curve: "logistic",
+        current: f.adoption,
+        target: 0.45,
+        weeksToSaturation: 26,
+      };
+    } else {
+      adoptionByFeature[f.featureKey] = {
+        curve: "linear",
+        current: f.adoption,
+        target: Math.min(0.9, f.adoption + 0.15),
+        weeksToSaturation: 20,
+      };
+    }
+  }
+
   const forecast = projectForecast({
     start: new Date(),
     horizonDays: 180,
     tree: { features },
     priceLines: lines,
-    adoptionByFeature: {
-      support_copilot: {
-        curve: "logistic",
-        current: 0.28,
-        target: 0.45,
-        weeksToSaturation: 26,
-      },
-      doc_qa: {
-        curve: "linear",
-        current: 0.4,
-        target: 0.55,
-        weeksToSaturation: 20,
-      },
-    },
+    adoptionByFeature,
   });
 
   const chartData = forecast
@@ -130,13 +179,54 @@ export default async function ForecastPage() {
   const dailyBudget = budget ? Number(budget.amount) / 30 : undefined;
   const monthP50 = forecast.slice(0, 30).reduce((a, d) => a + d.p50, 0);
 
+  const filteredDrivers = filters.feature
+    ? drivers.filter((d) => d.featureKey === filters.feature)
+    : drivers;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="page-title">Forecast</h1>
-        <p className="muted mt-1">
-          Driver tree × price cards × commitments — P10 / P50 / P90, never a single point
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="page-title">Forecast</h1>
+          <p className="muted mt-1">
+            {org?.name ?? "No org"} — driver tree × prices × adoption (filter by feature / model)
+          </p>
+        </div>
+        <Suspense fallback={<div className="muted text-[12px]">Loading filters…</div>}>
+          <FilterBar
+            types={types.map((t) => ({
+              id: t.id,
+              key: t.key,
+              displayName: t.displayName,
+            }))}
+            nodes={nodes.map((n) => ({
+              id: n.id,
+              key: n.key,
+              displayName: n.displayName,
+              dimensionTypeId: n.dimensionTypeId,
+              parentId: n.parentId,
+              path: n.path,
+              costCenterCode: n.costCenterCode,
+            }))}
+            providers={options.providers}
+            models={
+              options.models.length
+                ? options.models
+                : [
+                    { skuId: "claude-sonnet-4", name: "Claude Sonnet 4" },
+                    { skuId: "claude-haiku-3.5", name: "Claude Haiku 3.5" },
+                    { skuId: "gpt-4o", name: "GPT-4o" },
+                    { skuId: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+                  ]
+            }
+            features={
+              options.features.length
+                ? options.features
+                : demoTree().features.map((f) => ({ key: f.featureKey }))
+            }
+            showMetric={false}
+          />
+        </Suspense>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -177,7 +267,7 @@ export default async function ForecastPage() {
             { key: "unit", label: "Unit" },
             { key: "value", label: "Latest fitted", align: "right" },
           ]}
-          rows={drivers.map((d) => ({
+          rows={filteredDrivers.map((d) => ({
             name: d.displayName,
             feature: d.featureKey ?? "org",
             unit: d.unit,
