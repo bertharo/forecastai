@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-/** Avoid Recharts ResponsiveContainer measuring 0×0 during SSR. */
+/** Render children only after mount — no next/dynamic bailout digests. */
 export function ClientOnly({
   children,
   fallback = null,
 }: {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   if (!mounted) return <>{fallback}</>;
   return <>{children}</>;
 }

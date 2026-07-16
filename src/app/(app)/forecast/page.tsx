@@ -4,7 +4,7 @@ import { Money } from "@/components/Money";
 import { getDemoOrg } from "@/lib/queries/org";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc } from "drizzle-orm";
 import { projectForecast, type FeatureDrivers, type PriceLine } from "@/lib/forecast/engine";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,7 @@ export default async function ForecastPage() {
         .select()
         .from(s.drivers)
         .where(eq(s.drivers.orgId, org.id))
-        .orderBy(s.drivers.sortOrder)
+        .orderBy(asc(s.drivers.sortOrder))
     : [];
 
   const latestValues = org

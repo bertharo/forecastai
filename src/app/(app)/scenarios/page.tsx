@@ -18,7 +18,16 @@ export default async function ScenariosPage() {
     .from(s.scenarios)
     .where(eq(s.scenarios.orgId, org.id));
 
-  const overrides = await db.select().from(s.scenarioOverrides);
+  const overrides = await db
+    .select({
+      id: s.scenarioOverrides.id,
+      scenarioId: s.scenarioOverrides.scenarioId,
+      overrideType: s.scenarioOverrides.overrideType,
+      payload: s.scenarioOverrides.payload,
+    })
+    .from(s.scenarioOverrides)
+    .innerJoin(s.scenarios, eq(s.scenarioOverrides.scenarioId, s.scenarios.id))
+    .where(eq(s.scenarios.orgId, org.id));
 
   const t0 = new Date("2025-07-01");
   const lines: PriceLine[] = [

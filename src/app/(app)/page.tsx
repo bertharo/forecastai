@@ -29,19 +29,24 @@ export default async function SpendPage({
     getSeatUtilization(org.id),
   ]);
 
-  // Pivot daily by provider
-  const dayMap = new Map<string, Record<string, number | string>>();
+  // Pivot daily by provider — plain JSON only for the client chart
+  const dayMap = new Map<string, Record<string, string | number>>();
   const providerKeys = new Set<string>();
   for (const row of summary.daily) {
+    const day = String(row.day);
     providerKeys.add(row.provider);
-    const cur = dayMap.get(row.day) ?? { day: row.day };
+    const cur = dayMap.get(day) ?? { day };
     cur[row.provider] = Number(row.effective);
-    dayMap.set(row.day, cur);
+    dayMap.set(day, cur);
   }
-  const stacked = [...dayMap.values()].sort((a, b) =>
-    String(a.day).localeCompare(String(b.day))
-  );
   const keys = [...providerKeys];
+  const stacked = [...dayMap.values()]
+    .sort((a, b) => String(a.day).localeCompare(String(b.day)))
+    .map((row) => {
+      const out: Record<string, string | number> = { day: String(row.day) };
+      for (const k of keys) out[k] = Number(row[k] ?? 0);
+      return out;
+    });
 
   return (
     <div className="space-y-5">
@@ -51,7 +56,19 @@ export default async function SpendPage({
           <p className="muted mt-1">Run rate, MTD vs budget, allocation health</p>
         </div>
         <Suspense fallback={null}>
-          <SliceFilter types={types} nodes={nodes} />
+          <SliceFilter
+            types={types.map((t) => ({
+              id: t.id,
+              key: t.key,
+              displayName: t.displayName,
+            }))}
+            nodes={nodes.map((n) => ({
+              id: n.id,
+              key: n.key,
+              displayName: n.displayName,
+              dimensionTypeId: n.dimensionTypeId,
+            }))}
+          />
         </Suspense>
       </div>
 
