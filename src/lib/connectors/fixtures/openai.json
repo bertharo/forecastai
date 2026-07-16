@@ -1,0 +1,32 @@
+{
+  "projects": ["proj_docs", "proj_embeddings"],
+  "usage": [
+    {
+      "timestamp": "2026-07-15T12:00:00Z",
+      "id": "oai_001",
+      "model": "gpt-4o",
+      "input_tokens": 3000,
+      "output_tokens": 600,
+      "project_id": "proj_docs",
+      "feature": "doc_qa"
+    },
+    {
+      "timestamp": "2026-07-15T12:01:00Z",
+      "id": "oai_002",
+      "model": "text-embedding-3-small",
+      "input_tokens": 800,
+      "output_tokens": 0,
+      "project_id": "proj_embeddings",
+      "feature": "doc_qa"
+    },
+    {
+      "timestamp": "2026-07-14T08:00:00Z",
+      "id": "oai_003",
+      "model": "gpt-4o",
+      "input_tokens": 1500,
+      "output_tokens": 400,
+      "project_id": "proj_docs",
+      "feature": "unallocated"
+    }
+  ]
+}

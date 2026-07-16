@@ -1,0 +1,45 @@
+{
+  "workspaces": ["prod", "staging"],
+  "usage": [
+    {
+      "timestamp": "2026-07-15T10:00:00Z",
+      "model": "claude-sonnet-4",
+      "input_tokens": 2100,
+      "output_tokens": 480,
+      "request_id": "req_anth_001",
+      "workspace": "prod",
+      "api_key_id": "key_support",
+      "feature": "support_copilot"
+    },
+    {
+      "timestamp": "2026-07-15T10:05:00Z",
+      "model": "claude-haiku-3.5",
+      "input_tokens": 1600,
+      "output_tokens": 320,
+      "request_id": "req_anth_002",
+      "workspace": "prod",
+      "api_key_id": "key_support",
+      "feature": "support_copilot"
+    },
+    {
+      "timestamp": "2026-07-15T11:00:00Z",
+      "model": "claude-sonnet-4",
+      "input_tokens": 4200,
+      "output_tokens": 1100,
+      "request_id": "req_anth_003",
+      "workspace": "prod",
+      "api_key_id": "key_platform",
+      "feature": "code_assist"
+    },
+    {
+      "timestamp": "2026-07-14T09:00:00Z",
+      "model": "claude-sonnet-4",
+      "input_tokens": 900,
+      "output_tokens": 200,
+      "request_id": "req_anth_004",
+      "workspace": "staging",
+      "api_key_id": "key_unknown",
+      "feature": "unallocated"
+    }
+  ]
+}

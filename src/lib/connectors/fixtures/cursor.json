@@ -1,0 +1,13 @@
+{
+  "as_of": "2026-07-15T00:00:00Z",
+  "seats_purchased": 180,
+  "seats_active": 92,
+  "seats_heavy": 28,
+  "members": [
+    { "email": "ava@northstar.dev", "premium_requests": 420, "heavy": true },
+    { "email": "ben@northstar.dev", "premium_requests": 380, "heavy": true },
+    { "email": "cai@northstar.dev", "premium_requests": 90, "heavy": false },
+    { "email": "dee@northstar.dev", "premium_requests": 12, "heavy": false },
+    { "email": "eli@northstar.dev", "premium_requests": 0, "heavy": false }
+  ]
+}
