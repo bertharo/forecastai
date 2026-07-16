@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { DataTable } from "@/components/DataTable";
 import { SliceFilter } from "@/components/SliceFilter";
 import { StackedSpend } from "@/components/charts/StackedSpend";
+import { assertDb } from "@/db";
 import { getDemoOrg, getDimensionNodes, getDimensionTypes } from "@/lib/queries/org";
 import { getSeatUtilization, getSpendSummary } from "@/lib/queries/spend";
 import { pct, usd } from "@/lib/format";
@@ -14,6 +15,7 @@ export default async function SpendPage({
   searchParams: Promise<{ dim?: string; node?: string }>;
 }) {
   try {
+    await assertDb();
     const sp = await searchParams;
     const org = await getDemoOrg();
     if (!org) {
