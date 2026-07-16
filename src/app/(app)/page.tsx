@@ -3,6 +3,7 @@ import { Money } from "@/components/Money";
 import { DataTable } from "@/components/DataTable";
 import { SliceFilter } from "@/components/SliceFilter";
 import { StackedSpend } from "@/components/charts/StackedSpend";
+import { assertDb } from "@/db";
 import { getDemoOrg, getDimensionNodes, getDimensionTypes } from "@/lib/queries/org";
 import { getSeatUtilization, getSpendSummary } from "@/lib/queries/spend";
 import { pct } from "@/lib/format";
@@ -15,6 +16,7 @@ export default async function SpendPage({
   searchParams: Promise<{ dim?: string; node?: string }>;
 }) {
   const sp = await searchParams;
+  await assertDb();
   const org = await getDemoOrg();
   if (!org) {
     return <p className="muted">No org — run npm run db:seed</p>;
