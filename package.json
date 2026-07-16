@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "bash scripts/ensure-db.sh && next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "bash scripts/ensure-db.sh && next start",
     "lint": "eslint",
+    "db:up": "bash scripts/ensure-db.sh",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
-    "db:setup": "drizzle-kit push && tsx src/db/seed.ts",
+    "db:setup": "bash scripts/ensure-db.sh && drizzle-kit push && tsx src/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

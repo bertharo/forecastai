@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meter-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: meter
+      POSTGRES_PASSWORD: meter
+      POSTGRES_DB: meter
+    volumes:
+      - meter_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meter -d meter"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  meter_pgdata:
