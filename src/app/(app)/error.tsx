@@ -7,8 +7,11 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const full = [error.message, error.digest ? `digest=${error.digest}` : null]
+    .filter(Boolean)
+    .join("\n");
   const isDb =
-    /ECONNREFUSED|connect|postgres|DATABASE/i.test(error.message) ||
+    /ECONNREFUSED|connect|postgres|DATABASE|unavailable/i.test(full) ||
     /ECONNREFUSED|connect|postgres|DATABASE/i.test(String(error.cause ?? ""));
 
   return (
@@ -27,12 +30,12 @@ export default function AppError({
         )}
       </p>
       <pre
-        className="mono max-w-lg overflow-auto p-2 text-left text-[11px]"
+        className="mono max-w-lg overflow-auto whitespace-pre-wrap p-2 text-left text-[11px]"
         style={{ background: "var(--panel)", border: "1px solid var(--border)" }}
       >
-        {error.message}
+        {full}
       </pre>
-      <button type="button" className="btn" onClick={reset}>
+      <button type="button" className="btn" onClick={() => reset()}>
         Reload
       </button>
     </div>

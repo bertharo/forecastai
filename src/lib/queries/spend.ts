@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { and, eq, gte, lt, sql, desc } from "drizzle-orm";
+import { and, eq, gte, sql, desc } from "drizzle-orm";
 
 function monthStart(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
