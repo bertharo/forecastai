@@ -12,6 +12,11 @@ const TABS = [
     match: (p: string, tab: string | null) => p === "/" && tab === "breakdown",
   },
   {
+    href: "/ai-cost",
+    label: "AI cost",
+    match: (p: string) => p.startsWith("/ai-cost"),
+  },
+  {
     href: "/scenarios",
     label: "Model a change",
     match: (p: string) => p.startsWith("/scenarios") || p.startsWith("/model-switch"),

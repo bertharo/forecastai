@@ -1,22 +1,23 @@
-# Meter — Product & Phase 2 status
+# Meter — Product status (Phase 2 + Phase 3 AI cost)
 
 **Live:** https://forecastai-delta.vercel.app  
 **Repo:** https://github.com/bertharo/forecastai  
 **Stack:** Next.js App Router · TypeScript · Postgres (Neon) · Drizzle · Recharts · Vercel  
 
-Demo org: **Northstar Analytics** — ~6 months seeded spend (~$76k effective), hierarchy, budgets, connectors, unallocated clusters.
+Demo org: **Northstar Analytics** — ~6 months seeded spend (~$76k effective), hierarchy, budgets, connectors, unallocated clusters, **contributors + mock GitHub PRs + coding-tool AI cost grains**.
 
 ---
 
 ## Quick demo path
 
-1. Open [Spend](https://forecastai-delta.vercel.app/) — KPIs, filters, allocation sparkline  
-2. Filter org slice with the **tree picker** (BU → dept → team); parent nodes roll up subtree  
-3. [Allocation](https://forecastai-delta.vercel.app/allocation) — cluster unallocated spend → assign or create rule  
-4. [Budgets](https://forecastai-delta.vercel.app/budgets) — burn-down, P50 breach, reallocate  
-5. [Connectors](https://forecastai-delta.vercel.app/connectors) — OTel keys, gateway snippets, Anthropic key form  
-6. [Import](https://forecastai-delta.vercel.app/import) — usage CSV + org-structure CSV  
-7. [Onboarding](https://forecastai-delta.vercel.app/onboarding) — create a new org end-to-end  
+1. Open [Home / Brief](https://forecastai-delta.vercel.app/) — forecast + AI cost/PR KPI  
+2. [AI cost](https://forecastai-delta.vercel.app/ai-cost) — coding-tool spend by tool / team / person; click KPIs for provenance  
+3. [Connectors](https://forecastai-delta.vercel.app/connectors) — people CSV, GitHub PAT/demo PRs, Claude/Cursor sync, DX CSV import  
+4. Filter org slice with the **tree picker** (BU → dept → team); parent nodes roll up subtree  
+5. [Allocation](https://forecastai-delta.vercel.app/allocation) — cluster unallocated spend → assign or create rule  
+6. [Budgets](https://forecastai-delta.vercel.app/budgets) — burn-down, P50 breach, reallocate  
+7. [Import](https://forecastai-delta.vercel.app/import) — usage CSV + org-structure CSV  
+8. [Onboarding](https://forecastai-delta.vercel.app/onboarding) — create / claim a workspace  
 
 ```bash
 # Smoke OTel ingest (Northstar demo key)
@@ -40,16 +41,17 @@ curl -X POST https://forecastai-delta.vercel.app/api/otel/v1/traces \
 
 | Route | What it does |
 |-------|----------------|
-| `/` **Spend** | MTD / run rate / budget used / % allocated (+ 30d sparkline, per-connector %). Breakdowns by provider, model, feature, team. 60d stacked chart, anomalies, Cursor seat util. Stale-connector banner. |
+| `/` **Home** | Brief / By org / Breakdown. Forecast vs plan, **AI cost per merged PR** (provenance), attention cards. |
+| `/ai-cost` **AI cost** | Coding-tool spend by tool / team / contributor; cost/PR via `computeMetric`; Claude/demo sync. |
 | `/forecast` **Forecast** | Driver tree × prices × adoption → P10/P50/P90 fan chart (180d). |
 | `/scenarios` **Scenarios** | Baseline vs overrides; commitment optimizer panel. |
 | `/model-switch` **Model Switch** | Interactive routing + verbosity; quality/latency notes required. |
 | `/price-cards` **Price Cards** | Versioned cards + Anthropic cut diff. |
 | `/budgets` **Budgets** | Versioned control plane: burn-down (actual / pro-rata / P50), projected breach, status, reallocate, version history, alerts. |
 | `/allocation` **Allocation** | Unallocated spend clustered by provider/model/feature/api_key/source; bulk select; assign once or create retroactive rule (preview Δ allocated %). |
-| `/import` **Import** | CSV/JSONL usage import (templates, preview, rollback) + org-structure hierarchy CSV. |
-| `/connectors` **Connectors** | Tier badges, sync status, Anthropic live/demo sync + encrypted key, OTel key lifecycle, LiteLLM/Portkey/Helicone snippets. |
-| `/onboarding` **Onboarding** | Create org → dimensions (+ org CSV) → OTel key → test span. |
+| `/import` **Import** | CSV/JSONL usage import (templates, preview, rollback) + org-structure hierarchy CSV. Auto-selects usage template (not org-structure) from headers. |
+| `/connectors` **Sources** | Billing connectors + **people**, **GitHub**, **coding tools**, **DX CSV import**, OTel keys, gateway snippets. |
+| `/onboarding` **Workspaces** | Create / claim workspace → dimensions → OTel key → test span. |
 
 ---
 
@@ -66,14 +68,15 @@ curl -X POST https://forecastai-delta.vercel.app/api/otel/v1/traces \
 
 ---
 
-## Organizations & hierarchy
+## Workspaces (no user accounts yet)
 
-- Multi-org via cookie `meter_org` + sidebar switcher  
-- Northstar hierarchy: **BU → department → team** + flat **cost centers** (codes + owner emails)  
-- Org-structure CSV: `node_name, parent_name, dimension_type, cost_center_code, owner_email`  
-  - Validates cycles/orphans, previews tree, then commits  
-  - IdP adapter contract documented for future Okta/Workday (not live sync yet)  
-- New orgs via Onboarding get starter dims + OTel key (shown once)
+- Each person **creates a workspace** under **Workspaces** — data (spend, budgets, connectors, imports) is scoped to that workspace only  
+- Browser stores an httpOnly **workspace registry** (`meter_ws`) of `{ id, token }`; only those workspaces appear in the switcher  
+- Access token shown **once** at create — paste it on another browser via **Open an existing workspace** (`POST /api/orgs/claim`)  
+- No URL `?org=` override; no “fall back to first org in the DB”  
+- Demo Northstar (after seed): claim with token `ws_demo_northstar`  
+- Hierarchy: **BU → department → team** + flat **cost centers**  
+- Org-structure CSV + IdP adapter contract (Okta/Workday sync not live)
 
 ---
 
@@ -157,6 +160,23 @@ Seed includes ~15% unallocated plus clustered patterns (`shadow_eval` / LiteLLM,
 | `GET`/`POST` | `/api/allocation/rules` | List / preview / apply rules |
 | `GET` | `/api/budgets/status` | Fast gateway status |
 | `GET`/`POST` | `/api/budgets` | Refresh / version / reallocate |
+| `GET`/`POST` | `/api/contributors` | List / upsert / CSV people |
+| `GET`/`POST` | `/api/scm/github` | GitHub PAT connect / live sync / demo PRs |
+| `POST` | `/api/ai-tools/sync` | Coding-tool demo / Claude / DX CSV |
+| `GET` | `/api/ai-cost/summary` | AI cost KPIs + breakdowns |
+
+---
+
+## AI cost (Phase 3 — DX replacement path)
+
+Win **“drop DX for AI spend”** — not full DORA.
+
+1. **People** (`contributors`) mapped to teams  
+2. **Coding-tool daily grains** (`ai_tool_daily`) from Claude/Cursor/Copilot demo, Anthropic Admin, or DX CSV  
+3. **GitHub merged PRs** → cost per PR (`computeMetric` + clickable `<Metric>` provenance)  
+4. Overlap warning when multiple sources write the same tool/day  
+
+Fixtures: `fixtures/contributors.csv`, `fixtures/dx-ai-metrics.csv` (see `fixtures/README.md`).
 
 ---
 
@@ -170,22 +190,26 @@ Seed includes ~15% unallocated plus clustered patterns (`shadow_eval` / LiteLLM,
 - **Price cards** — versioned, time-travel pricing  
 - Forecast **drivers**, **scenarios**, **commitments**  
 - **Budgets** + versions + status snapshots + alerts  
+- **Phase 3:** `contributors`, `scm_connections`, `pull_requests`, `ai_tool_daily`, `ai_sessions`, `ai_tool_source_prefs`  
 - Stubbed for later: `users` / `memberships` / `audit_logs`, `value_metrics` / `value_events`, `org_webhooks`
 
 ---
 
-## Phase 2 progress
+## Phase progress
 
 | Workstream | Status |
 |------------|--------|
 | **WS1** Real data paths (import, Anthropic live, OTel keys) | Done |
 | **WS2** Hierarchy roll-up, tree picker, allocation triage, org CSV | Done |
 | **WS3** Versioned budgets, burn-down, status API, alerts | Done |
-| **WS4** `computeMetric()` + `<Metric>` provenance | Not started |
-| **WS5** Value metrics / ROI (`/roi`) | Blocked on WS4 |
+| **Phase 3A** Contributors + GitHub + cost/PR | Done |
+| **Phase 3B** Coding-tool connectors → `ai_tool_daily` | Done (demo + Claude Admin fallback) |
+| **Phase 3C** AI cost report + Brief + `computeMetric` / `<Metric>` | Done (minimal provenance) |
+| **Phase 3D** DX CSV import + fixtures | Done |
+| **WS5** Value metrics / ROI (`/roi`) | Next (provenance path exists for AI KPIs) |
 | **WS6** Auth.js / RBAC / `/audit` / `DEMO_MODE` | Not started |
 
-Prod (Neon `ep-silent-pine…` + Vercel) has Phase 2 schema + Northstar seed as of last deploy.
+Prod: push Phase 3 schema + re-seed Northstar after deploy (`drizzle-kit push` + `npm run db:seed`).
 
 ---
 
@@ -211,10 +235,10 @@ Optional: `METER_CREDENTIALS_KEY` for connector credential encryption (dev has a
 ## Not built yet
 
 - Auth / SSO / roles (WS6)  
-- Calculation provenance layer (WS4)  
-- ROI / value metrics UI (WS5)  
+- Full ROI / value metrics UI (WS5) — AI cost provenance is live; broader ROI not  
+- Live Cursor / Copilot enterprise APIs (demo grains today)  
 - Meter billing for tenants  
 - Real-time streaming (batch/hourly is fine)  
-- Model quality evals  
+- Model quality evals / full DORA  
 - Full hyperscaler CUR / Azure / GCP adapters (stubs only)  
 - Live Okta / Workday org sync (CSV + adapter contract only)

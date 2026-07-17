@@ -76,9 +76,7 @@ export default async function ForecastPage({
 }) {
   const sp = await searchParams;
   const filters = parseAnalyticsFilters(sp);
-  const org = await getCurrentOrg({
-    orgParam: typeof sp.org === "string" ? sp.org : null,
-  });
+  const org = await getCurrentOrg();
 
   const [types, nodes, options] = org
     ? await Promise.all([

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentOrg } from "@/lib/queries/org";
+import { assertBudgetInOrg, getCurrentOrg } from "@/lib/queries/org";
 import {
   createBudgetVersion,
   hierarchyWarnings,
@@ -57,6 +57,9 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
+      if (!(await assertBudgetInOrg(body.budgetId, org.id))) {
+        return NextResponse.json({ error: "Budget not in this workspace" }, { status: 403 });
+      }
       const ver = await createBudgetVersion(body.budgetId, {
         amount: body.amount,
         changeNote: body.changeNote,
@@ -70,6 +73,12 @@ export async function POST(req: Request) {
           { error: "fromBudgetId, toBudgetId, amount required" },
           { status: 400 }
         );
+      }
+      if (
+        !(await assertBudgetInOrg(body.fromBudgetId, org.id)) ||
+        !(await assertBudgetInOrg(body.toBudgetId, org.id))
+      ) {
+        return NextResponse.json({ error: "Budget not in this workspace" }, { status: 403 });
       }
       const result = await reallocateBudgets({
         fromBudgetId: body.fromBudgetId,

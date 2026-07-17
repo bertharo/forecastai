@@ -16,9 +16,11 @@ export default function OnboardingPage() {
     null
   );
   const [otelKey, setOtelKey] = useState<string | null>(null);
+  const [workspaceToken, setWorkspaceToken] = useState<string | null>(null);
+  const [claimToken, setClaimToken] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
 
-  async function createOrg() {
+  async function createWorkspace() {
     setBusy(true);
     setError(null);
     try {
@@ -28,9 +30,32 @@ export default function OnboardingPage() {
         body: JSON.stringify({ name }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create org");
+      if (!res.ok) throw new Error(data.error || "Failed to create workspace");
       setOrg(data.org);
       setOtelKey(data.otelKey);
+      setWorkspaceToken(data.workspaceToken ?? null);
+      setStep(2);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function claimWorkspace() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/orgs/claim", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: claimToken.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Claim failed");
+      setOrg(data.org);
+      setWorkspaceToken(claimToken.trim());
       setStep(2);
       router.refresh();
     } catch (e) {
@@ -83,25 +108,31 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <div>
-        <h1 className="page-title">Onboarding</h1>
-        <p className="muted mt-1">
-          Create an org, get an OTel key, send a test span, then open Spend
+      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+        <div
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--muted)" }}
+        >
+          Workspaces
+        </div>
+        <p className="mt-2 text-[16px] font-medium leading-snug">
+          Each workspace keeps its own spend, budgets, and connectors. No user accounts —
+          this browser holds an access token so data stays private to you.
         </p>
       </div>
 
       <ol className="flex flex-wrap gap-2 text-[11px]">
-        {(["Org", "Dimensions", "Telemetry", "Done"] as const).map((label, i) => {
+        {(["Workspace", "Dimensions", "Telemetry", "Done"] as const).map((label, i) => {
           const n = (i + 1) as Step;
           const active = step === n;
           return (
             <li
               key={label}
-              className="rounded px-2 py-1"
+              className="rounded-full px-2.5 py-1"
               style={{
-                background: active ? "var(--accent-dim)" : "var(--panel)",
+                background: active ? "#12141a" : "var(--panel)",
                 border: "1px solid var(--border)",
-                color: active ? "var(--text)" : "var(--muted)",
+                color: active ? "#fff" : "var(--muted)",
               }}
             >
               {n}. {label}
@@ -112,55 +143,91 @@ export default function OnboardingPage() {
 
       {error && (
         <div
-          className="panel p-3 text-[12px]"
-          style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+          className="soft-card text-[13px]"
+          style={{ background: "#ffe8e8", color: "var(--danger)" }}
         >
           {error}
         </div>
       )}
 
       {step === 1 && (
-        <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium">1. Create organization</h2>
-          <p className="muted text-[12px]">
-            Starts with business unit, team, and cost center dimensions plus a starter
-            allocation rule for <span className="mono">support_copilot</span>.
-          </p>
-          <label className="block text-[12px]">
-            Org name
+        <div className="space-y-3">
+          <div className="panel space-y-3 p-4">
+            <h2 className="text-sm font-semibold">Create a workspace</h2>
+            <p className="muted text-[13px]">
+              Starts empty with business unit, department, team, and cost center dimensions
+              plus a starter allocation rule.
+            </p>
+            <label className="block text-[13px]">
+              Workspace name
+              <input
+                className="select mt-1 w-full"
+                placeholder="Acme AI"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || name.trim().length < 2}
+              onClick={() => void createWorkspace()}
+            >
+              {busy ? "Creating…" : "Create workspace"}
+            </button>
+          </div>
+
+          <div className="panel space-y-3 p-4">
+            <h2 className="text-sm font-semibold">Open an existing workspace</h2>
+            <p className="muted text-[13px]">
+              Paste the workspace access token (shown once at create, or from seed for the
+              Northstar demo).
+            </p>
             <input
-              className="select mt-1 w-full"
-              placeholder="Acme AI"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              className="select w-full mono text-[12px]"
+              placeholder="ws_…"
+              value={claimToken}
+              onChange={(e) => setClaimToken(e.target.value)}
             />
-          </label>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy || name.trim().length < 2}
-            onClick={() => void createOrg()}
-          >
-            {busy ? "Creating…" : "Create org"}
-          </button>
-          <p className="muted text-[11px]">
-            Or stay on the seeded demo: switch to <span className="mono">Northstar Analytics</span>{" "}
-            in the sidebar.
-          </p>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy || claimToken.trim().length < 8}
+              onClick={() => void claimWorkspace()}
+            >
+              Open workspace
+            </button>
+          </div>
         </div>
       )}
 
       {step === 2 && org && (
         <div className="space-y-3">
           <div className="panel space-y-3 p-4">
-            <h2 className="text-sm font-medium">2. Dimensions ready</h2>
-            <p className="muted text-[12px]">
-              <span className="mono">{org.name}</span> has{" "}
-              <span className="mono">business_unit</span>,{" "}
-              <span className="mono">department</span>, <span className="mono">team</span>, and{" "}
-              <span className="mono">cost_center</span>. Optionally import a fuller hierarchy
-              from CSV (Okta/Workday exports map onto the same adapter).
+            <h2 className="text-sm font-semibold">Workspace ready</h2>
+            <p className="muted text-[13px]">
+              <span className="font-medium" style={{ color: "var(--text)" }}>
+                {org.name}
+              </span>{" "}
+              is active on this browser. Data you import or ingest lands only here.
             </p>
+            {workspaceToken && (
+              <div>
+                <div className="mb-1 text-[12px] font-semibold">
+                  Workspace access token (save this)
+                </div>
+                <pre
+                  className="mono overflow-auto p-2 text-[11px]"
+                  style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+                >
+                  {workspaceToken}
+                </pre>
+                <p className="muted mt-1 text-[11px]">
+                  Use it on another browser via Orgs → Open existing workspace. We don&apos;t
+                  show it again.
+                </p>
+              </div>
+            )}
             <button type="button" className="btn" onClick={() => setStep(3)}>
               Continue to telemetry
             </button>
@@ -169,57 +236,63 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {step === 3 && otelKey && (
+      {step === 3 && (
         <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium">3. Connect telemetry (OTel)</h2>
-          <p className="muted text-[12px]">
-            Use this key once — store it in your secrets manager. Spans become usage events,
-            cost records, and dimension allocations.
-          </p>
-          <pre
-            className="mono overflow-auto p-2 text-[11px]"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-          >
-            {otelKey}
-          </pre>
-          <pre
-            className="mono overflow-auto p-2 text-[10px]"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-          >{`curl -X POST ${typeof window !== "undefined" ? window.location.origin : ""}/api/otel/v1/traces \\
-  -H 'content-type: application/json' \\
-  -H 'x-meter-key: ${otelKey}' \\
-  -d '{"spans":[{"gen_ai.system":"anthropic","gen_ai.request.model":"claude-sonnet-4","gen_ai.usage.input_tokens":800,"gen_ai.usage.output_tokens":200,"tags":{"feature":"support_copilot","team":"support"}}]}'`}</pre>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void sendTestSpan()}
-            >
-              {busy ? "Sending…" : "Send test span"}
-            </button>
-            <button type="button" className="btn" onClick={() => setStep(4)}>
-              Skip for now
-            </button>
-          </div>
+          <h2 className="text-sm font-semibold">Connect telemetry (OTel)</h2>
+          {otelKey ? (
+            <>
+              <p className="muted text-[13px]">
+                Use this key once — store it in your secrets manager. Spans become usage,
+                cost, and allocations <strong>only in this workspace</strong>.
+              </p>
+              <pre
+                className="mono overflow-auto p-2 text-[11px]"
+                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
+              >
+                {otelKey}
+              </pre>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void sendTestSpan()}
+                >
+                  {busy ? "Sending…" : "Send test span"}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => setStep(4)}>
+                  Skip for now
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted text-[13px]">
+                You opened an existing workspace — create a new OTel key under Data &amp;
+                sources, or continue.
+              </p>
+              <button type="button" className="btn" onClick={() => setStep(4)}>
+                Continue
+              </button>
+            </>
+          )}
         </div>
       )}
 
       {step === 4 && (
         <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium">4. You&apos;re in</h2>
-          {testResult && <p className="text-[12px]">{testResult}</p>}
-          <p className="muted text-[12px]">
-            Open Spend and filter by team / feature / model. Tag every span with{" "}
-            <span className="mono">feature</span> and <span className="mono">team</span> so
-            allocation rules fire.
+          <h2 className="text-sm font-semibold">You&apos;re in</h2>
+          {testResult && <p className="text-[13px]">{testResult}</p>}
+          <p className="muted text-[13px]">
+            Open Brief for this workspace only. Import CSV or sync connectors — nothing
+            crosses into other workspaces.
           </p>
           <div className="flex flex-wrap gap-2">
             <a className="btn" href="/">
-              Go to Spend
+              Go to Brief
             </a>
-            <a className="btn" href="/connectors">
-              View connectors
+            <a className="btn btn-ghost" href="/connectors">
+              Data &amp; sources
             </a>
           </div>
         </div>

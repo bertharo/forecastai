@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  IconAiCost,
   IconAlerts,
   IconHome,
   IconOrgs,
@@ -14,8 +15,9 @@ import {
 
 const NAV = [
   { href: "/", label: "Home", icon: IconHome, match: (p: string) => p === "/" || p.startsWith("/?"), exact: true },
-  { href: "/onboarding", label: "Orgs", icon: IconOrgs },
+  { href: "/onboarding", label: "Workspaces", icon: IconOrgs },
   { href: "/budgets", label: "Plan", icon: IconPlan },
+  { href: "/ai-cost", label: "AI cost", icon: IconAiCost },
   { href: "/scenarios", label: "Scenarios", icon: IconScenarios },
   { href: "/connectors", label: "Sources", icon: IconSources },
   { href: "/allocation", label: "Alerts", icon: IconAlerts },

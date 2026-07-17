@@ -3,7 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { listOrgs } from "@/lib/queries/org";
-import { ORG_COOKIE, ORG_COOKIE_MAX_AGE } from "@/lib/org/cookie";
+import {
+  ORG_COOKIE,
+  ORG_COOKIE_MAX_AGE,
+  parseWorkspaceRegistry,
+  serializeWorkspaceRegistry,
+  upsertWorkspaceEntry,
+  WS_REGISTRY_COOKIE,
+} from "@/lib/org/cookie";
+import { hashWorkspaceToken, mintWorkspaceToken } from "@/lib/org/access";
+import { eq } from "drizzle-orm";
 
 function slugify(name: string): string {
   return name
@@ -13,12 +22,36 @@ function slugify(name: string): string {
     .slice(0, 48);
 }
 
+function setWorkspaceCookies(
+  res: NextResponse,
+  req: NextRequest,
+  entry: { id: string; token: string }
+) {
+  const registry = upsertWorkspaceEntry(
+    parseWorkspaceRegistry(req.cookies.get(WS_REGISTRY_COOKIE)?.value),
+    entry
+  );
+  res.cookies.set(ORG_COOKIE, entry.id, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: ORG_COOKIE_MAX_AGE,
+  });
+  res.cookies.set(WS_REGISTRY_COOKIE, serializeWorkspaceRegistry(registry), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: ORG_COOKIE_MAX_AGE,
+  });
+}
+
+/** List only workspaces this browser owns. */
 export async function GET() {
   const orgs = await listOrgs();
   return NextResponse.json({ orgs });
 }
 
-/** Create org + default dimensions + OTel ingest key. */
+/** Create a private workspace + access token (shown once). */
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     name?: string;
@@ -30,14 +63,23 @@ export async function POST(req: NextRequest) {
   }
   let slug = (body.slug ?? slugify(name)).trim() || slugify(name);
 
-  const existing = await listOrgs();
-  if (existing.some((o) => o.slug === slug)) {
+  const [slugTaken] = await db
+    .select({ id: s.organizations.id })
+    .from(s.organizations)
+    .where(eq(s.organizations.slug, slug))
+    .limit(1);
+  if (slugTaken) {
     slug = `${slug}-${randomBytes(2).toString("hex")}`;
   }
 
+  const accessToken = mintWorkspaceToken();
   const [org] = await db
     .insert(s.organizations)
-    .values({ name, slug })
+    .values({
+      name,
+      slug,
+      accessTokenHash: hashWorkspaceToken(accessToken),
+    })
     .returning();
 
   const dimDefs = [
@@ -62,7 +104,6 @@ export async function POST(req: NextRequest) {
     typeIds[d.key] = t.id;
   }
 
-  // Starter hierarchy: BU → department → team
   const [buProduct] = await db
     .insert(s.dimensionNodes)
     .values({
@@ -141,7 +182,6 @@ export async function POST(req: NextRequest) {
     createdBy: "onboarding",
   });
 
-  // Seed default connector stubs when catalog exists (after db:seed)
   const providers = await db.select().from(s.providers);
   for (const p of providers.filter((x) =>
     ["anthropic", "openai", "cursor"].includes(x.key)
@@ -154,9 +194,10 @@ export async function POST(req: NextRequest) {
         status: "never_synced",
         authConfig: { mock: true },
         spendCoveredPct: "0",
+        demoMode: true,
       });
     } catch {
-      // ignore duplicate / missing catalog
+      /* ignore */
     }
   }
 
@@ -164,12 +205,9 @@ export async function POST(req: NextRequest) {
     ok: true,
     org: { id: org.id, name: org.name, slug: org.slug },
     otelKey: rawKey,
+    /** Shown once — store it to open this workspace on another browser. */
+    workspaceToken: accessToken,
   });
-  res.cookies.set(ORG_COOKIE, org.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: ORG_COOKIE_MAX_AGE,
-  });
+  setWorkspaceCookies(res, req, { id: org.id, token: accessToken });
   return res;
 }

@@ -2,11 +2,13 @@ import { DataTable } from "@/components/DataTable";
 import { getCurrentOrg } from "@/lib/queries/org";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { SyncButton } from "./SyncButton";
 import { GatewaySnippets } from "./GatewaySnippets";
 import { OtelKeysPanel } from "./OtelKeysPanel";
 import { AnthropicKeyForm } from "./AnthropicKeyForm";
+import { CodingToolsPanel } from "./CodingToolsPanel";
+import { ContributorsPanel } from "./ContributorsPanel";
 import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +57,22 @@ export default async function ConnectorsPage() {
 
   const liveCount = rows.filter((r) => r.connector.status === "healthy").length;
 
+  const [githubConn] = await db
+    .select()
+    .from(s.scmConnections)
+    .where(
+      and(eq(s.scmConnections.orgId, org.id), eq(s.scmConnections.provider, "github"))
+    )
+    .limit(1);
+  const [{ prCount }] = await db
+    .select({ prCount: sql<string>`count(*)` })
+    .from(s.pullRequests)
+    .where(eq(s.pullRequests.orgId, org.id));
+  const [{ contributorCount }] = await db
+    .select({ contributorCount: sql<string>`count(*)` })
+    .from(s.contributors)
+    .where(eq(s.contributors.orgId, org.id));
+
   return (
     <div className="space-y-5">
       <div className="soft-card" style={{ background: "var(--card-mint)" }}>
@@ -71,6 +89,10 @@ export default async function ConnectorsPage() {
           <a href="/import" className="underline">
             Import CSV
           </a>
+          {" · "}
+          <a href="/ai-cost" className="underline">
+            AI cost
+          </a>
         </p>
       </div>
 
@@ -84,6 +106,17 @@ export default async function ConnectorsPage() {
           Open import →
         </a>
       </div>
+
+      <ContributorsPanel count={Number(contributorCount)} />
+      <CodingToolsPanel
+        github={{
+          status: githubConn?.status ?? null,
+          accountLogin: githubConn?.accountLogin ?? null,
+          lastSyncedAt: githubConn?.lastSyncedAt?.toISOString() ?? null,
+          prCount: Number(prCount),
+          hasToken: Boolean(githubConn?.credentialsEncrypted),
+        }}
+      />
 
       <div>
         <div className="mb-2 flex items-baseline justify-between">

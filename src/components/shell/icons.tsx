@@ -32,6 +32,21 @@ export function IconScenarios({ className }: { className?: string }) {
   );
 }
 
+export function IconAiCost({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M3 11.5 L6 5.5 L8.5 9 L10.5 6.5 L13 11.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M2.5 13h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconSources({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none">

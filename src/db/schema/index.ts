@@ -18,6 +18,8 @@ export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  /** SHA-256 of workspace access token — gates cookie registry without user accounts. */
+  accessTokenHash: text("access_token_hash"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -745,6 +747,153 @@ export const valueEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("value_events_metric_period").on(t.valueMetricId, t.periodStart)]
+);
+
+/** Phase 3 — workspace people (not login accounts) */
+export const contributors = pgTable(
+  "contributors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    email: text("email").notNull(),
+    displayName: text("display_name").notNull(),
+    githubLogin: text("github_login"),
+    githubId: text("github_id"),
+    externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
+    dimensionNodeId: uuid("dimension_node_id").references(() => dimensionNodes.id),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("contributors_org_email").on(t.orgId, t.email),
+    index("contributors_org_github").on(t.orgId, t.githubLogin),
+  ]
+);
+
+export const contributorTeamMemberships = pgTable(
+  "contributor_team_memberships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contributorId: uuid("contributor_id")
+      .notNull()
+      .references(() => contributors.id, { onDelete: "cascade" }),
+    dimensionNodeId: uuid("dimension_node_id")
+      .notNull()
+      .references(() => dimensionNodes.id),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull().defaultNow(),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+  },
+  (t) => [index("contributor_team_contrib").on(t.contributorId)]
+);
+
+export const scmConnections = pgTable(
+  "scm_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    provider: text("provider").notNull().default("github"), // github|gitlab
+    accountLogin: text("account_login"),
+    status: text("status").notNull().default("disconnected"), // disconnected|healthy|error
+    credentialsEncrypted: text("credentials_encrypted"),
+    credentialsKeyId: text("credentials_key_id"),
+    selectedRepos: jsonb("selected_repos").$type<string[]>().default([]),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("scm_connections_org_provider").on(t.orgId, t.provider)]
+);
+
+export const pullRequests = pgTable(
+  "pull_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    scmConnectionId: uuid("scm_connection_id")
+      .notNull()
+      .references(() => scmConnections.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    repo: text("repo").notNull(),
+    number: integer("number").notNull(),
+    title: text("title").notNull().default(""),
+    authorContributorId: uuid("author_contributor_id").references(() => contributors.id),
+    authorLogin: text("author_login"),
+    mergedAt: timestamp("merged_at", { withTimezone: true }),
+    additions: integer("additions").notNull().default(0),
+    deletions: integer("deletions").notNull().default(0),
+    aiAssisted: boolean("ai_assisted"),
+  },
+  (t) => [
+    uniqueIndex("pull_requests_conn_repo_num").on(t.scmConnectionId, t.repo, t.number),
+    index("pull_requests_org_merged").on(t.orgId, t.mergedAt),
+  ]
+);
+
+/** DX-shaped daily AI tool grain */
+export const aiToolDaily = pgTable(
+  "ai_tool_daily",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    day: date("day").notNull(),
+    toolKey: text("tool_key").notNull(), // claude_code|cursor|copilot|codex|anthropic_api|…
+    /** uuid or 'unattributed' — avoids NULL unique issues */
+    contributorKey: text("contributor_key").notNull().default("unattributed"),
+    contributorId: uuid("contributor_id").references(() => contributors.id),
+    dimensionNodeId: uuid("dimension_node_id").references(() => dimensionNodes.id),
+    spend: numeric("spend", { precision: 18, scale: 6 }).notNull().default("0"),
+    tokensIn: numeric("tokens_in", { precision: 20, scale: 2 }).notNull().default("0"),
+    tokensOut: numeric("tokens_out", { precision: 20, scale: 2 }).notNull().default("0"),
+    tokensTotal: numeric("tokens_total", { precision: 20, scale: 2 }).notNull().default("0"),
+    sessions: integer("sessions").notNull().default(0),
+    requests: integer("requests").notNull().default(0),
+    sourceConnector: text("source_connector").notNull().default("manual"),
+    contentHash: text("content_hash"),
+  },
+  (t) => [
+    uniqueIndex("ai_tool_daily_grain").on(t.orgId, t.day, t.toolKey, t.contributorKey),
+    index("ai_tool_daily_org_day").on(t.orgId, t.day),
+  ]
+);
+
+export const aiSessions = pgTable(
+  "ai_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    toolKey: text("tool_key").notNull(),
+    contributorId: uuid("contributor_id").references(() => contributors.id),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    useCase: text("use_case").notNull().default("unknown"),
+    tokens: numeric("tokens", { precision: 20, scale: 2 }).default("0"),
+    spend: numeric("spend", { precision: 18, scale: 6 }).default("0"),
+    prExternalId: text("pr_external_id"),
+  },
+  (t) => [index("ai_sessions_org_started").on(t.orgId, t.startedAt)]
+);
+
+/** Per-tool primary source to avoid double-count (WS-B5) */
+export const aiToolSourcePrefs = pgTable(
+  "ai_tool_source_prefs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    toolKey: text("tool_key").notNull(),
+    primarySource: text("primary_source").notNull(), // anthropic_console|claude_enterprise|otel|cursor|…
+  },
+  (t) => [uniqueIndex("ai_tool_source_prefs_org_tool").on(t.orgId, t.toolKey)]
 );
 
 /** WS6 — Auth.js + RBAC + audit (tables ready; Auth.js wiring later) */

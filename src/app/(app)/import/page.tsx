@@ -77,9 +77,34 @@ export default function ImportPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "preview failed");
-      setHeaders(data.headers ?? []);
+      const hdrs: string[] = data.headers ?? [];
+      setHeaders(hdrs);
       setPreview(data.preview ?? []);
       setRowCount(data.rowCount ?? 0);
+      // Prefer usage / DX templates over org-structure when headers look like spend
+      const lower = new Set(hdrs.map((h) => h.toLowerCase()));
+      const looksDx =
+        lower.has("tool") && (lower.has("spend") || lower.has("cost")) && lower.has("day");
+      const looksOrg =
+        lower.has("node_name") &&
+        (lower.has("parent_name") || lower.has("dimension_type"));
+      const looksUsage =
+        (lower.has("cost") || lower.has("cost_usd") || lower.has("amount")) &&
+        (lower.has("model") || lower.has("tokens") || lower.has("created_at"));
+      if (looksDx) {
+        setMessage(
+          "This looks like a DX AI metrics export — import it under Data & sources → Import DX CSV (not usage import)."
+        );
+      } else if (!looksOrg && looksUsage && templates.length) {
+        const usageTpl =
+          templates.find((t) => t.sourceFormat !== "org_structure" && t.sourceFormat !== "dx_ai_metrics") ??
+          templates.find((t) => t.sourceFormat !== "org_structure");
+        if (usageTpl) {
+          setTemplateId(usageTpl.id);
+          setColumnMap({ ...usageTpl.columnMap });
+          if (usageTpl.sourceFormat === "invoice") setSourceKind("invoice");
+        }
+      }
       if (data.duplicateBatchId) {
         setMessage(
           `This file was already imported (batch ${data.duplicateBatchId.slice(0, 8)}…). Rollback to re-import.`

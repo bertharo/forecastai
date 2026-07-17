@@ -1,0 +1,135 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export function ContributorsPanel({ count }: { count: number }) {
+  const router = useRouter();
+  const [csv, setCsv] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [github, setGithub] = useState("");
+  const [teamKey, setTeamKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function upsertOne() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/contributors", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "upsert",
+          email,
+          displayName: name || email,
+          githubLogin: github || undefined,
+          teamKey: teamKey || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setMsg(`Saved ${data.contributor.email}`);
+      setEmail("");
+      setName("");
+      setGithub("");
+      router.refresh();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function importCsv() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/contributors", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "csv", csv }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setMsg(`Upserted ${data.upserted} contributors`);
+      setCsv("");
+      router.refresh();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="panel p-4">
+      <h2 className="mb-1 text-sm font-semibold">People (contributors)</h2>
+      <p className="muted mb-3 text-[13px]">
+        Workspace people for AI attribution — not login accounts.{" "}
+        <strong>{count}</strong> loaded. CSV:{" "}
+        <span className="mono">email, display_name, github_login, team_key</span>
+      </p>
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <label className="text-[12px]">
+          Email
+          <input
+            className="input mt-1 block w-48"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+        <label className="text-[12px]">
+          Name
+          <input
+            className="input mt-1 block w-40"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label className="text-[12px]">
+          GitHub
+          <input
+            className="input mt-1 block w-32"
+            value={github}
+            onChange={(e) => setGithub(e.target.value)}
+          />
+        </label>
+        <label className="text-[12px]">
+          Team key
+          <input
+            className="input mt-1 block w-32"
+            placeholder="ai-platform"
+            value={teamKey}
+            onChange={(e) => setTeamKey(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy || !email.trim()}
+          onClick={() => void upsertOne()}
+        >
+          Add
+        </button>
+      </div>
+      <textarea
+        className="input w-full font-mono text-[12px]"
+        rows={4}
+        placeholder="email,display_name,github_login,team_key"
+        value={csv}
+        onChange={(e) => setCsv(e.target.value)}
+      />
+      <button
+        type="button"
+        className="btn btn-ghost mt-2"
+        disabled={busy || !csv.trim()}
+        onClick={() => void importCsv()}
+      >
+        Import people CSV
+      </button>
+      {msg && <p className="muted mt-2 text-[13px]">{msg}</p>}
+    </div>
+  );
+}

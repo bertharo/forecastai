@@ -1,0 +1,10 @@
+day,tool,email,display_name,team_key,spend,tokens_in,tokens_out,sessions
+2026-07-01,claude_code,alex@northstar.demo,Alex Chen,ai-platform,22.40,180000,42000,3
+2026-07-01,cursor,alex@northstar.demo,Alex Chen,ai-platform,14.00,90000,18000,2
+2026-07-01,copilot,jordan@northstar.demo,Jordan Lee,support,8.50,40000,8000,1
+2026-07-02,claude_code,morgan@northstar.demo,Morgan Patel,docs,19.10,150000,35000,2
+2026-07-02,cursor,sam@northstar.demo,Sam Rivera,sales-eng,11.20,70000,14000,2
+2026-07-02,claude_code,alex@northstar.demo,Alex Chen,ai-platform,24.80,200000,48000,4
+2026-07-03,copilot,riley@northstar.demo,Riley Kim,ai-platform,9.00,45000,9000,1
+2026-07-03,cursor,jordan@northstar.demo,Jordan Lee,support,13.50,85000,17000,2
+2026-07-03,claude_code,casey@northstar.demo,Casey Brooks,docs,16.75,130000,30000,2

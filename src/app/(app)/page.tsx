@@ -11,6 +11,8 @@ import { parseAnalyticsFilters } from "@/lib/queries/filters";
 import { getFilterOptions, getSpendSummary } from "@/lib/queries/spend";
 import { getUnallocatedClusters } from "@/lib/queries/allocation";
 import { getStaleConnectors } from "@/lib/connectors/staleness";
+import { getAiCostSummary } from "@/lib/queries/ai-cost";
+import { Metric } from "@/components/Metric";
 import { pct, usd } from "@/lib/format";
 import { IconChevron } from "@/components/shell/icons";
 
@@ -42,42 +44,69 @@ function BriefView({
   orgName,
   summary,
   clusters,
+  aiCost,
 }: {
   orgName: string;
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
   clusters: Awaited<ReturnType<typeof getUnallocatedClusters>>;
+  aiCost: Awaited<ReturnType<typeof getAiCostSummary>>;
 }) {
   const plan = summary.budget?.amount ?? summary.runRate * 0.85;
   const forecast = summary.runRate * 12 || summary.trailing30 * 12;
   const gap = forecast - plan;
   const overPct = plan > 0 ? gap / plan : 0;
 
-  const attention = [
-    {
-      initials: "AC",
-      color: "#e8843a",
-      name: "Alex Chen",
-      role: "SVP Engineering",
-      body: `Cursor + code assist at elevated run rate — ${usd(summary.byFeature.find((f) => f.feature === "code_assist")?.effective ?? summary.trailing30 * 0.2)} trailing 30d. Consider per-seat caps.`,
-    },
-    {
-      initials: "PR",
-      color: "#7c5cbf",
-      name: "Priya Ramanathan",
-      role: "VP Product Eng",
-      body: `Support Copilot is ${pct(summary.budget?.mtdPct ?? 0.84, 0)} of org budget pace. Review Sonnet routing on /scenarios.`,
-    },
-    {
-      initials: "MK",
-      color: "#2a9d8f",
-      name: "Marcus Kim",
-      role: "Legal + FinOps",
-      body:
-        clusters[0]
-          ? `${clusters.length} unallocated clusters · top ${usd(clusters[0].spend)} (${clusters[0].feature ?? clusters[0].source ?? "unknown"}). Triage on Alerts.`
-          : "Allocation looks clean this week — keep tagging spans with feature + team.",
-    },
-  ];
+  const empty = summary.trailing30 < 1;
+  const attention = empty
+    ? [
+        {
+          initials: "1",
+          color: "#2f5bd8",
+          name: "Connect a source",
+          role: "Data & sources",
+          body: "Import a CSV or sync Anthropic / OpenAI / Cursor. All data stays in this workspace only.",
+        },
+        {
+          initials: "2",
+          color: "#7c5cbf",
+          name: "Send a test span",
+          role: "OTel ingest",
+          body: "Use your workspace OTel key under Data & sources — tags like feature + team drive allocation.",
+        },
+        {
+          initials: "3",
+          color: "#2a9d8f",
+          name: "Set a plan",
+          role: "Budgets",
+          body: "Add an org budget under Plan once spend lands — burn-down and breach status are workspace-scoped.",
+        },
+      ]
+    : [
+        {
+          initials: "AI",
+          color: "#e8843a",
+          name: "AI coding tools",
+          role: "AI cost",
+          body: `${usd(aiCost.spend.value)} trailing ${aiCost.from.slice(5)}→${aiCost.to.slice(5)} across ${aiCost.activeContributors} contributors · cost/PR ${aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}.`,
+        },
+        {
+          initials: "PR",
+          color: "#7c5cbf",
+          name: "Product Copilot",
+          role: "Budget pace",
+          body: `Support Copilot is ${pct(summary.budget?.mtdPct ?? 0.84, 0)} of org budget pace. Model a change to shift Sonnet → Haiku.`,
+        },
+        {
+          initials: "MK",
+          color: "#2a9d8f",
+          name: "Allocation",
+          role: "FinOps",
+          body:
+            clusters[0]
+              ? `${clusters.length} unallocated clusters · top ${usd(clusters[0].spend)} (${clusters[0].feature ?? clusters[0].source ?? "unknown"}). Triage on Alerts.`
+              : "Allocation looks clean this week — keep tagging spans with feature + team.",
+        },
+      ];
 
   return (
     <div className="space-y-6">
@@ -158,13 +187,18 @@ function BriefView({
             </p>
           </div>
           <div className="soft-card" style={{ background: "var(--card-green)" }}>
-            <div className="text-[13px] font-semibold">Gap to plan</div>
-            <div className="kpi mt-2" style={{ color: gap >= 0 ? "var(--danger)" : "var(--success)" }}>
-              {gap >= 0 ? "+" : ""}
-              {usd(gap)}
+            <div className="text-[13px] font-semibold">AI cost / merged PR</div>
+            <div className="mt-2 text-[1.75rem] font-bold">
+              <Metric
+                metric={aiCost.costPerPr}
+                format={(v) => (aiCost.mergedPrs ? usd(v) : "—")}
+              />
             </div>
             <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
-              Run rate {usd(summary.runRate)}/mo · allocated {pct(summary.allocatedPct, 0)}
+              {usd(aiCost.spend.value)} coding-tool spend · {aiCost.mergedPrs} PRs ·{" "}
+              <Link href="/ai-cost" className="underline">
+                AI cost
+              </Link>
             </p>
           </div>
         </div>
@@ -402,31 +436,37 @@ export default async function HomePage({
         ? (sp.slice as "vendor" | "team" | "feature")
         : "vendor";
     const filters = parseAnalyticsFilters(sp);
-    const org = await getCurrentOrg({
-      orgParam: typeof sp.org === "string" ? sp.org : null,
-    });
+    const org = await getCurrentOrg();
     if (!org) {
       return (
-        <div className="soft-card" style={{ background: "var(--panel)" }}>
-          <p className="muted">
-            No org yet —{" "}
-            <a href="/onboarding" className="font-semibold underline">
-              start onboarding
-            </a>{" "}
-            or run <span className="mono">npm run db:seed</span>.
+        <div className="soft-card space-y-3" style={{ background: "var(--card-blue)" }}>
+          <div className="text-[11px] font-semibold uppercase tracking-wider muted">
+            Workspace
+          </div>
+          <p className="text-[18px] font-semibold leading-snug">
+            Create a workspace to start — your spend and forecasts stay private to it.
           </p>
+          <p className="text-[14px]" style={{ color: "var(--muted)" }}>
+            No account required. This browser keeps an access token so only you see the data.
+            You can open the same workspace later with the token shown at create time.
+          </p>
+          <a className="btn inline-block" href="/onboarding">
+            Create workspace →
+          </a>
         </div>
       );
     }
 
-    const [types, nodes, summary, options, stale, clusters] = await Promise.all([
-      getDimensionTypes(org.id),
-      getDimensionNodes(org.id),
-      getSpendSummary(org.id, filters),
-      getFilterOptions(org.id),
-      getStaleConnectors(org.id),
-      getUnallocatedClusters(org.id, 30),
-    ]);
+    const [types, nodes, summary, options, stale, clusters, aiCost] =
+      await Promise.all([
+        getDimensionTypes(org.id),
+        getDimensionNodes(org.id),
+        getSpendSummary(org.id, filters),
+        getFilterOptions(org.id),
+        getStaleConnectors(org.id),
+        getUnallocatedClusters(org.id, 30),
+        getAiCostSummary(org.id, { days: 30 }),
+      ]);
 
     return (
       <div className="space-y-4">
@@ -477,7 +517,12 @@ export default async function HomePage({
         ) : tab === "org" ? (
           <ByOrgView summary={summary} />
         ) : (
-          <BriefView orgName={org.name} summary={summary} clusters={clusters} />
+          <BriefView
+            orgName={org.name}
+            summary={summary}
+            clusters={clusters}
+            aiCost={aiCost}
+          />
         )}
       </div>
     );

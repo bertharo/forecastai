@@ -48,11 +48,13 @@ export default async function BudgetsPage() {
   if (!org) return <p className="muted">No org — run npm run db:seed</p>;
 
   const statuses = await refreshBudgetSnapshots(org.id);
-  const [alerts, nodes, types, versions, warnings, notifications] =
+  const [alertRows, nodes, types, versions, warnings, notifications] =
     await Promise.all([
       db
-        .select()
+        .select({ alert: s.budgetAlerts })
         .from(s.budgetAlerts)
+        .innerJoin(s.budgets, eq(s.budgetAlerts.budgetId, s.budgets.id))
+        .where(eq(s.budgets.orgId, org.id))
         .orderBy(desc(s.budgetAlerts.firedAt))
         .limit(20),
       db.select().from(s.dimensionNodes).where(eq(s.dimensionNodes.orgId, org.id)),
@@ -75,6 +77,7 @@ export default async function BudgetsPage() {
         .orderBy(desc(s.notifications.createdAt))
         .limit(8),
     ]);
+  const alerts = alertRows.map((r) => r.alert);
 
   const budgets = await db
     .select()

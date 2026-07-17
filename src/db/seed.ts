@@ -70,6 +70,13 @@ async function clearAll() {
     s.usageEvents,
     s.usageDaily,
     s.seatSnapshots,
+    s.aiSessions,
+    s.aiToolDaily,
+    s.aiToolSourcePrefs,
+    s.pullRequests,
+    s.contributorTeamMemberships,
+    s.contributors,
+    s.scmConnections,
     s.connectorSyncRuns,
     s.connectors,
     s.importBatches,
@@ -98,7 +105,14 @@ async function seed() {
   console.log("Seeding organization + catalog…");
   const [org] = await db
     .insert(s.organizations)
-    .values({ name: "Northstar Analytics", slug: "northstar" })
+    .values({
+      name: "Northstar Analytics",
+      slug: "northstar",
+      // Claim via POST /api/orgs/claim { token: "ws_demo_northstar" }
+      accessTokenHash: createHash("sha256")
+        .update("ws_demo_northstar")
+        .digest("hex"),
+    })
     .returning();
 
   const providerRows = await db
@@ -1611,7 +1625,69 @@ async function seed() {
         "node_key",
       ],
     },
+    {
+      orgId: null,
+      providerId: null,
+      name: "DX AI metrics export",
+      sourceFormat: "dx_ai_metrics",
+      isSystem: true,
+      columnMap: {
+        day: "day",
+        tool: "tool",
+        email: "email",
+        display_name: "display_name",
+        team_key: "team_key",
+        spend: "spend",
+        tokens_in: "tokens_in",
+        tokens_out: "tokens_out",
+        sessions: "sessions",
+      },
+      sampleHeaders: [
+        "day",
+        "tool",
+        "email",
+        "display_name",
+        "team_key",
+        "spend",
+        "tokens_in",
+        "tokens_out",
+        "sessions",
+      ],
+    },
   ]);
+
+  // Phase 3 — contributors, mock GitHub PRs, coding-tool daily grains
+  console.log("Seeding Phase 3 AI cost (people + PRs + coding tools)…");
+  const { upsertContributor } = await import("../lib/contributors/upsert");
+  const { seedMockGithubPrs } = await import("../lib/scm/github");
+  const { syncCodingToolsDemo } = await import("../lib/connectors/ai-tools-sync");
+
+  const people = [
+    { email: "alex@northstar.demo", name: "Alex Chen", github: "alexchen", team: "ai-platform" },
+    { email: "jordan@northstar.demo", name: "Jordan Lee", github: "jordanlee", team: "support" },
+    { email: "morgan@northstar.demo", name: "Morgan Patel", github: "morganpatel", team: "docs" },
+    { email: "sam@northstar.demo", name: "Sam Rivera", github: "samrivera", team: "sales-eng" },
+    { email: "riley@northstar.demo", name: "Riley Kim", github: "rileykim", team: "ai-platform" },
+    { email: "casey@northstar.demo", name: "Casey Brooks", github: "caseybrooks", team: "docs" },
+    { email: "taylor@northstar.demo", name: "Taylor Ng", github: "taylorng", team: "support" },
+    { email: "quinn@northstar.demo", name: "Quinn Ortiz", github: "quinnortiz", team: "ai-platform" },
+  ];
+  const seededContributors = [];
+  for (const p of people) {
+    const c = await upsertContributor(org.id, {
+      email: p.email,
+      displayName: p.name,
+      githubLogin: p.github,
+      dimensionNodeId: team[p.team]?.id ?? null,
+    });
+    seededContributors.push(c);
+  }
+  const prSeed = await seedMockGithubPrs(
+    org.id,
+    seededContributors.map((c) => ({ id: c.id, githubLogin: c.githubLogin })),
+    90
+  );
+  const toolSeed = await syncCodingToolsDemo(org.id, { days: 45 });
 
   // Quick spend sanity
   const [{ total }] = await db
@@ -1624,6 +1700,9 @@ async function seed() {
   console.log(`  Total effective cost (all history): $${Number(total).toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
   console.log(`  Baseline scenario: ${baseline.id}`);
   console.log(`  Model-switch scenario: ${switchScenario.id}`);
+  console.log(`  Workspace token (claim in Orgs): ws_demo_northstar`);
+  console.log(`  OTel key: meter_demo_otel_key`);
+  console.log(`  Contributors: ${seededContributors.length} · mock PRs: ${prSeed.written} · AI tool grains: ${toolSeed.written}`);
 }
 
 seed()
