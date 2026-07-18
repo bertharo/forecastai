@@ -25,7 +25,7 @@ export function RosterImport() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Import failed");
-      setMsg(`Upserted ${data.upserted} people from roster`);
+      setMsg(`Added ${data.upserted} people`);
       setCsv("");
       router.refresh();
     } catch (e) {
@@ -36,21 +36,17 @@ export function RosterImport() {
   }
 
   return (
-    <div id="roster" className="soft-card space-y-3">
+    <div id="roster" className="space-y-3">
       <div>
-        <h2 className="text-sm font-semibold">HRIS roster</h2>
+        <h2 className="text-[15px] font-semibold">People</h2>
         <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-          Upload people with email, department, cost center, and employment status.
-          Department spend joins usage rows on email — not from the usage CSV.
+          Upload a list of employees (email + department). We use email to put spend on
+          the right department — you don’t need a department column on the bill file.
         </p>
       </div>
-      <p className="mono text-[11px]" style={{ color: "var(--muted)" }}>
-        email, display_name, department, cost_center, employment_status, started_on,
-        ended_on, team_key
-      </p>
       <div className="flex flex-wrap gap-2">
-        <label className="btn btn-ghost cursor-pointer text-[13px]">
-          Choose CSV
+        <label className="btn cursor-pointer text-[13px]">
+          Choose spreadsheet
           <input
             type="file"
             accept=".csv,text/csv"
@@ -62,23 +58,38 @@ export function RosterImport() {
           />
         </label>
         <a className="btn btn-ghost text-[13px]" href="/fixtures/hris-roster.csv">
-          Download template
+          Download example
         </a>
       </div>
-      <textarea
-        className="input min-h-[120px] w-full font-mono text-[12px]"
-        placeholder="Paste HRIS CSV…"
-        value={csv}
-        onChange={(e) => setCsv(e.target.value)}
-      />
-      <button
-        type="button"
-        className="btn"
-        disabled={busy || !csv.trim()}
-        onClick={() => void importRoster()}
-      >
-        {busy ? "Importing…" : "Import roster"}
-      </button>
+      <details className="text-[12px]" style={{ color: "var(--muted)" }}>
+        <summary className="cursor-pointer">What columns do I need?</summary>
+        <p className="mt-2 mono text-[11px]">
+          email, display_name, department, cost_center, employment_status, started_on,
+          ended_on, team_key
+        </p>
+      </details>
+      {csv.trim() && (
+        <>
+          <textarea
+            className="input min-h-[100px] w-full font-mono text-[12px]"
+            value={csv}
+            onChange={(e) => setCsv(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void importRoster()}
+          >
+            {busy ? "Uploading…" : "Upload people"}
+          </button>
+        </>
+      )}
+      {!csv.trim() && (
+        <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+          Or paste CSV here after choosing a file — nothing uploads until you confirm.
+        </p>
+      )}
       {msg && (
         <p className="text-[13px]" style={{ color: "var(--muted)" }}>
           {msg}

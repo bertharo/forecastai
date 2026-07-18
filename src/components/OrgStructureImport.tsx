@@ -60,10 +60,9 @@ export function OrgStructureImport({ bare }: { bare?: boolean } = { bare: false 
     <div className={bare ? "space-y-3" : "panel space-y-3 p-4"}>
       {!bare && (
         <div>
-          <h2 className="text-sm font-medium">Import teams from a spreadsheet</h2>
+          <h2 className="text-sm font-medium">Teams from a spreadsheet</h2>
           <p className="muted mt-1 text-[12px]">
-            Paste a CSV of your org chart (business units → departments → teams). We’ll show a
-            preview before anything is saved.
+            Paste your org chart (company → department → team). Preview first, then save.
           </p>
         </div>
       )}

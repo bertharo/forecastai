@@ -83,29 +83,34 @@ export default async function ConnectorsPage() {
         >
           Data & sources
         </div>
-        <p className="mt-2 max-w-3xl text-[16px] font-medium leading-snug">
-          This is where Meter learns what you’re spending — upload a file or connect a
-          vendor. About <strong>{covered.toFixed(0)}%</strong> of spend is covered ·{" "}
-          <strong>{liveCount}</strong> of {rows.length} sources look healthy.
+        <p className="mt-2 max-w-3xl text-[18px] font-semibold leading-snug">
+          Two ways in: upload a spreadsheet, or connect a vendor.
         </p>
         <p className="mt-2 text-[13px]" style={{ color: "#3a4050" }}>
-          After Anthropic sync,{" "}
-          <a href="/keys" className="underline">
-            map API keys to teams
-          </a>{" "}
-          — spend attribution without changing your apps.
+          About <strong>{covered.toFixed(0)}%</strong> of spend is covered ·{" "}
+          <strong>{liveCount}</strong> of {rows.length} sources look healthy.
         </p>
       </div>
 
-      <div className="panel p-4">
-        <h2 className="mb-1 text-sm font-semibold">Upload a spend file</h2>
-        <p className="muted mb-3 text-[13px]">
-          Drop in a CSV from Anthropic, OpenAI, or a generic invoice. Home updates once the
-          numbers map.
-        </p>
-        <a className="btn inline-block" href="/import">
-          Upload file →
+      <div className="grid gap-3 md:grid-cols-2">
+        <a href="/import" className="soft-card block transition-shadow hover:shadow-sm">
+          <div className="text-[15px] font-semibold">Upload a spreadsheet</div>
+          <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
+            People list + usage or seat CSV. Best path for FinOps week-one — no API keys
+            required.
+          </p>
+          <span className="mt-3 inline-block text-[13px] font-medium">Start upload →</span>
         </a>
+        <div className="soft-card">
+          <div className="text-[15px] font-semibold">Connect a vendor</div>
+          <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
+            Paste an Anthropic Admin key (or similar) below. Then{" "}
+            <a href="/keys" className="underline">
+              map keys to teams
+            </a>
+            .
+          </p>
+        </div>
       </div>
 
       <ContributorsPanel count={Number(contributorCount)} />

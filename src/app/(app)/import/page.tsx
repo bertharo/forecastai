@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { IMPORT_TARGETS } from "@/lib/import/parse";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
 import { RosterImport } from "@/components/RosterImport";
@@ -24,7 +25,25 @@ type Batch = {
   createdAt: string;
 };
 
+type Tab = "people" | "bills" | "teams" | "history";
+
+const FRIENDLY_TARGET: Record<string, string> = {
+  timestamp: "When",
+  provider: "Vendor",
+  model: "Model",
+  meter: "What was used",
+  quantity: "How much",
+  cost: "Cost ($)",
+  "tags.email": "Person email",
+  "tags.api_key": "API key",
+  "tags.feature": "Feature / project",
+  "tags.team": "Team tag",
+  "tags.environment": "Environment",
+  "tags.seat_status": "Seat status",
+};
+
 export default function ImportPage() {
+  const [tab, setTab] = useState<Tab>("bills");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [fileName, setFileName] = useState("");
@@ -40,6 +59,7 @@ export default function ImportPage() {
   const [errors, setErrors] = useState<{ row: number; field?: string; message: string }[]>(
     []
   );
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/import");
@@ -77,12 +97,11 @@ export default function ImportPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "preview failed");
+      if (!res.ok) throw new Error(data.error || "Could not read file");
       const hdrs: string[] = data.headers ?? [];
       setHeaders(hdrs);
       setPreview(data.preview ?? []);
       setRowCount(data.rowCount ?? 0);
-      // Prefer usage / DX templates over org-structure when headers look like spend
       const lower = new Set(hdrs.map((h) => h.toLowerCase()));
       const looksDx =
         lower.has("tool") && (lower.has("spend") || lower.has("cost")) && lower.has("day");
@@ -91,24 +110,54 @@ export default function ImportPage() {
         (lower.has("parent_name") || lower.has("dimension_type"));
       const looksUsage =
         (lower.has("cost") || lower.has("cost_usd") || lower.has("amount")) &&
-        (lower.has("model") || lower.has("tokens") || lower.has("created_at"));
+        (lower.has("model") || lower.has("tokens") || lower.has("created_at") || lower.has("seats"));
+      const looksSeats = lower.has("seats") || lower.has("vendor");
+
       if (looksDx) {
         setMessage(
-          "This looks like a DX AI metrics export — import it under Data & sources → Import DX CSV (not usage import)."
+          "This looks like a coding-tools export — upload it under Data & sources → coding tools, not here."
         );
-      } else if (!looksOrg && looksUsage && templates.length) {
+      } else if (looksOrg) {
+        setMessage("This looks like an org chart — switch to the Teams tab.");
+        setTab("teams");
+      } else if (!looksOrg && (looksUsage || looksSeats) && templates.length) {
         const usageTpl =
-          templates.find((t) => t.sourceFormat !== "org_structure" && t.sourceFormat !== "dx_ai_metrics") ??
-          templates.find((t) => t.sourceFormat !== "org_structure");
+          templates.find(
+            (t) =>
+              t.sourceFormat !== "org_structure" && t.sourceFormat !== "dx_ai_metrics"
+          ) ?? templates.find((t) => t.sourceFormat !== "org_structure");
         if (usageTpl) {
           setTemplateId(usageTpl.id);
           setColumnMap({ ...usageTpl.columnMap });
-          if (usageTpl.sourceFormat === "invoice") setSourceKind("invoice");
+          if (usageTpl.sourceFormat === "invoice" || looksSeats) setSourceKind("invoice");
         }
+        // Also run auto-map for email etc.
+        const next: Record<string, string> = { ...(usageTpl?.columnMap ?? {}) };
+        const byLower = Object.fromEntries(hdrs.map((h) => [h.toLowerCase(), h]));
+        const guesses: Record<string, string[]> = {
+          timestamp: ["created_at", "start_time", "timestamp", "date", "period_end"],
+          provider: ["provider", "vendor", "system"],
+          model: ["model", "sku"],
+          meter: ["type", "meter", "n_context_tokens_total"],
+          quantity: ["tokens", "quantity", "n_context_tokens_total", "seats"],
+          cost: ["cost", "cost_usd", "amount"],
+          "tags.email": ["email", "user_email", "user"],
+          "tags.api_key": ["api_key", "api_key_id", "key_id"],
+        };
+        for (const [target, keys] of Object.entries(guesses)) {
+          if (next[target]) continue;
+          for (const k of keys) {
+            if (byLower[k]) {
+              next[target] = byLower[k];
+              break;
+            }
+          }
+        }
+        setColumnMap(next);
       }
       if (data.duplicateBatchId) {
         setMessage(
-          `This file was already imported (batch ${data.duplicateBatchId.slice(0, 8)}…). Rollback to re-import.`
+          "You’ve already uploaded this file. Undo it under Past uploads if you want to try again."
         );
       }
     } catch (e) {
@@ -140,6 +189,7 @@ export default function ImportPage() {
       "tags.api_key": ["api_key", "api_key_id", "key_id"],
       "tags.feature": ["feature", "workspace", "project_id"],
       "tags.team": ["team"],
+      "tags.seat_status": ["seat_status"],
     };
     for (const [target, keys] of Object.entries(guesses)) {
       if (next[target]) continue;
@@ -171,12 +221,15 @@ export default function ImportPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "import failed");
+      if (!res.ok) throw new Error(data.message || data.error || "Upload failed");
       setMessage(
-        `Imported ${data.written} rows · skipped ${data.skipped} · errors ${data.errored}`
+        `Done — ${data.written} rows added` +
+          (data.skipped ? ` · ${data.skipped} already had` : "") +
+          (data.errored ? ` · ${data.errored} had problems` : "")
       );
       setErrors(data.errors ?? []);
       await refresh();
+      setTab("history");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
     } finally {
@@ -185,13 +238,13 @@ export default function ImportPage() {
   };
 
   const rollback = async (id: string) => {
-    if (!confirm("Rollback this import? Related usage/cost rows will be deleted.")) return;
+    if (!confirm("Undo this upload? Those spend rows will be removed.")) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/import/${id}/rollback`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "rollback failed");
-      setMessage(`Rolled back · removed ${data.deletedCosts ?? 0} cost rows`);
+      if (!res.ok) throw new Error(data.error || "Could not undo");
+      setMessage(`Undone — removed ${data.deletedCosts ?? 0} spend rows`);
       await refresh();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
@@ -205,213 +258,334 @@ export default function ImportPage() {
     [columnMap]
   );
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "people", label: "People" },
+    { id: "bills", label: "Bills & usage" },
+    { id: "teams", label: "Teams" },
+    { id: "history", label: "Past uploads" },
+  ];
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="page-title">Import</h1>
-        <p className="muted mt-1">
-          Drop a CSV/JSONL usage export or invoice file, map columns, import with
-          idempotent dedupe + rollback
+      <div className="soft-card" style={{ background: "var(--card-mint)" }}>
+        <div
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--muted)" }}
+        >
+          Upload
+        </div>
+        <p className="mt-2 max-w-2xl text-[18px] font-semibold leading-snug">
+          Add a people list, then a bill or usage file. That’s enough for department spend —
+          no live connector required.
+        </p>
+        <p className="mt-2 text-[13px]" style={{ color: "#3a4050" }}>
+          Prefer a live sync?{" "}
+          <Link href="/connectors" className="underline">
+            Connect Anthropic / Cursor →
+          </Link>
         </p>
       </div>
 
+      <div className="flex flex-wrap gap-1.5">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className="pill-tab"
+            data-active={tab === t.id}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {message && (
-        <div className="panel p-3 text-[12px]" style={{ borderColor: "var(--border-strong)" }}>
+        <div className="soft-card text-[13px]" style={{ background: "var(--card-blue)" }}>
           {message}
         </div>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium">1. File</h2>
-          <div
-            className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center gap-2 border border-dashed p-4 text-[12px]"
-            style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const f = e.dataTransfer.files?.[0];
-              if (f) void onFile(f);
-            }}
-            onClick={() => document.getElementById("import-file")?.click()}
-          >
-            <div>{fileName || "Drop CSV / JSONL here or click to browse"}</div>
-            {rowCount > 0 && <div className="mono">{rowCount} rows · preview {preview.length}</div>}
-          </div>
-          <input
-            id="import-file"
-            type="file"
-            accept=".csv,.jsonl,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onFile(f);
-            }}
-          />
-          <label className="block text-[12px]">
-            Source kind
-            <select
-              className="select mt-1 w-full"
-              value={sourceKind}
-              onChange={(e) => setSourceKind(e.target.value as typeof sourceKind)}
-            >
-              <option value="csv">Usage CSV</option>
-              <option value="jsonl">Usage JSONL</option>
-              <option value="invoice">Invoice / seats</option>
-            </select>
-          </label>
+      {tab === "people" && (
+        <div className="soft-card">
+          <RosterImport />
         </div>
+      )}
 
-        <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium">2. Mapping template</h2>
-          <select
-            className="select w-full"
-            value={templateId}
-            onChange={(e) => applyTemplate(e.target.value)}
-          >
-            <option value="">Custom mapping</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.isSystem ? "System · " : ""}
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="btn" onClick={autoMap} disabled={!headers.length}>
-            Auto-map from headers
-          </button>
-        </div>
-      </div>
-
-      {headers.length > 0 && (
-        <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium">3. Column mapper</h2>
-          <div className="grid gap-2 md:grid-cols-2">
-            {IMPORT_TARGETS.map((t) => (
-              <label key={t.key} className="block text-[12px]">
-                {t.label}
-                {t.required ? " *" : ""}
-                <select
-                  className="select mt-1 w-full"
-                  value={columnMap[t.key] ?? ""}
-                  onChange={(e) =>
-                    setColumnMap((m) => ({ ...m, [t.key]: e.target.value }))
-                  }
-                >
-                  <option value="">—</option>
-                  {headers.map((h) => (
-                    <option key={h} value={h}>
-                      {h}
-                    </option>
-                  ))}
-                  <option value="_literal:anthropic">literal: anthropic</option>
-                  <option value="_literal:openai">literal: openai</option>
-                  <option value="_literal:input_tokens">literal: input_tokens</option>
-                  <option value="_literal:seats">literal: seats</option>
-                  <option value="_literal:invoice">literal: invoice</option>
-                </select>
-              </label>
-            ))}
+      {tab === "teams" && (
+        <div className="soft-card space-y-3">
+          <div>
+            <h2 className="text-[15px] font-semibold">Teams</h2>
+            <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
+              Optional — paste your org chart if you want BU → department → team slices.
+            </p>
           </div>
+          <OrgStructureImport bare />
+        </div>
+      )}
 
-          <div className="overflow-auto">
-            <table className="w-full text-left text-[11px]">
-              <thead>
-                <tr style={{ color: "var(--muted)" }}>
-                  {headers.slice(0, 8).map((h) => (
-                    <th key={h} className="p-1 font-medium">
-                      {h}
-                    </th>
-                  ))}
+      {tab === "history" && (
+        <div className="soft-card">
+          <h2 className="text-[15px] font-semibold">Past uploads</h2>
+          <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
+            Undo a bad upload anytime.
+          </p>
+          <table className="mt-4 w-full text-left text-[13px]">
+            <thead>
+              <tr style={{ color: "var(--muted)" }}>
+                <th className="pb-2 pr-2">File</th>
+                <th className="pb-2 pr-2">Status</th>
+                <th className="pb-2 pr-2">Added</th>
+                <th className="pb-2 pr-2">Already had</th>
+                <th className="pb-2 pr-2">Problems</th>
+                <th className="pb-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {batches.map((b) => (
+                <tr key={b.id} style={{ borderTop: "1px solid var(--border)" }}>
+                  <td className="py-2 pr-2">{b.fileName}</td>
+                  <td className="py-2 pr-2">{b.status}</td>
+                  <td className="py-2 pr-2">{b.rowsWritten}</td>
+                  <td className="py-2 pr-2">{b.rowsSkipped}</td>
+                  <td className="py-2 pr-2">{b.rowsErrored}</td>
+                  <td className="py-2">
+                    {b.status === "completed" && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-[12px]"
+                        disabled={busy}
+                        onClick={() => void rollback(b.id)}
+                      >
+                        Undo
+                      </button>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {preview.slice(0, 8).map((row, i) => (
-                  <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
-                    {headers.slice(0, 8).map((h) => (
-                      <td key={h} className="mono p-1">
-                        {row[h]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+              {batches.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-4" style={{ color: "var(--muted)" }}>
+                    No uploads yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "bills" && (
+        <div className="space-y-3">
+          <div className="soft-card space-y-3">
+            <div>
+              <h2 className="text-[15px] font-semibold">Bills & usage</h2>
+              <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
+                Drop an Anthropic / OpenAI export or a seat invoice. We’ll guess the columns;
+                fix anything that looks wrong before uploading.
+              </p>
+            </div>
+
+            <div
+              className="flex min-h-[140px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-[13px]"
+              style={{ borderColor: "var(--border-strong)", color: "var(--muted)" }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const f = e.dataTransfer.files?.[0];
+                if (f) void onFile(f);
+              }}
+              onClick={() => document.getElementById("import-file")?.click()}
+            >
+              <div className="text-[15px] font-medium" style={{ color: "var(--fg)" }}>
+                {fileName || "Drop a CSV here, or click to browse"}
+              </div>
+              {rowCount > 0 && (
+                <div>
+                  {rowCount.toLocaleString()} rows · showing first {preview.length}
+                </div>
+              )}
+              <div className="flex flex-wrap justify-center gap-2 text-[12px]">
+                <a
+                  className="underline"
+                  href="/fixtures/vendor-anthropic-usage.csv"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Example usage file
+                </a>
+                <span>·</span>
+                <a
+                  className="underline"
+                  href="/fixtures/vendor-cursor-seats.csv"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Example seats file
+                </a>
+              </div>
+            </div>
+            <input
+              id="import-file"
+              type="file"
+              accept=".csv,.jsonl,.txt"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void onFile(f);
+              }}
+            />
+
+            <label className="block text-[12px]" style={{ color: "var(--muted)" }}>
+              What kind of file?
+              <select
+                className="select mt-1 w-full max-w-xs"
+                value={sourceKind}
+                onChange={(e) => setSourceKind(e.target.value as typeof sourceKind)}
+              >
+                <option value="csv">Usage export (tokens / API)</option>
+                <option value="invoice">Invoice / seats</option>
+                <option value="jsonl">JSONL export</option>
+              </select>
+            </label>
           </div>
 
-          <button
-            type="button"
-            className="btn"
-            disabled={busy || !requiredOk || !content}
-            onClick={() => void runImport()}
-          >
-            {busy ? "Working…" : "Import"}
-          </button>
-        </div>
-      )}
+          {headers.length > 0 && (
+            <div className="soft-card space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-[15px] font-semibold">Match your columns</div>
+                  <p className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
+                    Required: when, vendor, and how much. Email helps department rollups.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="select text-[13px]"
+                    value={templateId}
+                    onChange={(e) => applyTemplate(e.target.value)}
+                  >
+                    <option value="">Guess for me</option>
+                    {templates
+                      .filter(
+                        (t) =>
+                          t.sourceFormat !== "org_structure" &&
+                          t.sourceFormat !== "dx_ai_metrics"
+                      )
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-ghost text-[13px]"
+                    onClick={autoMap}
+                  >
+                    Re-guess
+                  </button>
+                </div>
+              </div>
 
-      {errors.length > 0 && (
-        <div className="panel p-3">
-          <h2 className="mb-2 text-sm font-medium">Row errors</h2>
-          <ul className="mono space-y-1 text-[11px]">
-            {errors.slice(0, 40).map((e, i) => (
-              <li key={i}>
-                row {e.row}
-                {e.field ? ` · ${e.field}` : ""}: {e.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="panel p-3">
-        <h2 className="mb-2 text-sm font-medium">Recent import batches</h2>
-        <table className="w-full text-left text-[12px]">
-          <thead>
-            <tr style={{ color: "var(--muted)" }}>
-              <th className="p-1">File</th>
-              <th className="p-1">Status</th>
-              <th className="p-1">Written</th>
-              <th className="p-1">Skipped</th>
-              <th className="p-1">Errors</th>
-              <th className="p-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {batches.map((b) => (
-              <tr key={b.id} style={{ borderTop: "1px solid var(--border)" }}>
-                <td className="p-1">{b.fileName}</td>
-                <td className="mono p-1">{b.status}</td>
-                <td className="mono p-1">{b.rowsWritten}</td>
-                <td className="mono p-1">{b.rowsSkipped}</td>
-                <td className="mono p-1">{b.rowsErrored}</td>
-                <td className="p-1">
-                  {b.status === "completed" && (
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busy}
-                      onClick={() => void rollback(b.id)}
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {IMPORT_TARGETS.filter(
+                  (t) =>
+                    t.required ||
+                    t.key === "cost" ||
+                    t.key === "model" ||
+                    t.key === "tags.email" ||
+                    t.key === "tags.api_key" ||
+                    showAdvanced
+                ).map((t) => (
+                  <label key={t.key} className="block text-[12px]">
+                    {FRIENDLY_TARGET[t.key] ?? t.label}
+                    {t.required ? " *" : ""}
+                    <select
+                      className="select mt-1 w-full"
+                      value={columnMap[t.key] ?? ""}
+                      onChange={(e) =>
+                        setColumnMap((m) => ({ ...m, [t.key]: e.target.value }))
+                      }
                     >
-                      Rollback
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {batches.length === 0 && (
-              <tr>
-                <td colSpan={6} className="muted p-2">
-                  No imports yet
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                      <option value="">—</option>
+                      {headers.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                      <option value="_literal:anthropic">Always: anthropic</option>
+                      <option value="_literal:openai">Always: openai</option>
+                      <option value="_literal:cursor">Always: cursor</option>
+                      <option value="_literal:seats">Always: seats</option>
+                    </select>
+                  </label>
+                ))}
+              </div>
 
-      <RosterImport />
-      <OrgStructureImport />
+              <button
+                type="button"
+                className="text-[12px] underline"
+                style={{ color: "var(--muted)" }}
+                onClick={() => setShowAdvanced((v) => !v)}
+              >
+                {showAdvanced ? "Hide extra fields" : "Show more fields"}
+              </button>
+
+              <div className="overflow-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                <table className="w-full text-left text-[11px]">
+                  <thead>
+                    <tr style={{ color: "var(--muted)", background: "var(--panel-soft)" }}>
+                      {headers.slice(0, 6).map((h) => (
+                        <th key={h} className="p-2 font-medium">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.slice(0, 5).map((row, i) => (
+                      <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
+                        {headers.slice(0, 6).map((h) => (
+                          <td key={h} className="mono p-2">
+                            {row[h]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !requiredOk || !content}
+                onClick={() => void runImport()}
+              >
+                {busy ? "Uploading…" : "Upload spend"}
+              </button>
+              {!requiredOk && (
+                <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+                  Fill When, Vendor, and How much to continue.
+                </p>
+              )}
+            </div>
+          )}
+
+          {errors.length > 0 && (
+            <div className="soft-card">
+              <h2 className="text-[13px] font-semibold">Rows with problems</h2>
+              <ul className="mt-2 space-y-1 text-[12px] mono">
+                {errors.slice(0, 40).map((e, i) => (
+                  <li key={i}>
+                    row {e.row}
+                    {e.field ? ` · ${e.field}` : ""}: {e.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
