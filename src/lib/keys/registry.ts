@@ -203,16 +203,18 @@ export async function enrichTagsFromKeyRegistry(
   return out;
 }
 
+/**
+ * Unmapped API key count — shared by Brief findings, sidebar badge, and /keys.
+ * Counts kind=api_key with no team mapping (all providers).
+ */
 export async function countUnmappedKeys(orgId: string): Promise<number> {
-  const providerId = await anthropicProviderId();
-  if (!providerId) return 0;
   const [row] = await db
     .select({ n: sql<string>`count(*)` })
     .from(s.providerKeyRegistry)
     .where(
       and(
         eq(s.providerKeyRegistry.orgId, orgId),
-        eq(s.providerKeyRegistry.providerId, providerId),
+        eq(s.providerKeyRegistry.kind, "api_key"),
         isNull(s.providerKeyRegistry.dimensionNodeId)
       )
     );
@@ -225,15 +227,10 @@ export async function listKeyRegistry(
 ): Promise<RegistryRow[]> {
   await discoverKeysFromCostHistory(orgId).catch(() => 0);
 
-  const providerId = await anthropicProviderId();
-  if (!providerId) return [];
-
-  const filters = [
-    eq(s.providerKeyRegistry.orgId, orgId),
-    eq(s.providerKeyRegistry.providerId, providerId),
-  ];
+  const filters = [eq(s.providerKeyRegistry.orgId, orgId)];
   if (opts?.unmappedOnly) {
     filters.push(isNull(s.providerKeyRegistry.dimensionNodeId));
+    filters.push(eq(s.providerKeyRegistry.kind, "api_key"));
   }
 
   const rows = await db
@@ -272,7 +269,6 @@ export async function listKeyRegistry(
     .where(
       and(
         eq(s.costRecords.orgId, orgId),
-        eq(s.costRecords.providerId, providerId),
         sql`${s.costRecords.chargePeriodStart} >= ${sinceIso}::timestamptz`
       )
     )

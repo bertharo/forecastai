@@ -27,9 +27,13 @@ export function LoadSampleButton({
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/demo/finops-sample", { method: "POST" });
+      const res = await fetch("/api/demo/finops-sample", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ replace: replaceExisting, action: "load" }),
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load sample");
+      if (!res.ok) throw new Error(data.message || data.error || "Failed to load sample");
       setMsg(
         `Loaded ${data.roster} people · ${data.terminatedWithSeats} terminated seats · ${data.unmappedKeys} unmapped keys`
       );

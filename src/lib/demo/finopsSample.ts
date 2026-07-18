@@ -21,7 +21,7 @@ const SAMPLE_KEYS = ["key_eng_mapped", "key_shadow_batch", "key_orphan_eval"] as
 const DEPTS = [
   { dept: "Engineering", cc: "CC-100", team: "ai-platform" },
   { dept: "Product", cc: "CC-220", team: "docs" },
-  { dept: "Support", cc: "CC-220", team: "support" },
+  { dept: "Support", cc: "CC-230", team: "support" },
   { dept: "GTM", cc: "CC-310", team: "sales-eng" },
 ] as const;
 
@@ -105,7 +105,7 @@ async function ensureSampleDimensions(orgId: string) {
  * Replace-mode wipe: clear all FinOps spend/roster/import state so the sample
  * pack is never mixed with prior CSV uploads.
  */
-async function wipeWorkspaceForSample(orgId: string) {
+export async function wipeWorkspaceForSample(orgId: string) {
   await db.execute(sql`
     delete from allocation_rule_applications
     where org_id = ${orgId}::uuid
@@ -559,6 +559,12 @@ export async function clearSampleFlag(orgId: string) {
     .update(s.organizations)
     .set({ sampleDataLoadedAt: null })
     .where(eq(s.organizations.id, orgId));
+}
+
+/** Wipe sample (and all FinOps rows) without reloading — for switching to real imports. */
+export async function clearSampleWorkspace(orgId: string) {
+  await wipeWorkspaceForSample(orgId);
+  await clearSampleFlag(orgId);
 }
 
 export async function isSampleDataActive(orgId: string): Promise<boolean> {

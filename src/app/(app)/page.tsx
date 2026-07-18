@@ -12,7 +12,12 @@ import { getFilterOptions, getSpendSummary } from "@/lib/queries/spend";
 import { getUnallocatedClusters } from "@/lib/queries/allocation";
 import { getStaleConnectors } from "@/lib/connectors/staleness";
 import { getAiCostSummary } from "@/lib/queries/ai-cost";
-import { getFinopsDashboard } from "@/lib/queries/finops";
+import {
+  canShowBriefForecast,
+  getBriefFacts,
+  trailingBriefPeriod,
+  type BriefFacts,
+} from "@/lib/queries/brief";
 import { Metric } from "@/components/Metric";
 import { FinopsOnePager } from "@/components/FinopsOnePager";
 import { LoadSampleButton } from "@/components/LoadSampleButton";
@@ -48,27 +53,21 @@ function BriefView({
   summary,
   clusters,
   aiCost,
-  finops,
+  facts,
 }: {
   orgName: string;
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
   clusters: Awaited<ReturnType<typeof getUnallocatedClusters>>;
   aiCost: Awaited<ReturnType<typeof getAiCostSummary>>;
-  finops: Awaited<ReturnType<typeof getFinopsDashboard>>;
+  facts: BriefFacts;
 }) {
-  // Compare annual forecast to an annualized plan (budget amounts are period-scoped).
-  const forecast = summary.runRate * 12 || summary.trailing30 * 12;
-  const plan = summary.budget
-    ? summary.budget.period === "annual"
-      ? summary.budget.amount
-      : summary.budget.period === "quarterly"
-        ? summary.budget.amount * 4
-        : summary.budget.amount * 12
-    : summary.runRate * 0.85 * 12;
-  const gap = forecast - plan;
-  const overPct = plan > 0 ? gap / plan : 0;
+  const showForecast = canShowBriefForecast(facts);
+  const forecast = summary.runRate * 12 || facts.totalSpend * 12;
+  const plan = facts.planAnnualAmount;
+  const gap = plan != null ? forecast - plan : 0;
+  const overPct = plan != null && plan > 0 ? gap / plan : 0;
 
-  const empty = summary.trailing30 < 1 && finops.empty;
+  const empty = facts.empty;
   const attention = empty
     ? [
         {
@@ -122,7 +121,7 @@ function BriefView({
 
   return (
     <div className="space-y-6">
-      <FinopsOnePager dash={finops} />
+      <FinopsOnePager facts={facts} />
 
       {empty && (
         <div className="flex flex-wrap gap-3">
@@ -135,27 +134,43 @@ function BriefView({
 
       <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
         <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[13px] font-semibold">FY26 Forecast</div>
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
-              style={{
-                background: "rgba(196,59,59,0.12)",
-                color: "var(--danger)",
-              }}
-            >
-              ▲ {pct(Math.abs(overPct), 1)} {overPct >= 0 ? "over" : "under"} plan
-            </span>
-          </div>
-          <div className="kpi mt-3">{usd(forecast)}</div>
-          <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
-            {orgName} annualized run rate vs plan of record ({usd(plan)}).{" "}
-            {pct(summary.allocatedPct, 0)} of trailing spend is allocated.{" "}
-            {summary.anomalies.length > 0
-              ? `${summary.anomalies.length} anomaly day(s) in the last 60d.`
-              : "No spend anomalies flagged in the last 60d."}{" "}
-            Top features drive most of the gap — open Model a change to shift routing.
-          </p>
+          {showForecast && plan != null ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[13px] font-semibold">FY26 Forecast</div>
+                <span
+                  className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
+                  style={{
+                    background:
+                      overPct >= 0 ? "rgba(196,59,59,0.12)" : "rgba(42,157,143,0.12)",
+                    color: overPct >= 0 ? "var(--danger)" : "var(--success)",
+                  }}
+                >
+                  ▲ {pct(Math.abs(overPct), 1)} {overPct >= 0 ? "over" : "under"} plan
+                </span>
+              </div>
+              <div className="kpi mt-3">{usd(forecast)}</div>
+              <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
+                {orgName} annualized run rate vs {facts.planName ?? "plan"} ({usd(plan)}).{" "}
+                {pct(facts.attribution.attributedPct, 0)} of {facts.period.label} spend is
+                attributed.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="text-[13px] font-semibold">Trailing spend</div>
+              <div className="kpi mt-3">{usd(facts.totalSpend)}</div>
+              <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
+                {facts.period.label} · {pct(facts.attribution.attributedPct, 0)} attributed.
+                {!facts.hasUserPlan
+                  ? " Set a plan under Plan to see forecast vs plan."
+                  : ` Need ≥60 days of history for a forecast (have ${facts.historyDays}).`}
+              </p>
+              <Link href="/budgets" className="btn mt-4 inline-block">
+                Set a plan →
+              </Link>
+            </>
+          )}
           <div className="mt-6 flex flex-wrap gap-5">
             <ActionOrb
               label="Model"
@@ -202,12 +217,27 @@ function BriefView({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <div className="soft-card" style={{ background: "var(--card-pink)" }}>
             <div className="text-[13px] font-semibold">Plan of record</div>
-            <div className="kpi mt-2">{usd(plan)}</div>
-            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
-              {summary.budget
-                ? `${summary.budget.name} · MTD ${pct(summary.budget.mtdPct, 0)} used`
-                : "No org budget — set one under Plan"}
-            </p>
+            {facts.hasUserPlan && plan != null ? (
+              <>
+                <div className="kpi mt-2">{usd(plan)}</div>
+                <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                  {facts.planName}
+                  {summary.budget ? ` · MTD ${pct(summary.budget.mtdPct, 0)} used` : ""}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="kpi mt-2" style={{ fontSize: "1.5rem" }}>
+                  —
+                </div>
+                <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                  No org budget —{" "}
+                  <Link href="/budgets" className="underline">
+                    set one under Plan
+                  </Link>
+                </p>
+              </>
+            )}
           </div>
           <div className="soft-card" style={{ background: "var(--card-green)" }}>
             <div className="text-[13px] font-semibold">AI cost / merged PR</div>
@@ -477,7 +507,8 @@ export default async function HomePage({
       );
     }
 
-    const [types, nodes, summary, options, stale, clusters, aiCost, finops] =
+    const briefPeriod = trailingBriefPeriod(30);
+    const [types, nodes, summary, options, stale, clusters, aiCost, facts] =
       await Promise.all([
         getDimensionTypes(org.id),
         getDimensionNodes(org.id),
@@ -486,7 +517,7 @@ export default async function HomePage({
         getStaleConnectors(org.id),
         getUnallocatedClusters(org.id, 30),
         getAiCostSummary(org.id, { days: 30 }),
-        getFinopsDashboard(org.id, 30),
+        getBriefFacts(org.id, briefPeriod),
       ]);
 
     return (
@@ -543,7 +574,7 @@ export default async function HomePage({
             summary={summary}
             clusters={clusters}
             aiCost={aiCost}
-            finops={finops}
+            facts={facts}
           />
         )}
       </div>

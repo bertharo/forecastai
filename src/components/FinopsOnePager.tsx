@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { pct, usd } from "@/lib/format";
 import { LoadSampleButton } from "@/components/LoadSampleButton";
-import type { getFinopsDashboard } from "@/lib/queries/finops";
+import type { BriefFacts } from "@/lib/queries/brief";
 
-type Dash = Awaited<ReturnType<typeof getFinopsDashboard>>;
-
-export function FinopsOnePager({ dash }: { dash: Dash }) {
-  if (dash.empty) {
+export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
+  if (facts.empty) {
     return (
       <div className="soft-card space-y-4" style={{ background: "var(--card-blue)" }}>
         <div
@@ -32,12 +30,35 @@ export function FinopsOnePager({ dash }: { dash: Dash }) {
     );
   }
 
-  const { coverage, byVendor, byDepartment, findings, sampleDataLoadedAt } = dash;
+  const { attribution, byVendor, byDepartment, findings, period } = facts;
   const deptTotal =
-    byDepartment.reduce((a, r) => a + r.spend, 0) || coverage.totalSpend || 1;
+    byDepartment.reduce((a, r) => a + r.spend, 0) || attribution.totalSpend || 1;
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] font-medium" style={{ color: "var(--muted)" }}>
+          Period · {period.label}
+        </p>
+        {facts.violations.length > 0 && (
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+            style={{ background: "rgba(196,59,59,0.12)", color: "var(--danger)" }}
+            title={facts.violations.map((v) => v.message).join("; ")}
+          >
+            Numbers don&apos;t reconcile · {facts.violations.length}
+          </span>
+        )}
+        {facts.dataMixed && (
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+            style={{ background: "rgba(196,59,59,0.12)", color: "var(--danger)" }}
+          >
+            Sample + imports mixed — reset to clean sample
+          </span>
+        )}
+      </div>
+
       <div className="soft-card" style={{ background: "var(--card-blue)" }}>
         <div
           className="text-[11px] font-semibold uppercase tracking-wider"
@@ -49,12 +70,12 @@ export function FinopsOnePager({ dash }: { dash: Dash }) {
           href="/keys?unmapped=1"
           className="mt-2 block text-[28px] font-bold tracking-tight hover:underline"
         >
-          {pct(coverage.allocatedPct, 0)} of spend attributed
+          {pct(attribution.attributedPct, 0)} of spend attributed
         </Link>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed" style={{ color: "#3a4050" }}>
-          Spend-weighted · {usd(coverage.allocatedSpend)} of {usd(coverage.totalSpend)}{" "}
-          trailing 30d · email join {usd(coverage.joinedEmailSpend)} · key registry{" "}
-          {usd(coverage.keyRegistrySpend)} · unallocated {usd(coverage.unallocatedSpend)}
+          Spend-weighted · {usd(attribution.attributedSpend)} of {usd(attribution.totalSpend)}{" "}
+          · email join {usd(attribution.emailJoinSpend)} · key registry{" "}
+          {usd(attribution.keyRegistrySpend)} · unallocated {usd(attribution.unallocatedSpend)}
         </p>
       </div>
 
@@ -111,13 +132,13 @@ export function FinopsOnePager({ dash }: { dash: Dash }) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {sampleDataLoadedAt ? (
+        {facts.sampleDataLoadedAt ? (
           <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-            Sample pack active — reload replaces any CSV uploads with the clean pack.
+            Sample pack active — importing CSVs is blocked until you clear sample.
           </p>
         ) : (
           <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-            Mixed or live data — you can still reset this workspace to the clean sample.
+            Live workspace — load sample only via reset (replaces all data).
           </p>
         )}
         <LoadSampleButton

@@ -56,6 +56,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "csv required" }, { status: 400 });
   }
 
+  const [orgMeta] = await db
+    .select({ sampleAt: s.organizations.sampleDataLoadedAt })
+    .from(s.organizations)
+    .where(eq(s.organizations.id, org.id))
+    .limit(1);
+  if (orgMeta?.sampleAt) {
+    return NextResponse.json(
+      {
+        error: "sample_active",
+        message:
+          "Sample data is active. Clear or reset the sample pack before uploading a people CSV.",
+      },
+      { status: 409 }
+    );
+  }
+
   try {
     const result = await importRosterCsv(org.id, body.csv, body.columnMap);
     const ok = result.upserted > 0;

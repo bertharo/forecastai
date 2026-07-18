@@ -50,6 +50,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "fileName and content required" }, { status: 400 });
   }
 
+  const [orgMeta] = await db
+    .select({ sampleAt: s.organizations.sampleDataLoadedAt })
+    .from(s.organizations)
+    .where(eq(s.organizations.id, org.id))
+    .limit(1);
+  if (orgMeta?.sampleAt && body.action === "import") {
+    return NextResponse.json(
+      {
+        error: "sample_active",
+        message:
+          "Sample data is active in this workspace. Reset to clean sample (or clear sample) before importing CSVs so numbers stay consistent.",
+      },
+      { status: 409 }
+    );
+  }
+
   const sourceKind = body.sourceKind ?? "csv";
   const hash = contentHash(body.content);
   const existing = await findActiveBatchByHash(org.id, hash);

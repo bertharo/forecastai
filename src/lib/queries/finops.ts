@@ -1,7 +1,8 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
-import { listKeyRegistry } from "@/lib/keys/registry";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { countUnmappedKeys, listKeyRegistry } from "@/lib/keys/registry";
+import { getBriefFacts, trailingBriefPeriod } from "@/lib/queries/brief";
 
 function daysAgo(n: number): Date {
   const d = new Date();
@@ -284,60 +285,37 @@ export async function getFinopsFindings(orgId: string): Promise<FinopsFinding[]>
   return findings;
 }
 
+/** @deprecated Prefer getBriefFacts — kept for call sites that need the old shape. */
 export async function getFinopsDashboard(orgId: string, days = 30) {
-  const since = daysAgo(days);
-  const [byVendor, byDepartment, coverage, findings, orgRow] =
-    await Promise.all([
-      db
-        .select({
-          key: s.providers.key,
-          name: s.providers.displayName,
-          spend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
-        })
-        .from(s.costRecords)
-        .innerJoin(s.providers, eq(s.costRecords.providerId, s.providers.id))
-        .where(
-          and(
-            eq(s.costRecords.orgId, orgId),
-            gte(s.costRecords.chargePeriodStart, since)
-          )
-        )
-        .groupBy(s.providers.key, s.providers.displayName)
-        .orderBy(desc(sql`sum(${s.costRecords.effectiveCost})`)),
-      getSpendByDepartment(orgId, days),
-      getAttributionCoverage(orgId, days),
-      getFinopsFindings(orgId),
-      db
-        .select({ at: s.organizations.sampleDataLoadedAt })
-        .from(s.organizations)
-        .where(eq(s.organizations.id, orgId))
-        .limit(1),
-    ]);
-
+  const facts = await getBriefFacts(orgId, trailingBriefPeriod(days));
   return {
-    byVendor: byVendor.map((v) => ({
-      key: v.key,
-      name: v.name,
-      spend: Number(v.spend),
+    byVendor: facts.byVendor,
+    byDepartment: facts.byDepartment,
+    coverage: {
+      allocatedPct: facts.attribution.attributedPct,
+      totalSpend: facts.attribution.totalSpend,
+      allocatedSpend: facts.attribution.attributedSpend,
+      joinedEmailSpend: facts.attribution.emailJoinSpend,
+      keyRegistrySpend: facts.attribution.keyRegistrySpend,
+      unallocatedSpend: facts.attribution.unallocatedSpend,
+      totalRows: 0,
+      allocatedRows: 0,
+    },
+    findings: facts.findings.map((f) => ({
+      id: f.id,
+      title: f.title,
+      severity: f.severity,
+      count: f.count,
+      monthlyImpact: f.impact,
+      detail: f.detail,
+      href: f.href,
     })),
-    byDepartment,
-    coverage,
-    findings,
-    sampleDataLoadedAt: orgRow[0]?.at ?? null,
-    empty: coverage.totalSpend < 0.01 && byVendor.length === 0,
+    sampleDataLoadedAt: facts.sampleDataLoadedAt,
+    empty: facts.empty,
+    period: facts.period,
+    violations: facts.violations,
+    dataMixed: facts.dataMixed,
   };
 }
 
-export async function countUnmappedApiKeys(orgId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: sql<string>`count(*)` })
-    .from(s.providerKeyRegistry)
-    .where(
-      and(
-        eq(s.providerKeyRegistry.orgId, orgId),
-        eq(s.providerKeyRegistry.kind, "api_key"),
-        isNull(s.providerKeyRegistry.dimensionNodeId)
-      )
-    );
-  return Number(row?.n ?? 0);
-}
+export const countUnmappedApiKeys = countUnmappedKeys;
