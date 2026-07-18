@@ -104,6 +104,8 @@ export async function getSpendSummary(
     .select({
       total: sql<string>`count(*)`,
       allocated: sql<string>`count(*) filter (where ${s.costRecords.allocationStatus} = 'allocated')`,
+      totalSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      allocatedSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}) filter (where ${s.costRecords.allocationStatus} = 'allocated'),0)`,
     })
     .from(s.costRecords)
     .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)));
@@ -207,8 +209,10 @@ export async function getSpendSummary(
   const trailingValue = Number(trailing.value);
   const runRate = (trailingAmt / 30) * (365 / 12);
 
-  const totalRows = Number(alloc.total) || 1;
-  const allocatedPct = Number(alloc.allocated) / totalRows;
+  const totalSpendAlloc = Number(alloc.totalSpend) || 0;
+  const allocatedSpend = Number(alloc.allocatedSpend) || 0;
+  const allocatedPct =
+    totalSpendAlloc > 0 ? allocatedSpend / totalSpendAlloc : 1;
 
   const [budget] = await db
     .select()

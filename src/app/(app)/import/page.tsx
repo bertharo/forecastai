@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IMPORT_TARGETS } from "@/lib/import/parse";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
+import { RosterImport } from "@/components/RosterImport";
 
 type Template = {
   id: string;
@@ -135,6 +136,8 @@ export default function ImportPage() {
       meter: ["type", "meter", "n_context_tokens_total"],
       quantity: ["tokens", "quantity", "n_context_tokens_total", "seats"],
       cost: ["cost", "cost_usd", "amount"],
+      "tags.email": ["email", "user_email", "user"],
+      "tags.api_key": ["api_key", "api_key_id", "key_id"],
       "tags.feature": ["feature", "workspace", "project_id"],
       "tags.team": ["team"],
     };
@@ -407,6 +410,7 @@ export default function ImportPage() {
         </table>
       </div>
 
+      <RosterImport />
       <OrgStructureImport />
     </div>
   );

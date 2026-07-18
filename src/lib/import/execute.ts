@@ -97,8 +97,15 @@ export async function executeUsageImport(opts: {
       const tags: Record<string, string> = { source: "import" };
       for (const [target, source] of Object.entries(columnMap)) {
         if (target.startsWith("tags.")) {
+          const tagKey = target.slice(5);
+          // Department never comes from usage CSV — join roster or key registry only
+          if (tagKey === "department") continue;
           const v = mappedValue(row, source);
-          if (v) tags[target.slice(5)] = v;
+          if (!v) continue;
+          tags[tagKey] =
+            tagKey === "email" || tagKey === "user_email"
+              ? v.trim().toLowerCase()
+              : v;
         }
       }
 

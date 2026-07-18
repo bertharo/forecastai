@@ -1,5 +1,18 @@
 # Fixtures
 
+## FinOps CSV week-one
+
+| File | Use |
+|------|-----|
+| `hris-roster.csv` | HRIS roster → `POST /api/roster` or Import → HRIS roster |
+| `vendor-anthropic-usage.csv` | Anthropic-style usage with `email` + `api_key` |
+| `vendor-cursor-seats.csv` | Seat invoice rows with email + amount |
+| *(in-app)* Load sample data | `POST /api/demo/finops-sample` — deterministic ~2k roster, 6 terminated seats (~$1.2k/mo), ~10% inactive seats, exactly 2 unmapped API keys |
+
+Department never comes from the usage CSV. Join on `tags.email` → roster, or fall back to key registry.
+
+Also copied under `public/fixtures/` for browser download.
+
 ## Phase 3 — DX migration
 
 | File | Use |
@@ -10,10 +23,6 @@
 ### Recommended path
 
 1. Claim or create a workspace
-2. Import org structure (if empty) under Import
-3. Import `contributors.csv` under **Data & sources → People**
-4. Paste `dx-ai-metrics.csv` under **Data & sources → Import DX AI metrics CSV**
-5. **Demo PRs** (or connect a GitHub PAT) so cost/PR computes
-6. Open **AI cost**
-
-Meter replaces DX for **AI cost / impact**, not full DORA. Keep DX only if you still need its coding-tool pull and want Meter as FinOps + GitHub join.
+2. **Load sample data** on Home, or import roster + vendor CSVs under Import
+3. Confirm Findings: terminated seats, inactive seats, unmapped keys
+4. Optional: Import org structure, DX metrics, GitHub for AI cost/PR

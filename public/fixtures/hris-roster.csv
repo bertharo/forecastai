@@ -1,0 +1,8 @@
+email,display_name,department,cost_center,employment_status,started_on,ended_on,team_key
+alex.chen@acme.example,Alex Chen,Engineering,CC-100,active,2023-01-15,,ai-platform
+jordan.lee@acme.example,Jordan Lee,Engineering,CC-100,active,2022-06-01,,ai-platform
+morgan.patel@acme.example,Morgan Patel,Product,CC-220,active,2021-09-12,,docs
+sam.rivera@acme.example,Sam Rivera,Support,CC-220,active,2020-03-20,,support
+riley.kim@acme.example,Riley Kim,GTM,CC-310,active,2024-02-01,,sales-eng
+casey.brooks@acme.example,Casey Brooks,Engineering,CC-100,terminated,2021-11-01,2026-05-15,ai-platform
+taylor.ng@acme.example,Taylor Ng,Product,CC-220,terminated,2022-04-10,2026-04-01,docs

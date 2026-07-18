@@ -102,12 +102,21 @@ export async function getUnallocatedClusters(
 export async function getAllocationPct(
   orgId: string,
   days = 30
-): Promise<{ allocatedPct: number; total: number; allocated: number }> {
+): Promise<{
+  allocatedPct: number;
+  total: number;
+  allocated: number;
+  /** Spend-weighted totals (USD). Prefer these over row counts. */
+  totalSpend: number;
+  allocatedSpend: number;
+}> {
   const since = daysAgo(days);
   const [row] = await db
     .select({
       total: sql<string>`count(*)`,
       allocated: sql<string>`count(*) filter (where ${s.costRecords.allocationStatus} = 'allocated')`,
+      totalSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      allocatedSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}) filter (where ${s.costRecords.allocationStatus} = 'allocated'),0)`,
     })
     .from(s.costRecords)
     .where(
@@ -118,10 +127,15 @@ export async function getAllocationPct(
     );
   const total = Number(row?.total) || 0;
   const allocated = Number(row?.allocated) || 0;
+  const totalSpend = Number(row?.totalSpend) || 0;
+  const allocatedSpend = Number(row?.allocatedSpend) || 0;
   return {
     total,
     allocated,
-    allocatedPct: total ? allocated / total : 1,
+    totalSpend,
+    allocatedSpend,
+    // Spend-weighted: $ allocated / $ total (not row count)
+    allocatedPct: totalSpend > 0 ? allocatedSpend / totalSpend : 1,
   };
 }
 
@@ -134,8 +148,8 @@ export async function getAllocationTrend(
   const rows = await db
     .select({
       day: sql<string>`(${s.costRecords.chargePeriodStart})::date`,
-      total: sql<string>`count(*)`,
-      allocated: sql<string>`count(*) filter (where ${s.costRecords.allocationStatus} = 'allocated')`,
+      totalSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      allocatedSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}) filter (where ${s.costRecords.allocationStatus} = 'allocated'),0)`,
     })
     .from(s.costRecords)
     .where(
@@ -148,10 +162,10 @@ export async function getAllocationTrend(
     .orderBy(sql`(${s.costRecords.chargePeriodStart})::date`);
 
   return rows.map((r) => {
-    const total = Number(r.total) || 1;
+    const totalSpend = Number(r.totalSpend) || 0;
     return {
       day: String(r.day),
-      allocatedPct: Number(r.allocated) / total,
+      allocatedPct: totalSpend > 0 ? Number(r.allocatedSpend) / totalSpend : 1,
     };
   });
 }

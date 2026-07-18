@@ -1,0 +1,9 @@
+created_at,model,type,tokens,cost_usd,email,api_key
+2026-07-01T12:00:00Z,claude-sonnet-4,input_tokens,1200000,3.60,alex.chen@acme.example,key_eng_mapped
+2026-07-01T12:00:00Z,claude-sonnet-4,output_tokens,400000,6.00,alex.chen@acme.example,key_eng_mapped
+2026-07-02T12:00:00Z,claude-sonnet-4,input_tokens,800000,2.40,jordan.lee@acme.example,key_eng_mapped
+2026-07-02T12:00:00Z,claude-sonnet-4,output_tokens,250000,3.75,jordan.lee@acme.example,key_eng_mapped
+2026-07-03T12:00:00Z,claude-sonnet-4,input_tokens,4000000,12.00,,key_shadow_batch
+2026-07-03T12:00:00Z,claude-sonnet-4,output_tokens,800000,12.00,,key_shadow_batch
+2026-07-04T12:00:00Z,claude-sonnet-4,input_tokens,2500000,7.50,,key_orphan_eval
+2026-07-04T12:00:00Z,claude-sonnet-4,output_tokens,500000,7.50,,key_orphan_eval

@@ -44,6 +44,11 @@ export async function POST(req: NextRequest) {
         email,
         displayName: row.display_name || row.name || email,
         githubLogin: (row.github_login || row.github || "").toLowerCase() || null,
+        department: row.department || null,
+        costCenter: row.cost_center || null,
+        employmentStatus: row.employment_status || undefined,
+        startedOn: row.started_on || null,
+        endedOn: row.ended_on || null,
         dimensionNodeId: teamKey ? teamByKey.get(teamKey)?.id ?? null : null,
       });
       n++;

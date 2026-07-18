@@ -1,0 +1,6 @@
+period_end,vendor,email,seats,amount,seat_status
+2026-07-01,cursor,alex.chen@acme.example,1,200,active
+2026-07-01,cursor,jordan.lee@acme.example,1,200,active
+2026-07-01,cursor,casey.brooks@acme.example,1,200,terminated_active
+2026-07-01,cursor,taylor.ng@acme.example,1,200,terminated_active
+2026-07-01,cursor,morgan.patel@acme.example,1,200,inactive_30d

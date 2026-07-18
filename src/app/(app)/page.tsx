@@ -12,7 +12,10 @@ import { getFilterOptions, getSpendSummary } from "@/lib/queries/spend";
 import { getUnallocatedClusters } from "@/lib/queries/allocation";
 import { getStaleConnectors } from "@/lib/connectors/staleness";
 import { getAiCostSummary } from "@/lib/queries/ai-cost";
+import { getFinopsDashboard } from "@/lib/queries/finops";
 import { Metric } from "@/components/Metric";
+import { FinopsOnePager } from "@/components/FinopsOnePager";
+import { LoadSampleButton } from "@/components/LoadSampleButton";
 import { pct, usd } from "@/lib/format";
 import { IconChevron } from "@/components/shell/icons";
 
@@ -45,40 +48,42 @@ function BriefView({
   summary,
   clusters,
   aiCost,
+  finops,
 }: {
   orgName: string;
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
   clusters: Awaited<ReturnType<typeof getUnallocatedClusters>>;
   aiCost: Awaited<ReturnType<typeof getAiCostSummary>>;
+  finops: Awaited<ReturnType<typeof getFinopsDashboard>>;
 }) {
   const plan = summary.budget?.amount ?? summary.runRate * 0.85;
   const forecast = summary.runRate * 12 || summary.trailing30 * 12;
   const gap = forecast - plan;
   const overPct = plan > 0 ? gap / plan : 0;
 
-  const empty = summary.trailing30 < 1;
+  const empty = summary.trailing30 < 1 && finops.empty;
   const attention = empty
     ? [
         {
           initials: "1",
           color: "#2f5bd8",
-          name: "Bring in your bills",
-          role: "Sources",
-          body: "Upload a spend file or connect Anthropic, OpenAI, or Cursor. Everything stays in this workspace.",
+          name: "Load sample data",
+          role: "FinOps",
+          body: "One click: ~2,000-person roster, vendor spend, terminated seats, and unmapped keys — no connectors.",
         },
         {
           initials: "2",
           color: "#7c5cbf",
-          name: "Or open the demo",
-          role: "Workspaces",
-          body: "Want a filled-in example? Open Workspaces and tap “Open the demo” to see Northstar with sample data.",
+          name: "Or import CSVs",
+          role: "Import",
+          body: "Upload an HRIS roster and a vendor usage / seat CSV. Department joins on email only.",
         },
         {
           initials: "3",
           color: "#2a9d8f",
-          name: "Set a budget",
-          role: "Plan",
-          body: "Once spend shows up, set a budget under Plan so you can see if you’re on track.",
+          name: "Open the Northstar demo",
+          role: "Workspaces",
+          body: "Want the fuller product tour? Open Workspaces and tap “Open the demo”.",
         },
       ]
     : [
@@ -110,6 +115,17 @@ function BriefView({
 
   return (
     <div className="space-y-6">
+      <FinopsOnePager dash={finops} />
+
+      {empty && (
+        <div className="flex flex-wrap gap-3">
+          <LoadSampleButton />
+          <Link href="/import" className="btn btn-ghost">
+            Import CSV →
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
         <div className="soft-card" style={{ background: "var(--card-blue)" }}>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -259,6 +275,7 @@ function BreakdownView({
           sub: "Team slice",
           value: r.effective,
           abbr: r.team.slice(0, 3).toUpperCase(),
+          href: `/?tab=org&node=${r.nodeId}`,
         }))
       : mode === "feature"
         ? summary.byFeature.map((r) => ({
@@ -267,13 +284,15 @@ function BreakdownView({
             sub: "Feature",
             value: r.effective,
             abbr: r.feature.slice(0, 3).toUpperCase(),
+            href: `/?tab=breakdown&feature=${encodeURIComponent(r.feature)}`,
           }))
-        : summary.bySku.map((r) => ({
-            key: r.skuId,
-            label: r.sku,
-            sub: "From cost records",
+        : summary.byProvider.map((r) => ({
+            key: r.key,
+            label: r.name,
+            sub: "Vendor",
             value: r.effective,
-            abbr: r.sku.slice(0, 3).toUpperCase(),
+            abbr: r.name.slice(0, 3).toUpperCase(),
+            href: `/?tab=breakdown&provider=${encodeURIComponent(r.key)}`,
           }));
 
   const total = rows.reduce((a, r) => a + r.value, 0) || 1;
@@ -330,13 +349,7 @@ function BreakdownView({
         {rows.slice(0, 12).map((r) => (
           <Link
             key={r.key}
-            href={
-              mode === "team"
-                ? `/?tab=org&node=${r.key}`
-                : mode === "feature"
-                  ? `/?tab=breakdown&feature=${encodeURIComponent(r.label)}`
-                  : `/?tab=breakdown&model=${encodeURIComponent(r.key)}`
-            }
+            href={r.href}
             className="row-card flex items-center gap-3 transition-shadow hover:shadow-sm"
           >
             <div
@@ -457,7 +470,7 @@ export default async function HomePage({
       );
     }
 
-    const [types, nodes, summary, options, stale, clusters, aiCost] =
+    const [types, nodes, summary, options, stale, clusters, aiCost, finops] =
       await Promise.all([
         getDimensionTypes(org.id),
         getDimensionNodes(org.id),
@@ -466,6 +479,7 @@ export default async function HomePage({
         getStaleConnectors(org.id),
         getUnallocatedClusters(org.id, 30),
         getAiCostSummary(org.id, { days: 30 }),
+        getFinopsDashboard(org.id, 30),
       ]);
 
     return (
@@ -522,6 +536,7 @@ export default async function HomePage({
             summary={summary}
             clusters={clusters}
             aiCost={aiCost}
+            finops={finops}
           />
         )}
       </div>

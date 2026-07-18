@@ -20,6 +20,8 @@ export const organizations = pgTable("organizations", {
   slug: text("slug").notNull().unique(),
   /** SHA-256 of workspace access token — gates cookie registry without user accounts. */
   accessTokenHash: text("access_token_hash"),
+  /** When set, workspace is showing deterministic FinOps sample fixtures — show watermark. */
+  sampleDataLoadedAt: timestamp("sample_data_loaded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -784,7 +786,7 @@ export const valueEvents = pgTable(
   (t) => [index("value_events_metric_period").on(t.valueMetricId, t.periodStart)]
 );
 
-/** Phase 3 — workspace people (not login accounts) */
+/** Workspace people / HRIS roster (not login accounts) */
 export const contributors = pgTable(
   "contributors",
   {
@@ -798,12 +800,20 @@ export const contributors = pgTable(
     githubId: text("github_id"),
     externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
     dimensionNodeId: uuid("dimension_node_id").references(() => dimensionNodes.id),
+    /** HRIS department label (join key for FinOps dept rollup) */
+    department: text("department"),
+    costCenter: text("cost_center"),
+    /** active | terminated | leave | contractor */
+    employmentStatus: text("employment_status").notNull().default("active"),
+    startedOn: date("started_on"),
+    endedOn: date("ended_on"),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("contributors_org_email").on(t.orgId, t.email),
     index("contributors_org_github").on(t.orgId, t.githubLogin),
+    index("contributors_org_dept").on(t.orgId, t.department),
   ]
 );
 

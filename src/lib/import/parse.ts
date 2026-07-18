@@ -72,9 +72,12 @@ export const IMPORT_TARGETS = [
   { key: "meter", label: "Meter", required: false },
   { key: "quantity", label: "Quantity", required: true },
   { key: "cost", label: "Cost (USD)", required: false },
+  { key: "tags.email", label: "Tag: email (roster join)", required: false },
   { key: "tags.feature", label: "Tag: feature", required: false },
   { key: "tags.team", label: "Tag: team", required: false },
   { key: "tags.environment", label: "Tag: environment", required: false },
+  { key: "tags.api_key", label: "Tag: api_key", required: false },
+  { key: "tags.seat_status", label: "Tag: seat_status", required: false },
 ] as const;
 
 export type ColumnMap = Record<string, string>;
