@@ -23,7 +23,54 @@ type Batch = {
   rowsSkipped: number;
   rowsErrored: number;
   createdAt: string;
+  errorReport?: { row: number; field?: string; message: string }[] | null;
 };
+
+function pickUsageTemplate(
+  templates: Template[],
+  headers: string[]
+): Template | undefined {
+  const lower = new Set(headers.map((h) => h.toLowerCase()));
+  const usable = templates.filter(
+    (t) => t.sourceFormat !== "org_structure" && t.sourceFormat !== "dx_ai_metrics"
+  );
+  if (!usable.length) return undefined;
+
+  // Anthropic console: created_at + model + tokens
+  if (lower.has("created_at") && lower.has("model") && lower.has("tokens")) {
+    return (
+      usable.find((t) => /anthropic/i.test(t.name)) ??
+      usable.find((t) => t.columnMap.timestamp === "created_at")
+    );
+  }
+  // OpenAI-style
+  if (lower.has("start_time") || lower.has("n_context_tokens_total")) {
+    return usable.find((t) => /openai/i.test(t.name));
+  }
+  // Seat / invoice
+  if (lower.has("seats") || (lower.has("vendor") && lower.has("amount"))) {
+    return (
+      usable.find((t) => /cursor|seat/i.test(t.name)) ??
+      usable.find((t) => t.sourceFormat === "invoice")
+    );
+  }
+  return usable.find((t) => t.sourceFormat === "usage_export") ?? usable[0];
+}
+
+function summarizeErrors(
+  errors: { row: number; field?: string; message: string }[] | null | undefined
+): string | null {
+  if (!errors?.length) return null;
+  const counts = new Map<string, number>();
+  for (const e of errors) {
+    const key = e.message;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (!top) return null;
+  const extra = counts.size > 1 ? ` (+${counts.size - 1} other issue types)` : "";
+  return `${top[1]}× ${top[0]}${extra}`;
+}
 
 type Tab = "people" | "bills" | "teams" | "history";
 
@@ -121,19 +168,11 @@ export default function ImportPage() {
         setMessage("This looks like an org chart — switch to the Teams tab.");
         setTab("teams");
       } else if (!looksOrg && (looksUsage || looksSeats) && templates.length) {
-        const usageTpl =
-          templates.find(
-            (t) =>
-              t.sourceFormat !== "org_structure" && t.sourceFormat !== "dx_ai_metrics"
-          ) ?? templates.find((t) => t.sourceFormat !== "org_structure");
-        if (usageTpl) {
-          setTemplateId(usageTpl.id);
-          setColumnMap({ ...usageTpl.columnMap });
-          if (usageTpl.sourceFormat === "invoice" || looksSeats) setSourceKind("invoice");
-        }
-        // Also run auto-map for email etc.
-        const next: Record<string, string> = { ...(usageTpl?.columnMap ?? {}) };
+        const usageTpl = pickUsageTemplate(templates, hdrs);
         const byLower = Object.fromEntries(hdrs.map((h) => [h.toLowerCase(), h]));
+        const next: Record<string, string> = { ...(usageTpl?.columnMap ?? {}) };
+
+        // Header-based guesses fill gaps (and fix wrong template columns)
         const guesses: Record<string, string[]> = {
           timestamp: ["created_at", "start_time", "timestamp", "date", "period_end"],
           provider: ["provider", "vendor", "system"],
@@ -143,7 +182,35 @@ export default function ImportPage() {
           cost: ["cost", "cost_usd", "amount"],
           "tags.email": ["email", "user_email", "user"],
           "tags.api_key": ["api_key", "api_key_id", "key_id"],
+          "tags.seat_status": ["seat_status"],
         };
+        for (const [target, keys] of Object.entries(guesses)) {
+          // Prefer a column that actually exists in this file
+          for (const k of keys) {
+            if (byLower[k]) {
+              next[target] = byLower[k];
+              break;
+            }
+          }
+        }
+        // Anthropic / OpenAI exports rarely include a vendor column
+        if (!next.provider || (next.provider && !next.provider.startsWith("_literal:") && !byLower[next.provider.toLowerCase()])) {
+          if (lower.has("created_at") && lower.has("tokens")) {
+            next.provider = "_literal:anthropic";
+          } else if (lower.has("n_context_tokens_total") || lower.has("start_time")) {
+            next.provider = "_literal:openai";
+          } else if (looksSeats && !byLower.vendor) {
+            next.provider = "_literal:cursor";
+          }
+        }
+        // Drop mapped sources that aren't in this file (except literals)
+        for (const [target, source] of Object.entries(next)) {
+          if (!source || source.startsWith("_literal:")) continue;
+          if (!byLower[source.toLowerCase()] && !hdrs.includes(source)) {
+            delete next[target];
+          }
+        }
+        // Re-apply guesses for anything we deleted
         for (const [target, keys] of Object.entries(guesses)) {
           if (next[target]) continue;
           for (const k of keys) {
@@ -153,7 +220,24 @@ export default function ImportPage() {
             }
           }
         }
+        if (!next.provider) {
+          if (lower.has("created_at") && lower.has("tokens")) {
+            next.provider = "_literal:anthropic";
+          }
+        }
+
+        if (usageTpl) {
+          setTemplateId(usageTpl.id);
+          if (usageTpl.sourceFormat === "invoice" || looksSeats) {
+            setSourceKind("invoice");
+          }
+        }
         setColumnMap(next);
+        setMessage(
+          usageTpl
+            ? `Matched “${usageTpl.name}” — check the column mapping, then upload.`
+            : "Guessed columns from your headers — check the mapping, then upload."
+        );
       }
       if (data.duplicateBatchId) {
         setMessage(
@@ -328,50 +412,60 @@ export default function ImportPage() {
         <div className="soft-card">
           <h2 className="text-[15px] font-semibold">Past uploads</h2>
           <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-            Undo a bad upload anytime.
+            Undo a bad upload anytime. Failed rows show a short reason below.
           </p>
-          <table className="mt-4 w-full text-left text-[13px]">
-            <thead>
-              <tr style={{ color: "var(--muted)" }}>
-                <th className="pb-2 pr-2">File</th>
-                <th className="pb-2 pr-2">Status</th>
-                <th className="pb-2 pr-2">Added</th>
-                <th className="pb-2 pr-2">Already had</th>
-                <th className="pb-2 pr-2">Problems</th>
-                <th className="pb-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((b) => (
-                <tr key={b.id} style={{ borderTop: "1px solid var(--border)" }}>
-                  <td className="py-2 pr-2">{b.fileName}</td>
-                  <td className="py-2 pr-2">{b.status}</td>
-                  <td className="py-2 pr-2">{b.rowsWritten}</td>
-                  <td className="py-2 pr-2">{b.rowsSkipped}</td>
-                  <td className="py-2 pr-2">{b.rowsErrored}</td>
-                  <td className="py-2">
-                    {b.status === "completed" && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost text-[12px]"
-                        disabled={busy}
-                        onClick={() => void rollback(b.id)}
-                      >
-                        Undo
-                      </button>
+          <div className="mt-4 space-y-3">
+            {batches.map((b) => {
+              const why = summarizeErrors(b.errorReport);
+              return (
+                <div
+                  key={b.id}
+                  className="flex flex-wrap items-start justify-between gap-3 border-t pt-3 first:border-0 first:pt-0"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-semibold">{b.fileName}</div>
+                    <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
+                      {b.status === "failed" ? (
+                        <span style={{ color: "var(--danger)" }}>Failed</span>
+                      ) : (
+                        <span style={{ color: "var(--success)" }}>Uploaded</span>
+                      )}
+                      {" · "}
+                      {b.rowsWritten} added · {b.rowsSkipped} already had ·{" "}
+                      {b.rowsErrored} problems
+                    </div>
+                    {why && (
+                      <p className="mt-1 text-[13px]" style={{ color: "var(--danger)" }}>
+                        Why: {why}
+                      </p>
                     )}
-                  </td>
-                </tr>
-              ))}
-              {batches.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-4" style={{ color: "var(--muted)" }}>
-                    No uploads yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    {b.status === "failed" && (
+                      <p className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
+                        Fix: open Bills & usage, drop the file again — we now match Anthropic
+                        columns automatically — then upload.
+                      </p>
+                    )}
+                  </div>
+                  {b.status === "completed" && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost text-[12px]"
+                      disabled={busy}
+                      onClick={() => void rollback(b.id)}
+                    >
+                      Undo
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {batches.length === 0 && (
+              <p className="text-[13px]" style={{ color: "var(--muted)" }}>
+                No uploads yet.
+              </p>
+            )}
+          </div>
         </div>
       )}
 

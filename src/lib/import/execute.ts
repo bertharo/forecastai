@@ -269,6 +269,7 @@ export async function rollbackImportBatch(orgId: string, batchId: string) {
   return { ok: true, deletedCosts: costIds.length, deletedUsage: usageIds.length };
 }
 
+/** Successful (or in-progress) batch for this file hash — failed uploads do not block retry. */
 export async function findActiveBatchByHash(orgId: string, hash: string) {
   const [batch] = await db
     .select()
@@ -278,6 +279,7 @@ export async function findActiveBatchByHash(orgId: string, hash: string) {
         eq(s.importBatches.orgId, orgId),
         eq(s.importBatches.contentHash, hash),
         ne(s.importBatches.status, "rolled_back"),
+        ne(s.importBatches.status, "failed"),
         isNull(s.importBatches.rolledBackAt)
       )
     )
