@@ -17,9 +17,12 @@ export default async function AiCostPage({
   if (!org) {
     return (
       <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <p className="font-semibold">Create a workspace first</p>
+        <p className="font-semibold">Open a workspace first</p>
+        <p className="muted mt-2 text-[14px]">
+          AI cost is per workspace — open one (or the demo) to see coding-tool spend.
+        </p>
         <a className="btn mt-3 inline-block" href="/onboarding">
-          Workspaces →
+          Get started →
         </a>
       </div>
     );
@@ -48,10 +51,10 @@ export default async function AiCostPage({
           AI cost
         </div>
         <p className="mt-2 max-w-3xl text-[16px] font-medium leading-snug">
-          Coding-tool spend mapped to people and teams — DX-style AI cost, with Meter
-          budgets and forecasts underneath.{" "}
+          What your team spends on AI coding tools (Claude, Cursor, Copilot), by person and
+          team — and how that compares to pull requests shipped.{" "}
           <Link href="/connectors" className="underline">
-            Connect sources
+            Add a source
           </Link>
         </p>
       </div>

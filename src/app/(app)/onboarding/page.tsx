@@ -8,6 +8,8 @@ type Step = 1 | 2 | 3 | 4;
 
 type ListedOrg = { id: string; name: string; slug: string };
 
+const DEMO_TOKEN = "ws_demo_northstar";
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
@@ -23,6 +25,7 @@ export default function OnboardingPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [knownOrgs, setKnownOrgs] = useState<ListedOrg[]>([]);
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const refreshKnown = useCallback(async () => {
     try {
@@ -50,7 +53,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({ orgId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Switch failed");
+      if (!res.ok) throw new Error(data.error || "Couldn’t switch workspace");
       setCurrentOrgId(orgId);
       router.refresh();
       router.push("/");
@@ -71,7 +74,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({ name }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create workspace");
+      if (!res.ok) throw new Error(data.error || "Couldn’t create workspace");
       setOrg(data.org);
       setOtelKey(data.otelKey);
       setWorkspaceToken(data.workspaceToken ?? null);
@@ -86,21 +89,21 @@ export default function OnboardingPage() {
     }
   }
 
-  async function claimWorkspace() {
+  async function openWithToken(token: string) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/orgs/claim", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: claimToken.trim() }),
+        body: JSON.stringify({ token: token.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Claim failed");
+      if (!res.ok) throw new Error(data.error || "That code didn’t work");
       setOrg(data.org);
-      setWorkspaceToken(claimToken.trim());
+      setWorkspaceToken(token.trim());
       setCurrentOrgId(data.org?.id ?? null);
-      setStep(2);
+      setStep(4);
       await refreshKnown();
       router.refresh();
     } catch (e) {
@@ -139,10 +142,8 @@ export default function OnboardingPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Ingest failed");
-      setTestResult(
-        `Wrote ${data.written} usage events, ${data.costed} cost records (${data.allocated} allocated).`
-      );
+      if (!res.ok) throw new Error(data.error || "Test didn’t go through");
+      setTestResult("Nice — sample AI usage is in your workspace now.");
       setStep(4);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -150,6 +151,19 @@ export default function OnboardingPage() {
       setBusy(false);
     }
   }
+
+  async function copyToken() {
+    if (!workspaceToken) return;
+    try {
+      await navigator.clipboard.writeText(workspaceToken);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const steps = ["Start", "Optional setup", "Sample data", "Done"] as const;
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
@@ -160,14 +174,17 @@ export default function OnboardingPage() {
         >
           Workspaces
         </div>
-        <p className="mt-2 text-[16px] font-medium leading-snug">
-          Each workspace keeps its own spend, budgets, and connectors. No user accounts —
-          this browser holds an access token so data stays private to you.
+        <p className="mt-2 text-[18px] font-semibold leading-snug">
+          A workspace is your private folder for AI spend.
+        </p>
+        <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
+          Think of it like a separate company file — budgets, bills, and forecasts stay
+          inside. No signup. This browser remembers which folders you’ve opened.
         </p>
       </div>
 
       <ol className="flex flex-wrap gap-2 text-[11px]">
-        {(["Workspace", "Dimensions", "Telemetry", "Done"] as const).map((label, i) => {
+        {steps.map((label, i) => {
           const n = (i + 1) as Step;
           const active = step === n;
           return (
@@ -199,9 +216,10 @@ export default function OnboardingPage() {
         <div className="space-y-3">
           {knownOrgs.length > 0 && (
             <div className="panel space-y-3 p-4">
-              <h2 className="text-sm font-semibold">Your workspaces on this browser</h2>
+              <h2 className="text-sm font-semibold">Your workspaces</h2>
               <p className="muted text-[13px]">
-                Switch here, or use the <strong>Workspace</strong> dropdown in the top bar.
+                Pick one to open. You can also switch anytime with{" "}
+                <strong>Workspace</strong> in the top right.
               </p>
               <ul className="space-y-2">
                 {knownOrgs.map((o) => (
@@ -209,17 +227,14 @@ export default function OnboardingPage() {
                     key={o.id}
                     className="row-card flex items-center justify-between gap-2"
                   >
-                    <div>
-                      <div className="font-medium">{o.name}</div>
-                      <div className="muted mono text-[11px]">{o.slug}</div>
-                    </div>
+                    <div className="font-medium">{o.name}</div>
                     <button
                       type="button"
                       className="btn"
                       disabled={busy || currentOrgId === o.id}
                       onClick={() => void switchTo(o.id)}
                     >
-                      {currentOrgId === o.id ? "Active" : "Switch"}
+                      {currentOrgId === o.id ? "You’re here" : "Open"}
                     </button>
                   </li>
                 ))}
@@ -227,17 +242,36 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          <div className="panel space-y-3 p-4">
-            <h2 className="text-sm font-semibold">Create a workspace</h2>
+          <div
+            className="panel space-y-3 p-4"
+            style={{ borderColor: "rgba(47,91,216,0.25)" }}
+          >
+            <h2 className="text-sm font-semibold">Just looking around?</h2>
             <p className="muted text-[13px]">
-              Starts empty with business unit, department, team, and cost center dimensions
-              plus a starter allocation rule.
+              Open the sample company (Northstar) with fake data already filled in — forecasts,
+              teams, and AI tool costs.
+            </p>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void openWithToken(DEMO_TOKEN)}
+            >
+              {busy ? "Opening…" : "Open the demo"}
+            </button>
+          </div>
+
+          <div className="panel space-y-3 p-4">
+            <h2 className="text-sm font-semibold">Start your own (empty)</h2>
+            <p className="muted text-[13px]">
+              Fresh workspace for your company. You’ll add spend next — nothing is shared with
+              anyone else.
             </p>
             <label className="block text-[13px]">
-              Workspace name
+              Name
               <input
                 className="select mt-1 w-full"
-                placeholder="Acme AI"
+                placeholder="e.g. Acme AI"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -252,80 +286,91 @@ export default function OnboardingPage() {
             </button>
           </div>
 
-          <div className="panel space-y-3 p-4">
-            <h2 className="text-sm font-semibold">Open an existing workspace</h2>
-            <p className="muted text-[13px]">
-              Paste the workspace access token (shown once at create, or from seed for the
-              Northstar demo).
+          <details className="panel p-4">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Have an invite code?
+            </summary>
+            <p className="muted mt-2 text-[13px]">
+              If someone shared a workspace code with you (starts with{" "}
+              <span className="mono">ws_</span>), paste it here to open their folder on this
+              browser.
             </p>
             <input
-              className="select w-full mono text-[12px]"
-              placeholder="ws_…"
+              className="select mono mt-3 w-full text-[12px]"
+              placeholder="Paste code…"
               value={claimToken}
               onChange={(e) => setClaimToken(e.target.value)}
             />
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost mt-2"
               disabled={busy || claimToken.trim().length < 8}
-              onClick={() => void claimWorkspace()}
+              onClick={() => void openWithToken(claimToken)}
             >
-              Open workspace
+              Open with code
             </button>
-          </div>
+          </details>
         </div>
       )}
 
       {step === 2 && org && (
         <div className="space-y-3">
           <div className="panel space-y-3 p-4">
-            <h2 className="text-sm font-semibold">Workspace ready</h2>
+            <h2 className="text-sm font-semibold">{org.name} is ready</h2>
             <p className="muted text-[13px]">
-              <span className="font-medium" style={{ color: "var(--text)" }}>
-                {org.name}
-              </span>{" "}
-              is active on this browser. Data you import or ingest lands only here.
+              You’re in. Spend you add later only shows up here — not in other workspaces.
             </p>
             {workspaceToken && (
               <div>
                 <div className="mb-1 text-[12px] font-semibold">
-                  Workspace access token (save this)
+                  Save your reopen code
                 </div>
+                <p className="muted mb-2 text-[12px]">
+                  Like a house key for this workspace. You’ll need it if you switch browsers or
+                  clear cookies. We only show it once.
+                </p>
                 <pre
                   className="mono overflow-auto p-2 text-[11px]"
                   style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
                 >
                   {workspaceToken}
                 </pre>
-                <p className="muted mt-1 text-[11px]">
-                  Use it on another browser via Orgs → Open existing workspace. We don&apos;t
-                  show it again.
-                </p>
+                <button type="button" className="btn btn-ghost mt-2" onClick={() => void copyToken()}>
+                  {copied ? "Copied" : "Copy code"}
+                </button>
               </div>
             )}
-            <button type="button" className="btn" onClick={() => setStep(3)}>
-              Continue to telemetry
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn" onClick={() => setStep(3)}>
+                Continue
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setStep(4)}>
+                Skip to home
+              </button>
+            </div>
           </div>
-          <OrgStructureImport />
+          <details className="panel p-4">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Optional: upload your team list
+            </summary>
+            <p className="muted mt-2 mb-3 text-[13px]">
+              Already have departments and teams in a spreadsheet? You can import them now, or
+              skip and do it later.
+            </p>
+            <OrgStructureImport bare />
+          </details>
         </div>
       )}
 
       {step === 3 && (
         <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-semibold">Connect telemetry (OTel)</h2>
+          <h2 className="text-sm font-semibold">Add a tiny bit of sample spend</h2>
           {otelKey ? (
             <>
               <p className="muted text-[13px]">
-                Use this key once — store it in your secrets manager. Spans become usage,
-                cost, and allocations <strong>only in this workspace</strong>.
+                This drops one fake AI request into your workspace so Home isn’t empty. You can
+                connect real billing later under <strong>Sources</strong>.
               </p>
-              <pre
-                className="mono overflow-auto p-2 text-[11px]"
-                style={{ background: "var(--bg)", border: "1px solid var(--border)" }}
-              >
-                {otelKey}
-              </pre>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -333,18 +378,17 @@ export default function OnboardingPage() {
                   disabled={busy}
                   onClick={() => void sendTestSpan()}
                 >
-                  {busy ? "Sending…" : "Send test span"}
+                  {busy ? "Adding…" : "Add sample spend"}
                 </button>
                 <button type="button" className="btn btn-ghost" onClick={() => setStep(4)}>
-                  Skip for now
+                  Skip
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className="muted text-[13px]">
-                You opened an existing workspace — create a new OTel key under Data &amp;
-                sources, or continue.
+                You’re all set. Connect bills anytime under Sources, or go look around.
               </p>
               <button type="button" className="btn" onClick={() => setStep(4)}>
                 Continue
@@ -356,18 +400,28 @@ export default function OnboardingPage() {
 
       {step === 4 && (
         <div className="panel space-y-3 p-4">
-          <h2 className="text-sm font-semibold">You&apos;re in</h2>
+          <h2 className="text-sm font-semibold">You’re in</h2>
           {testResult && <p className="text-[13px]">{testResult}</p>}
           <p className="muted text-[13px]">
-            Open Brief for this workspace only. Import CSV or sync connectors — nothing
-            crosses into other workspaces.
+            {org ? (
+              <>
+                <strong style={{ color: "var(--text)" }}>{org.name}</strong> is open. Home shows
+                your forecast; <strong>Sources</strong> is where you plug in bills;{" "}
+                <strong>AI cost</strong> is for coding-tool spend by person.
+              </>
+            ) : (
+              <>
+                Home shows your forecast. Use <strong>Workspace</strong> (top right) to switch
+                folders. <strong>Sources</strong> is where bills come in.
+              </>
+            )}
           </p>
           <div className="flex flex-wrap gap-2">
             <a className="btn" href="/">
-              Go to Brief
+              Go to Home
             </a>
             <a className="btn btn-ghost" href="/connectors">
-              Data &amp; sources
+              Add a data source
             </a>
           </div>
         </div>

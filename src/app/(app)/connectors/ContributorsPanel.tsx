@@ -65,11 +65,11 @@ export function ContributorsPanel({ count }: { count: number }) {
 
   return (
     <div className="panel p-4">
-      <h2 className="mb-1 text-sm font-semibold">People (contributors)</h2>
+      <h2 className="mb-1 text-sm font-semibold">People on your team</h2>
       <p className="muted mb-3 text-[13px]">
-        Workspace people for AI attribution — not login accounts.{" "}
-        <strong>{count}</strong> loaded. CSV:{" "}
-        <span className="mono">email, display_name, github_login, team_key</span>
+        Who uses AI tools — so spend can land on the right person and team.{" "}
+        <strong>{count}</strong> added. Paste a CSV with email, name, GitHub username, and
+        team.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <label className="text-[12px]">

@@ -29,17 +29,17 @@ export default function AppError({
           </>
         ) : redacted ? (
           <>
-            Something failed while loading this view. Try{" "}
-            <strong>Reload</strong>, or open{" "}
+            Something went wrong loading this page. Try <strong>Reload</strong>. To see sample
+            data, open{" "}
             <a className="underline" href="/onboarding">
               Workspaces
             </a>{" "}
-            and switch / re-claim your workspace. Demo data: claim{" "}
-            <span className="mono">ws_demo_northstar</span>.
+            and tap <strong>Open the demo</strong>.
           </>
         ) : (
           <>
-            If this persists, restart with <span className="mono">npm run dev</span>.
+            Try Reload. If it keeps happening, refresh the page or open Workspaces and switch
+            folders.
           </>
         )}
       </p>

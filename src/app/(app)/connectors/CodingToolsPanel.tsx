@@ -76,10 +76,10 @@ export function CodingToolsPanel({
   return (
     <div className="space-y-3">
       <div className="panel p-4">
-        <h2 className="mb-1 text-sm font-semibold">GitHub (merged PRs)</h2>
+        <h2 className="mb-1 text-sm font-semibold">GitHub pull requests</h2>
         <p className="muted mb-3 text-[13px]">
-          Join AI spend to delivery — cost per merged PR. Paste a classic PAT with{" "}
-          <span className="mono">repo</span> read, or load demo PRs.
+          So we can show “AI dollars per shipped change.” Connect GitHub, or load sample PRs
+          for the demo.
         </p>
         <div className="mb-3 grid grid-cols-2 gap-2 text-[12px] sm:grid-cols-4">
           <div>
@@ -105,11 +105,11 @@ export function CodingToolsPanel({
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-[12px]">
-            Personal access token
+            GitHub token (optional)
             <input
               className="input mt-1 block w-64"
               type="password"
-              placeholder={github.hasToken ? "•••••••• (replace)" : "ghp_…"}
+              placeholder={github.hasToken ? "•••••••• (replace)" : "Paste token…"}
               value={pat}
               onChange={(e) => setPat(e.target.value)}
             />
@@ -120,7 +120,7 @@ export function CodingToolsPanel({
             disabled={busy || !pat.trim()}
             onClick={() => void githubAction("connect")}
           >
-            Save PAT
+            Save token
           </button>
           <button
             type="button"
@@ -128,7 +128,7 @@ export function CodingToolsPanel({
             disabled={busy || !github.hasToken}
             onClick={() => void githubAction("sync")}
           >
-            Sync live
+            Pull latest
           </button>
           <button
             type="button"
@@ -136,16 +136,16 @@ export function CodingToolsPanel({
             disabled={busy}
             onClick={() => void githubAction("demo")}
           >
-            Demo PRs
+            Load sample PRs
           </button>
         </div>
       </div>
 
       <div className="panel p-4">
-        <h2 className="mb-1 text-sm font-semibold">Coding tools (Claude / Cursor / Copilot)</h2>
+        <h2 className="mb-1 text-sm font-semibold">AI coding tools</h2>
         <p className="muted mb-3 text-[13px]">
-          Per-person daily grains for AI Cost. Uses Anthropic Admin key when set;
-          otherwise demo attribution by contributor.
+          Pull spend from Claude, Cursor, and Copilot into AI cost — by person when we can
+          match them.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -154,7 +154,7 @@ export function CodingToolsPanel({
             disabled={busy}
             onClick={() => void toolsSync("claude")}
           >
-            Sync Claude / tools
+            Sync tools
           </button>
           <button
             type="button"
@@ -162,29 +162,24 @@ export function CodingToolsPanel({
             disabled={busy}
             onClick={() => void toolsSync("demo")}
           >
-            Demo sync
+            Load sample data
           </button>
           <a className="btn btn-ghost" href="/ai-cost">
-            Open AI cost →
+            See AI cost →
           </a>
         </div>
       </div>
 
       <div className="panel p-4">
-        <h2 className="mb-1 text-sm font-semibold">Import DX AI metrics CSV</h2>
+        <h2 className="mb-1 text-sm font-semibold">Moving from DX?</h2>
         <p className="muted mb-3 text-[13px]">
-          Columns:{" "}
-          <span className="mono">
-            day, tool, email, display_name, team_key, spend, tokens_in, tokens_out,
-            sessions
-          </span>
-          . Template fixture under{" "}
-          <span className="mono">fixtures/dx-ai-metrics.csv</span>.
+          Paste an export of daily AI tool spend (day, tool, email, team, dollars). We’ll map
+          it into this workspace.
         </p>
         <textarea
           className="input w-full font-mono text-[12px]"
           rows={5}
-          placeholder="Paste DX export CSV…"
+          placeholder="Paste spreadsheet export…"
           value={dxCsv}
           onChange={(e) => setDxCsv(e.target.value)}
         />
@@ -194,7 +189,7 @@ export function CodingToolsPanel({
           disabled={busy || !dxCsv.trim()}
           onClick={() => void toolsSync("dx_csv")}
         >
-          Import DX CSV
+          Import
         </button>
       </div>
 

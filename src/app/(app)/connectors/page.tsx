@@ -83,27 +83,20 @@ export default async function ConnectorsPage() {
           Data & sources
         </div>
         <p className="mt-2 max-w-3xl text-[16px] font-medium leading-snug">
-          Upload and live connectors driving the console ·{" "}
-          <strong>{covered.toFixed(0)}%</strong> estimated spend covered ·{" "}
-          <strong>{liveCount}</strong> healthy sources of {rows.length}.{" "}
-          <a href="/import" className="underline">
-            Import CSV
-          </a>
-          {" · "}
-          <a href="/ai-cost" className="underline">
-            AI cost
-          </a>
+          This is where Meter learns what you’re spending — upload a file or connect a
+          vendor. About <strong>{covered.toFixed(0)}%</strong> of spend is covered ·{" "}
+          <strong>{liveCount}</strong> of {rows.length} sources look healthy.
         </p>
       </div>
 
       <div className="panel p-4">
-        <h2 className="mb-1 text-sm font-semibold">Upload spend file</h2>
+        <h2 className="mb-1 text-sm font-semibold">Upload a spend file</h2>
         <p className="muted mb-3 text-[13px]">
-          Import CSV/JSONL with usage or invoices — templates map Anthropic, OpenAI, and
-          generic invoices. Orgs refresh from Neon; Brief/Breakdown update when amounts map.
+          Drop in a CSV from Anthropic, OpenAI, or a generic invoice. Home updates once the
+          numbers map.
         </p>
         <a className="btn inline-block" href="/import">
-          Open import →
+          Upload file →
         </a>
       </div>
 

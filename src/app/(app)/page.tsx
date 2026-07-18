@@ -62,23 +62,23 @@ function BriefView({
         {
           initials: "1",
           color: "#2f5bd8",
-          name: "Connect a source",
-          role: "Data & sources",
-          body: "Import a CSV or sync Anthropic / OpenAI / Cursor. All data stays in this workspace only.",
+          name: "Bring in your bills",
+          role: "Sources",
+          body: "Upload a spend file or connect Anthropic, OpenAI, or Cursor. Everything stays in this workspace.",
         },
         {
           initials: "2",
           color: "#7c5cbf",
-          name: "Send a test span",
-          role: "OTel ingest",
-          body: "Use your workspace OTel key under Data & sources — tags like feature + team drive allocation.",
+          name: "Or open the demo",
+          role: "Workspaces",
+          body: "Want a filled-in example? Open Workspaces and tap “Open the demo” to see Northstar with sample data.",
         },
         {
           initials: "3",
           color: "#2a9d8f",
-          name: "Set a plan",
-          role: "Budgets",
-          body: "Add an org budget under Plan once spend lands — burn-down and breach status are workspace-scoped.",
+          name: "Set a budget",
+          role: "Plan",
+          body: "Once spend shows up, set a budget under Plan so you can see if you’re on track.",
         },
       ]
     : [
@@ -441,17 +441,17 @@ export default async function HomePage({
       return (
         <div className="soft-card space-y-3" style={{ background: "var(--card-blue)" }}>
           <div className="text-[11px] font-semibold uppercase tracking-wider muted">
-            Workspace
+            Get started
           </div>
           <p className="text-[18px] font-semibold leading-snug">
-            Create a workspace to start — your spend and forecasts stay private to it.
+            Open a workspace to see AI spend and forecasts.
           </p>
-          <p className="text-[14px]" style={{ color: "var(--muted)" }}>
-            No account required. This browser keeps an access token so only you see the data.
-            You can open the same workspace later with the token shown at create time.
+          <p className="text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
+            A workspace is your private folder for this company. No account needed — try the
+            sample demo or start empty.
           </p>
           <a className="btn inline-block" href="/onboarding">
-            Create workspace →
+            Get started →
           </a>
         </div>
       );

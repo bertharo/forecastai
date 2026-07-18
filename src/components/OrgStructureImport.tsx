@@ -13,7 +13,7 @@ type PreviewNode = {
   costCenterCode: string | null;
 };
 
-export function OrgStructureImport() {
+export function OrgStructureImport({ bare }: { bare?: boolean } = { bare: false }) {
   const router = useRouter();
   const [csv, setCsv] = useState(
     [
@@ -57,17 +57,16 @@ export function OrgStructureImport() {
   }
 
   return (
-    <div className="panel space-y-3 p-4">
-      <div>
-        <h2 className="text-sm font-medium">Org structure CSV</h2>
-        <p className="muted mt-1 text-[12px]">
-          Columns:{" "}
-          <span className="mono">
-            node_name, parent_name, dimension_type, cost_center_code, owner_email
-          </span>
-          . Validates cycles/orphans and previews the tree before commit.
-        </p>
-      </div>
+    <div className={bare ? "space-y-3" : "panel space-y-3 p-4"}>
+      {!bare && (
+        <div>
+          <h2 className="text-sm font-medium">Import teams from a spreadsheet</h2>
+          <p className="muted mt-1 text-[12px]">
+            Paste a CSV of your org chart (business units → departments → teams). We’ll show a
+            preview before anything is saved.
+          </p>
+        </div>
+      )}
       <textarea
         className="select mono w-full text-[11px]"
         rows={8}
@@ -81,7 +80,7 @@ export function OrgStructureImport() {
           disabled={busy}
           onClick={() => void run("preview")}
         >
-          Preview tree
+          Preview
         </button>
         <button
           type="button"
@@ -89,14 +88,14 @@ export function OrgStructureImport() {
           disabled={busy || !preview?.ok}
           onClick={() => void run("import")}
         >
-          Commit import
+          Save teams
         </button>
         <button
           type="button"
-          className="btn"
+          className="btn btn-ghost"
           onClick={() => setShowContract((v) => !v)}
         >
-          {showContract ? "Hide" : "Show"} IdP adapter contract
+          {showContract ? "Hide" : "Advanced"} technical notes
         </button>
       </div>
       {error && (
