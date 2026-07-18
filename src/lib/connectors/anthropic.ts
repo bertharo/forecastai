@@ -62,7 +62,9 @@ async function fetchLiveUsage(
   url.searchParams.set("starting_at", start);
   url.searchParams.set("ending_at", end);
   url.searchParams.set("bucket_width", "1d");
-  url.searchParams.set("group_by[]", "model");
+  // Model + key so Rung 1 registry can discover expensive keys
+  url.searchParams.append("group_by[]", "model");
+  url.searchParams.append("group_by[]", "api_key_id");
 
   const res = await fetch(url, {
     headers: {

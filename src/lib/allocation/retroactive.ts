@@ -23,21 +23,28 @@ export async function previewOrApplyRule(
     match: Record<string, string>;
     set: Record<string, string>;
   },
-  opts: { apply: boolean; appliedBy?: string }
+  opts: {
+    apply: boolean;
+    appliedBy?: string;
+    /** When true (key registry), remap all matching rows — not only unallocated. */
+    forceRemap?: boolean;
+  }
 ) {
   const before = await getAllocationPct(orgId, 30);
 
-  const unallocated = await db
+  const candidates = await db
     .select()
     .from(s.costRecords)
     .where(
-      and(
-        eq(s.costRecords.orgId, orgId),
-        eq(s.costRecords.allocationStatus, "unallocated")
-      )
+      opts.forceRemap
+        ? eq(s.costRecords.orgId, orgId)
+        : and(
+            eq(s.costRecords.orgId, orgId),
+            eq(s.costRecords.allocationStatus, "unallocated")
+          )
     );
 
-  const matching = unallocated.filter((r) =>
+  const matching = candidates.filter((r) =>
     tagsMatch((r.tags ?? {}) as Record<string, string>, rule.match)
   );
 
@@ -124,10 +131,12 @@ export async function previewOrApplyRule(
     .select()
     .from(s.usageEvents)
     .where(
-      and(
-        eq(s.usageEvents.orgId, orgId),
-        eq(s.usageEvents.allocationStatus, "unallocated")
-      )
+      opts.forceRemap
+        ? eq(s.usageEvents.orgId, orgId)
+        : and(
+            eq(s.usageEvents.orgId, orgId),
+            eq(s.usageEvents.allocationStatus, "unallocated")
+          )
     );
   for (const ev of usage) {
     if (!tagsMatch((ev.tags ?? {}) as Record<string, string>, rule.match)) continue;

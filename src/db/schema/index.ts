@@ -623,6 +623,41 @@ export const connectorSyncRuns = pgTable("connector_sync_runs", {
   errors: jsonb("errors").$type<unknown[]>().default([]),
 });
 
+/**
+ * Rung 1 attribution — map Anthropic api_key / workspace tags to a dimension node.
+ * Zero customer instrumentation: Admin sync discovers keys; users assign teams here.
+ */
+export const providerKeyRegistry = pgTable(
+  "provider_key_registry",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    providerId: uuid("provider_id")
+      .notNull()
+      .references(() => providers.id),
+    kind: text("kind").notNull(), // api_key | workspace
+    externalId: text("external_id").notNull(),
+    displayName: text("display_name"),
+    dimensionNodeId: uuid("dimension_node_id").references(() => dimensionNodes.id),
+    isServiceAccount: boolean("is_service_account").notNull().default(false),
+    serviceLabel: text("service_label"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("provider_key_registry_org_prov_kind_ext").on(
+      t.orgId,
+      t.providerId,
+      t.kind,
+      t.externalId
+    ),
+    index("provider_key_registry_org_unmapped").on(t.orgId, t.dimensionNodeId),
+  ]
+);
+
 export const otelIngestKeys = pgTable(
   "otel_ingest_keys",
   {

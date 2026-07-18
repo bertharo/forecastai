@@ -6,6 +6,7 @@ import {
   IconAiCost,
   IconAlerts,
   IconHome,
+  IconKeys,
   IconOrgs,
   IconPlan,
   IconScenarios,
@@ -14,10 +15,11 @@ import {
 } from "@/components/shell/icons";
 
 const NAV = [
-  { href: "/", label: "Home", icon: IconHome, match: (p: string) => p === "/" || p.startsWith("/?"), exact: true },
+  { href: "/", label: "Home", icon: IconHome, exact: true },
   { href: "/onboarding", label: "Workspaces", icon: IconOrgs },
   { href: "/budgets", label: "Plan", icon: IconPlan },
   { href: "/ai-cost", label: "AI cost", icon: IconAiCost },
+  { href: "/keys", label: "Keys", icon: IconKeys, badgeKey: "unmappedKeys" as const },
   { href: "/scenarios", label: "Scenarios", icon: IconScenarios },
   { href: "/connectors", label: "Sources", icon: IconSources },
   { href: "/allocation", label: "Alerts", icon: IconAlerts },
@@ -32,9 +34,11 @@ function isActive(pathname: string, href: string, exact?: boolean) {
 
 export function Sidebar({
   currentOrg,
+  unmappedKeys = 0,
 }: {
   orgs?: { id: string; name: string; slug: string }[];
   currentOrg?: { id: string; name: string; slug: string } | null;
+  unmappedKeys?: number;
 }) {
   const pathname = usePathname();
 
@@ -65,6 +69,10 @@ export function Sidebar({
         {NAV.map((item) => {
           const active = isActive(pathname, item.href, item.exact);
           const Icon = item.icon;
+          const badge =
+            item.badgeKey === "unmappedKeys" && unmappedKeys > 0
+              ? unmappedKeys
+              : null;
           return (
             <Link
               key={item.href}
@@ -73,7 +81,15 @@ export function Sidebar({
               data-active={active}
             >
               <Icon />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {badge != null && (
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  style={{ background: "#e8843a" }}
+                >
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
             </Link>
           );
         })}

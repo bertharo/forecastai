@@ -9,6 +9,7 @@ import * as s from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { decryptSecret } from "@/lib/crypto/secrets";
 import { persistUsageEvents } from "@/lib/ingest/persist";
+import { discoverKeysFromEvents } from "@/lib/keys/registry";
 
 let registered = false;
 
@@ -73,7 +74,20 @@ export async function runConnectorSync(
         : await adapter.incremental(config, since);
 
     let persisted = { written: 0, costed: 0, allocated: 0, upserted: 0 };
+    let keys = { discovered: 0, newUnmapped: 0 };
     if (result.events.length > 0) {
+      if (providerKey === "anthropic") {
+        keys = await discoverKeysFromEvents(orgId, result.events);
+        if (keys.newUnmapped > 0) {
+          await db.insert(s.notifications).values({
+            orgId,
+            kind: "key_registry",
+            title: `${keys.newUnmapped} new key${keys.newUnmapped === 1 ? "" : "s"} need mapping`,
+            body: "Map Anthropic API keys to teams so spend is attributed — no code changes required.",
+            href: "/keys?unmapped=1",
+          });
+        }
+      }
       persisted = await persistUsageEvents(orgId, result.events);
     }
 
@@ -120,6 +134,7 @@ export async function runConnectorSync(
       run,
       result: { ...result, rowsWritten: persisted.written },
       persisted,
+      keys,
       orgId,
     };
   } catch (e) {

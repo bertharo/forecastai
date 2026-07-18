@@ -8,6 +8,7 @@ import {
 import { applyAllocationRules } from "@/lib/allocation/apply";
 import type { NormalizedUsageEvent } from "@/lib/connectors/types";
 import { usageEventContentHash } from "@/lib/ingest/contentHash";
+import { enrichTagsFromKeyRegistry } from "@/lib/keys/registry";
 
 async function loadPriceLines(): Promise<PriceCardLineLookup[]> {
   const rows = await db
@@ -112,8 +113,9 @@ export async function persistUsageEvents(
           String(ev.skuId).includes(sk.skuId))
     );
 
-    const alloc = await applyAllocationRules(orgId, ev.tags ?? {});
-    const contentHash = usageEventContentHash(orgId, ev);
+    const tags = await enrichTagsFromKeyRegistry(orgId, ev.tags ?? {});
+    const alloc = await applyAllocationRules(orgId, tags);
+    const contentHash = usageEventContentHash(orgId, { ...ev, tags });
 
     let usageId: string;
     if (contentHash) {
@@ -137,7 +139,7 @@ export async function persistUsageEvents(
             meterId: meter.id,
             consumedQuantity: String(ev.consumedQuantity),
             consumedUnit: ev.consumedUnit,
-            tags: ev.tags ?? {},
+            tags,
             allocationStatus: alloc.allocationStatus,
             chargePeriodStart: ev.eventTime,
             chargePeriodEnd: ev.eventTime,
@@ -159,7 +161,7 @@ export async function persistUsageEvents(
             meterId: meter.id,
             consumedQuantity: String(ev.consumedQuantity),
             consumedUnit: ev.consumedUnit,
-            tags: ev.tags ?? {},
+            tags,
             allocationStatus: alloc.allocationStatus,
             chargePeriodStart: ev.eventTime,
             chargePeriodEnd: ev.eventTime,
@@ -184,7 +186,7 @@ export async function persistUsageEvents(
           meterId: meter.id,
           consumedQuantity: String(ev.consumedQuantity),
           consumedUnit: ev.consumedUnit,
-          tags: ev.tags ?? {},
+          tags,
           allocationStatus: alloc.allocationStatus,
           chargePeriodStart: ev.eventTime,
           chargePeriodEnd: ev.eventTime,
@@ -212,7 +214,7 @@ export async function persistUsageEvents(
         consumedUnit: ev.consumedUnit,
         serviceName: ev.serviceName ?? `${ev.providerKey} (OTel)`,
         focusSkuId: ev.skuId ?? null,
-        tags: ev.tags ?? {},
+        tags,
         allocationStatus: alloc.allocationStatus,
       },
       lines

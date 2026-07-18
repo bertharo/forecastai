@@ -27,6 +27,11 @@ const TABS = [
     match: (p: string) =>
       p.startsWith("/connectors") || p.startsWith("/import"),
   },
+  {
+    href: "/keys",
+    label: "Keys",
+    match: (p: string) => p.startsWith("/keys"),
+  },
 ];
 
 export function HomeTabs() {

@@ -47,6 +47,20 @@ export function IconAiCost({ className }: { className?: string }) {
   );
 }
 
+export function IconKeys({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="5.5" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 8h5.5M11.5 8v2.5M13.5 8v1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function IconSources({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none">

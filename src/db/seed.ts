@@ -78,6 +78,7 @@ async function clearAll() {
     s.contributors,
     s.scmConnections,
     s.connectorSyncRuns,
+    s.providerKeyRegistry,
     s.connectors,
     s.importBatches,
     s.mappingTemplates,

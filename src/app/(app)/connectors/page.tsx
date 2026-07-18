@@ -88,6 +88,13 @@ export default async function ConnectorsPage() {
           vendor. About <strong>{covered.toFixed(0)}%</strong> of spend is covered ·{" "}
           <strong>{liveCount}</strong> of {rows.length} sources look healthy.
         </p>
+        <p className="mt-2 text-[13px]" style={{ color: "#3a4050" }}>
+          After Anthropic sync,{" "}
+          <a href="/keys" className="underline">
+            map API keys to teams
+          </a>{" "}
+          — spend attribution without changing your apps.
+        </p>
       </div>
 
       <div className="panel p-4">
