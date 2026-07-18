@@ -32,7 +32,7 @@ export function FinopsOnePager({ dash }: { dash: Dash }) {
     );
   }
 
-  const { coverage, byVendor, byDepartment, findings } = dash;
+  const { coverage, byVendor, byDepartment, findings, sampleDataLoadedAt } = dash;
   const deptTotal =
     byDepartment.reduce((a, r) => a + r.spend, 0) || coverage.totalSpend || 1;
 
@@ -108,6 +108,23 @@ export function FinopsOnePager({ dash }: { dash: Dash }) {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {sampleDataLoadedAt ? (
+          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+            Sample pack active — reload replaces any CSV uploads with the clean pack.
+          </p>
+        ) : (
+          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+            Mixed or live data — you can still reset this workspace to the clean sample.
+          </p>
+        )}
+        <LoadSampleButton
+          label="Reset to clean sample"
+          className="btn btn-ghost"
+          replaceExisting
+        />
       </div>
 
       <div className="soft-card">

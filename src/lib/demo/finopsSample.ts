@@ -101,78 +101,93 @@ async function ensureSampleDimensions(orgId: string) {
   return { byKey, dtTeam };
 }
 
-async function wipeSampleData(orgId: string) {
-  // Costs may reference seed usage_events even if tags differ — clear both paths
+/**
+ * Replace-mode wipe: clear all FinOps spend/roster/import state so the sample
+ * pack is never mixed with prior CSV uploads.
+ */
+async function wipeWorkspaceForSample(orgId: string) {
   await db.execute(sql`
-    delete from cost_record_dimensions
+    delete from allocation_rule_applications
+    where org_id = ${orgId}::uuid
+  `);
+  await db.execute(sql`
+    delete from commitment_drawdowns
     where cost_record_id in (
-      select cr.id from cost_records cr
-      left join usage_events ue on ue.id = cr.usage_event_id
-      where cr.org_id = ${orgId}::uuid
-        and (
-          cr.tags->>'source' = 'seed'
-          or ue.tags->>'source' = 'seed'
-        )
+      select id from cost_records where org_id = ${orgId}::uuid
     )
   `);
   await db.execute(sql`
-    delete from cost_records
-    where id in (
-      select cr.id from cost_records cr
-      left join usage_events ue on ue.id = cr.usage_event_id
-      where cr.org_id = ${orgId}::uuid
-        and (
-          cr.tags->>'source' = 'seed'
-          or ue.tags->>'source' = 'seed'
-        )
+    delete from cost_record_dimensions
+    where cost_record_id in (
+      select id from cost_records where org_id = ${orgId}::uuid
     )
+  `);
+  await db.execute(sql`
+    delete from cost_records where org_id = ${orgId}::uuid
   `);
   await db.execute(sql`
     delete from usage_event_dimensions
     where usage_event_id in (
-      select id from usage_events
-      where org_id = ${orgId}::uuid and tags->>'source' = 'seed'
+      select id from usage_events where org_id = ${orgId}::uuid
     )
   `);
   await db.execute(sql`
-    delete from usage_events
-    where org_id = ${orgId}::uuid and tags->>'source' = 'seed'
+    delete from usage_events where org_id = ${orgId}::uuid
   `);
   await db.execute(sql`
-    delete from provider_key_registry
-    where org_id = ${orgId}::uuid
-      and external_id in (${sql.join(
-        SAMPLE_KEYS.map((k) => sql`${k}`),
-        sql`, `
-      )})
+    delete from usage_daily where org_id = ${orgId}::uuid
   `);
   await db.execute(sql`
-    delete from seat_snapshots
-    where org_id = ${orgId}::uuid
-      and coalesce(metadata->>'source', '') = 'seed'
+    delete from provider_key_registry where org_id = ${orgId}::uuid
   `);
   await db.execute(sql`
-    delete from contributors
-    where org_id = ${orgId}::uuid
-      and (
-        email like '%@sample.meter.demo'
-        or coalesce(external_ids->>'sample', '') = '1'
-      )
+    delete from seat_snapshots where org_id = ${orgId}::uuid
   `);
   await db.execute(sql`
-    delete from allocation_rules
+    delete from contributor_team_memberships
+    where contributor_id in (
+      select id from contributors where org_id = ${orgId}::uuid
+    )
+  `);
+  await db.execute(sql`
+    delete from ai_sessions
     where org_id = ${orgId}::uuid
-      and name = ${`Key registry · api_key ${SAMPLE_KEYS[0]}`}
+       or contributor_id in (
+         select id from contributors where org_id = ${orgId}::uuid
+       )
+  `);
+  await db.execute(sql`
+    delete from ai_tool_daily
+    where org_id = ${orgId}::uuid
+       or contributor_id in (
+         select id from contributors where org_id = ${orgId}::uuid
+       )
+  `);
+  await db.execute(sql`
+    update pull_requests
+    set author_contributor_id = null
+    where author_contributor_id in (
+      select id from contributors where org_id = ${orgId}::uuid
+    )
+  `);
+  await db.execute(sql`
+    delete from contributors where org_id = ${orgId}::uuid
+  `);
+  await db.execute(sql`
+    delete from import_batches where org_id = ${orgId}::uuid
+  `);
+  await db.execute(sql`
+    delete from allocation_rules where org_id = ${orgId}::uuid
   `);
 }
 
 /**
- * Wipe prior sample-tagged spend for this org, then reload deterministic pack.
+ * Wipe all workspace spend/roster/imports, then reload deterministic pack.
  */
 export async function loadFinopsSamplePack(orgId: string) {
   const rand = mulberry32(SAMPLE_SEED);
   const { byKey: teamByKey, dtTeam } = await ensureSampleDimensions(orgId);
-  await wipeSampleData(orgId);
+  await wipeWorkspaceForSample(orgId);
 
   const people: {
     email: string;

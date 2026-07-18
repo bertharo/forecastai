@@ -6,15 +6,24 @@ import { useState } from "react";
 export function LoadSampleButton({
   label = "Load sample data",
   className = "btn",
+  /** When true, warn that existing imports/spend will be replaced. */
+  replaceExisting = false,
 }: {
   label?: string;
   className?: string;
+  replaceExisting?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
+    if (replaceExisting) {
+      const ok = window.confirm(
+        "Replace all spend, roster, keys, and past uploads in this workspace with the clean sample pack?"
+      );
+      if (!ok) return;
+    }
     setBusy(true);
     setMsg(null);
     try {

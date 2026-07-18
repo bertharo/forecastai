@@ -260,6 +260,7 @@ export async function getSpendSummary(
       ? {
           name: budget.name,
           amount: Number(budget.amount),
+          period: budget.period as "monthly" | "quarterly" | "annual",
           mtdPct: Number(mtd.effective) / Number(budget.amount),
         }
       : null,

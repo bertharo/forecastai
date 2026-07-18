@@ -56,8 +56,15 @@ function BriefView({
   aiCost: Awaited<ReturnType<typeof getAiCostSummary>>;
   finops: Awaited<ReturnType<typeof getFinopsDashboard>>;
 }) {
-  const plan = summary.budget?.amount ?? summary.runRate * 0.85;
+  // Compare annual forecast to an annualized plan (budget amounts are period-scoped).
   const forecast = summary.runRate * 12 || summary.trailing30 * 12;
+  const plan = summary.budget
+    ? summary.budget.period === "annual"
+      ? summary.budget.amount
+      : summary.budget.period === "quarterly"
+        ? summary.budget.amount * 4
+        : summary.budget.amount * 12
+    : summary.runRate * 0.85 * 12;
   const gap = forecast - plan;
   const overPct = plan > 0 ? gap / plan : 0;
 
