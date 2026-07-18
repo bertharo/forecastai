@@ -10,6 +10,7 @@ import { AnthropicKeyForm } from "./AnthropicKeyForm";
 import { CodingToolsPanel } from "./CodingToolsPanel";
 import { ContributorsPanel } from "./ContributorsPanel";
 import { headers } from "next/headers";
+import { formatRelativeAgo } from "@/lib/format/relative";
 
 export const dynamic = "force-dynamic";
 
@@ -121,72 +122,99 @@ export default async function ConnectorsPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {rows.map(({ connector, provider }) => (
-          <div key={connector.id} className="row-card">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="font-semibold">{provider.displayName}</div>
-                <div className="muted text-[11px]">{TIER_LABEL[connector.tier]}</div>
+        {rows.map(({ connector, provider }) => {
+          const errored =
+            connector.status === "error" ||
+            connector.status === "degraded" ||
+            Boolean(connector.lastErrorMessage);
+          const relative = formatRelativeAgo(connector.lastSyncedAt);
+          return (
+            <div key={connector.id} className="row-card">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-semibold">{provider.displayName}</div>
+                  <div className="muted text-[11px]">{TIER_LABEL[connector.tier]}</div>
+                </div>
+                <span
+                  className="badge"
+                  style={{
+                    color: errored
+                      ? "var(--danger)"
+                      : connector.status === "healthy"
+                        ? "var(--success)"
+                        : connector.status === "stale"
+                          ? "var(--warning)"
+                          : "var(--muted)",
+                    background: errored
+                      ? "rgba(196,59,59,0.12)"
+                      : connector.status === "healthy"
+                        ? "rgba(31,122,69,0.12)"
+                        : "rgba(0,0,0,0.05)",
+                  }}
+                >
+                  {errored
+                    ? "Sync failed"
+                    : connector.status === "healthy"
+                      ? "Live"
+                      : connector.status}
+                </span>
               </div>
-              <span
-                className="badge"
-                style={{
-                  color:
-                    connector.status === "healthy"
-                      ? "var(--success)"
-                      : connector.status === "stale"
-                        ? "var(--warning)"
-                        : "var(--muted)",
-                  background:
-                    connector.status === "healthy"
-                      ? "rgba(31,122,69,0.12)"
-                      : "rgba(0,0,0,0.05)",
-                }}
-              >
-                {connector.status === "healthy" ? "Live" : connector.status}
-              </span>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-              <div>
-                <div className="muted text-[10px] uppercase">Mode</div>
-                <div>{connector.demoMode ? "Demo" : "Live key"}</div>
-              </div>
-              <div>
-                <div className="muted text-[10px] uppercase">Last sync</div>
-                <div className="mono">
-                  {connector.lastSyncedAt
-                    ? connector.lastSyncedAt.toISOString().slice(0, 16).replace("T", " ")
-                    : "—"}
+              <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                <div>
+                  <div className="muted text-[10px] uppercase">Mode</div>
+                  <div>{connector.demoMode ? "Demo" : "Live key"}</div>
+                </div>
+                <div>
+                  <div className="muted text-[10px] uppercase">Last sync</div>
+                  <div
+                    className="font-medium"
+                    style={{ color: errored ? "var(--danger)" : undefined }}
+                    title={
+                      connector.lastSyncedAt
+                        ? connector.lastSyncedAt.toISOString()
+                        : undefined
+                    }
+                  >
+                    {relative}
+                  </div>
+                </div>
+                <div>
+                  <div className="muted text-[10px] uppercase">Spend covered</div>
+                  <div className="mono">{Number(connector.spendCoveredPct ?? 0)}%</div>
+                </div>
+                <div>
+                  <div className="muted text-[10px] uppercase">Allocated</div>
+                  <div className="mono">{Number(connector.allocatedPct ?? 0)}%</div>
                 </div>
               </div>
-              <div>
-                <div className="muted text-[10px] uppercase">Spend covered</div>
-                <div className="mono">{Number(connector.spendCoveredPct ?? 0)}%</div>
-              </div>
-              <div>
-                <div className="muted text-[10px] uppercase">Allocated</div>
-                <div className="mono">{Number(connector.allocatedPct ?? 0)}%</div>
-              </div>
-            </div>
-            {connector.allocatedByDimension && (
-              <div className="muted mt-2 text-[11px]">
-                By dim:{" "}
-                {Object.entries(
-                  connector.allocatedByDimension as Record<string, number>
-                )
-                  .map(([k, v]) => `${k} ${v}%`)
-                  .join(" · ")}
-              </div>
-            )}
-            <p className="muted mt-2 text-[11px]">{connector.healthMessage}</p>
-            {[1].includes(connector.tier) &&
-              ["anthropic", "openai", "cursor"].includes(provider.key) && (
-                <div className="mt-3">
-                  <SyncButton provider={provider.key} />
-                </div>
+              {errored && connector.lastErrorMessage && (
+                <p
+                  className="mt-2 rounded-lg px-2 py-1.5 text-[12px]"
+                  style={{
+                    background: "rgba(196,59,59,0.08)",
+                    color: "var(--danger)",
+                  }}
+                >
+                  {connector.lastErrorMessage}
+                </p>
               )}
-          </div>
-        ))}
+              {!errored && connector.healthMessage && (
+                <p className="muted mt-2 text-[11px]">{connector.healthMessage}</p>
+              )}
+              {provider.key === "anthropic" && (
+                <p className="muted mt-1 text-[11px]">
+                  Auto-syncs every 6 hours (Vercel Cron).
+                </p>
+              )}
+              {[1].includes(connector.tier) &&
+                ["anthropic", "openai", "cursor"].includes(provider.key) && (
+                  <div className="mt-3">
+                    <SyncButton provider={provider.key} />
+                  </div>
+                )}
+            </div>
+          );
+        })}
       </div>
 
       <AnthropicKeyForm />

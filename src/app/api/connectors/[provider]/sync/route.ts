@@ -39,6 +39,7 @@ export async function POST(
         phase: result.phase,
         rowsIn: result.rowsIn,
         rowsWritten: result.rowsWritten,
+        upserted: persisted.upserted,
         errors: result.errors,
         sample: result.events.slice(0, 3),
       },

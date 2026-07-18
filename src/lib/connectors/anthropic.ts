@@ -14,6 +14,7 @@ function toEvents(since: Date): NormalizedUsageEvent[] {
           workspace: String(r.workspace ?? "default"),
           api_key: String(r.api_key_id ?? "key_demo"),
           feature: String(r.feature ?? "unallocated"),
+          source: "anthropic_admin",
         },
         serviceName: "Claude API",
         allocationStatus:
@@ -79,10 +80,10 @@ async function fetchLiveUsage(
   for (const bucket of data.data ?? []) {
     const eventTime = new Date(bucket.starting_at ?? start);
     for (const r of bucket.results ?? []) {
+      // Allocation resolved at persist via rules/registry; do not force feature here.
       const tags = {
         workspace: r.workspace_id ?? "default",
         api_key: r.api_key_id ?? "unknown",
-        feature: "unallocated",
         source: "anthropic_admin",
       };
       const base = {
@@ -91,7 +92,6 @@ async function fetchLiveUsage(
         skuId: r.model ?? "unknown",
         tags,
         serviceName: "Claude API",
-        allocationStatus: "unallocated" as const,
       };
       if (r.input_tokens) {
         events.push({
