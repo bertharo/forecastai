@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { listOrgs } from "@/lib/queries/org";
+import { getCurrentOrg, listOrgs } from "@/lib/queries/org";
 import {
   ORG_COOKIE,
   ORG_COOKIE_MAX_AGE,
@@ -47,8 +47,8 @@ function setWorkspaceCookies(
 
 /** List only workspaces this browser owns. */
 export async function GET() {
-  const orgs = await listOrgs();
-  return NextResponse.json({ orgs });
+  const [orgs, current] = await Promise.all([listOrgs(), getCurrentOrg()]);
+  return NextResponse.json({ orgs, currentOrgId: current?.id ?? null });
 }
 
 /** Create a private workspace + access token (shown once). */

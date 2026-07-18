@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
 
 type Step = 1 | 2 | 3 | 4;
+
+type ListedOrg = { id: string; name: string; slug: string };
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -19,6 +21,45 @@ export default function OnboardingPage() {
   const [workspaceToken, setWorkspaceToken] = useState<string | null>(null);
   const [claimToken, setClaimToken] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [knownOrgs, setKnownOrgs] = useState<ListedOrg[]>([]);
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
+
+  const refreshKnown = useCallback(async () => {
+    try {
+      const res = await fetch("/api/orgs");
+      const data = await res.json();
+      const list = (data.orgs ?? []) as ListedOrg[];
+      setKnownOrgs(list);
+      setCurrentOrgId(data.currentOrgId ?? list[0]?.id ?? null);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshKnown();
+  }, [refreshKnown]);
+
+  async function switchTo(orgId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/orgs/switch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orgId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Switch failed");
+      setCurrentOrgId(orgId);
+      router.refresh();
+      router.push("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function createWorkspace() {
     setBusy(true);
@@ -34,7 +75,9 @@ export default function OnboardingPage() {
       setOrg(data.org);
       setOtelKey(data.otelKey);
       setWorkspaceToken(data.workspaceToken ?? null);
+      setCurrentOrgId(data.org?.id ?? null);
       setStep(2);
+      await refreshKnown();
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -56,7 +99,9 @@ export default function OnboardingPage() {
       if (!res.ok) throw new Error(data.error || "Claim failed");
       setOrg(data.org);
       setWorkspaceToken(claimToken.trim());
+      setCurrentOrgId(data.org?.id ?? null);
       setStep(2);
+      await refreshKnown();
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -152,6 +197,36 @@ export default function OnboardingPage() {
 
       {step === 1 && (
         <div className="space-y-3">
+          {knownOrgs.length > 0 && (
+            <div className="panel space-y-3 p-4">
+              <h2 className="text-sm font-semibold">Your workspaces on this browser</h2>
+              <p className="muted text-[13px]">
+                Switch here, or use the <strong>Workspace</strong> dropdown in the top bar.
+              </p>
+              <ul className="space-y-2">
+                {knownOrgs.map((o) => (
+                  <li
+                    key={o.id}
+                    className="row-card flex items-center justify-between gap-2"
+                  >
+                    <div>
+                      <div className="font-medium">{o.name}</div>
+                      <div className="muted mono text-[11px]">{o.slug}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={busy || currentOrgId === o.id}
+                      onClick={() => void switchTo(o.id)}
+                    >
+                      {currentOrgId === o.id ? "Active" : "Switch"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="panel space-y-3 p-4">
             <h2 className="text-sm font-semibold">Create a workspace</h2>
             <p className="muted text-[13px]">

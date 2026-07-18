@@ -11,9 +11,9 @@ export default function AppError({
 
   const redacted = /omitted in production/i.test(error.message);
   const isDb =
-    /ECONNREFUSED|connect|postgres|DATABASE|unavailable/i.test(error.message) ||
-    /ECONNREFUSED|connect|postgres|DATABASE/i.test(String(error.cause ?? "")) ||
-    redacted;
+    !redacted &&
+    (/ECONNREFUSED|connect|postgres|DATABASE|unavailable/i.test(error.message) ||
+      /ECONNREFUSED|connect|postgres|DATABASE/i.test(String(error.cause ?? "")));
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
@@ -26,6 +26,16 @@ export default function AppError({
             <span className="mono">npm run db:setup</span> and{" "}
             <span className="mono">npm run dev</span>. Open{" "}
             <span className="mono">http://127.0.0.1:3000</span> (not a remote preview).
+          </>
+        ) : redacted ? (
+          <>
+            Something failed while loading this view. Try{" "}
+            <strong>Reload</strong>, or open{" "}
+            <a className="underline" href="/onboarding">
+              Workspaces
+            </a>{" "}
+            and switch / re-claim your workspace. Demo data: claim{" "}
+            <span className="mono">ws_demo_northstar</span>.
           </>
         ) : (
           <>
