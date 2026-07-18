@@ -155,10 +155,17 @@ export function AllocationClient({
 
   return (
     <div className="space-y-4">
-      <div className="panel space-y-3 p-3">
+      <div className="soft-card space-y-3">
+        <div>
+          <div className="text-[13px] font-semibold">Put this spend on a team</div>
+          <p className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
+            Select one or more groups below, pick a team, then assign. “Remember” also
+            fixes matching future spend.
+          </p>
+        </div>
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <div className="muted text-[11px] uppercase tracking-wide">
+            <div className="text-[12px]" style={{ color: "var(--muted)" }}>
               Assign to
             </div>
             <div className="mt-1 flex flex-wrap gap-2">
@@ -181,7 +188,7 @@ export function AllocationClient({
                 value={assignNodeKey}
                 onChange={(e) => setAssignNodeKey(e.target.value)}
               >
-                <option value="">Select node…</option>
+                <option value="">Pick a team…</option>
                 {nodeOptions.map((n) => (
                   <option key={n.id} value={n.key}>
                     {n.displayName}
@@ -191,12 +198,12 @@ export function AllocationClient({
             </div>
           </div>
           <label className="text-[12px]">
-            Rule name
+            Nickname (optional)
             <input
-              className="select mt-1 block"
+              className="input mt-1 block"
               value={ruleName}
               onChange={(e) => setRuleName(e.target.value)}
-              placeholder="Optional"
+              placeholder="e.g. Shadow keys → Eng"
             />
           </label>
           <button
@@ -209,11 +216,11 @@ export function AllocationClient({
           </button>
           <button
             type="button"
-            className="btn"
+            className="btn btn-ghost"
             disabled={busy || !assignNodeKey || selected.size === 0}
             onClick={() => void previewRule()}
           >
-            Preview rule
+            Preview
           </button>
           <button
             type="button"
@@ -221,23 +228,24 @@ export function AllocationClient({
             disabled={busy || !assignNodeKey || selected.size === 0}
             onClick={() => void applyRule()}
           >
-            Create rule + apply
+            Assign & remember
           </button>
         </div>
         {preview && (
-          <p className="text-[12px]">
+          <p className="text-[13px]">
             {preview.eventsWouldTouch != null && (
               <>
-                Would touch {preview.eventsWouldTouch} rows (
+                Would cover {preview.eventsWouldTouch} rows (
                 {usd(preview.spendWouldAllocate ?? 0)}).{" "}
               </>
             )}
-            Allocated {pct(preview.allocatedPctBefore ?? allocatedPct, 1)} →{" "}
-            {pct(preview.allocatedPctAfter ?? allocatedPct, 1)}
+            Attributed spend would go from{" "}
+            {pct(preview.allocatedPctBefore ?? allocatedPct, 0)} →{" "}
+            {pct(preview.allocatedPctAfter ?? allocatedPct, 0)}.
             {preview.deltaPct != null && (
-              <> (Δ {pct(preview.deltaPct, 1)})</>
-            )}
-            . Confirm with <strong>Create rule + apply</strong> to persist.
+              <> That’s {pct(Math.abs(preview.deltaPct), 0)} more covered.</>
+            )}{" "}
+            Tap <strong>Assign & remember</strong> to save.
           </p>
         )}
         {error && (
@@ -245,14 +253,13 @@ export function AllocationClient({
             {error}
           </p>
         )}
-        <p className="muted text-[11px]">
-          {selected.size} cluster(s) selected · org allocated{" "}
-          {pct(allocatedPct, 0)}
+        <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+          {selected.size} selected · {pct(allocatedPct, 0)} of spend already on a team
         </p>
       </div>
 
-      <div className="panel overflow-x-auto p-3">
-        <table className="w-full text-left text-[12px]">
+      <div className="soft-card overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
             <tr style={{ color: "var(--muted)" }}>
               <th className="pb-2 pr-2">
@@ -264,40 +271,39 @@ export function AllocationClient({
                   onChange={toggleAll}
                 />
               </th>
-              <th className="pb-2 pr-2">Spend</th>
-              <th className="pb-2 pr-2">Rows</th>
-              <th className="pb-2 pr-2">Provider</th>
+              <th className="pb-2 pr-2">Amount</th>
+              <th className="pb-2 pr-2">Vendor</th>
               <th className="pb-2 pr-2">Model</th>
               <th className="pb-2 pr-2">Feature</th>
               <th className="pb-2 pr-2">API key</th>
-              <th className="pb-2 pr-2">Source</th>
-              <th className="pb-2">Env</th>
+              <th className="pb-2">Where from</th>
             </tr>
           </thead>
           <tbody>
             {clusters.map((c) => (
               <tr key={c.id} style={{ borderTop: "1px solid var(--border)" }}>
-                <td className="py-2 pr-2">
+                <td className="py-2.5 pr-2">
                   <input
                     type="checkbox"
                     checked={selected.has(c.id)}
                     onChange={() => toggle(c.id)}
                   />
                 </td>
-                <td className="mono py-2 pr-2">{usd(c.spend)}</td>
-                <td className="mono py-2 pr-2">{c.count}</td>
-                <td className="py-2 pr-2">{c.providerName ?? "—"}</td>
-                <td className="mono py-2 pr-2">{c.model ?? "—"}</td>
-                <td className="mono py-2 pr-2">{c.feature ?? "—"}</td>
-                <td className="mono py-2 pr-2">{c.apiKey ?? "—"}</td>
-                <td className="mono py-2 pr-2">{c.source ?? "—"}</td>
-                <td className="mono py-2">{c.environment ?? "—"}</td>
+                <td className="py-2.5 pr-2 font-semibold">{usd(c.spend)}</td>
+                <td className="py-2.5 pr-2">{c.providerName ?? "—"}</td>
+                <td className="py-2.5 pr-2">{c.model ?? "—"}</td>
+                <td className="py-2.5 pr-2">{c.feature ?? "—"}</td>
+                <td className="py-2.5 pr-2 mono text-[12px]">{c.apiKey ?? "—"}</td>
+                <td className="py-2.5 text-[12px]" style={{ color: "var(--muted)" }}>
+                  {c.source ?? "—"}
+                  {c.environment ? ` · ${c.environment}` : ""}
+                </td>
               </tr>
             ))}
             {clusters.length === 0 && (
               <tr>
-                <td colSpan={9} className="muted py-4">
-                  No unallocated spend in the last 30 days.
+                <td colSpan={7} className="py-4" style={{ color: "var(--muted)" }}>
+                  Nothing unassigned in the last 30 days.
                 </td>
               </tr>
             )}

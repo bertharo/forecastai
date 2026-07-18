@@ -468,6 +468,66 @@ export async function getStatusFromSnapshots(
   }));
 }
 
+/** Create a simple monthly budget (org-wide or one team/node). */
+export async function createBudget(
+  orgId: string,
+  input: {
+    name: string;
+    amount: number;
+    dimensionNodeId?: string | null;
+    changeNote?: string;
+  }
+) {
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Amount must be a positive number");
+  }
+  const name = input.name.trim();
+  if (!name) throw new Error("Name required");
+
+  let dimensionTypeId: string | null = null;
+  let dimensionNodeId: string | null = input.dimensionNodeId ?? null;
+  let scopeType: string = "org";
+
+  if (dimensionNodeId) {
+    const [node] = await db
+      .select()
+      .from(s.dimensionNodes)
+      .where(
+        and(eq(s.dimensionNodes.id, dimensionNodeId), eq(s.dimensionNodes.orgId, orgId))
+      )
+      .limit(1);
+    if (!node) throw new Error("Team not found in this workspace");
+    dimensionTypeId = node.dimensionTypeId;
+    scopeType = "dimension";
+  }
+
+  const thresholds = [0.5, 0.8, 1.0];
+  const [budget] = await db
+    .insert(s.budgets)
+    .values({
+      orgId,
+      name,
+      amount: String(amount),
+      period: "monthly",
+      scopeType,
+      dimensionTypeId,
+      dimensionNodeId,
+      includeDescendants: true,
+      thresholds,
+    })
+    .returning();
+
+  await createBudgetVersion(budget.id, {
+    amount,
+    changeNote: input.changeNote ?? "Created budget",
+    author: "plan",
+    policy: defaultPolicy(thresholds),
+  });
+
+  return budget;
+}
+
 export async function createBudgetVersion(
   budgetId: string,
   patch: {

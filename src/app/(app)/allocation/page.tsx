@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentOrg, getDimensionNodes, getDimensionTypes } from "@/lib/queries/org";
 import {
   getAllocationByConnector,
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 function MiniSpark({ values }: { values: number[] }) {
   if (values.length < 2) {
-    return <span className="muted text-[11px]">No trend</span>;
+    return <span className="text-[11px]" style={{ color: "var(--muted)" }}>No trend yet</span>;
   }
   const w = 120;
   const h = 28;
@@ -27,10 +28,10 @@ function MiniSpark({ values }: { values: number[] }) {
     })
     .join(" ");
   return (
-    <svg width={w} height={h} className="block">
+    <svg width={w} height={h} className="block" aria-hidden>
       <polyline
         fill="none"
-        stroke="var(--accent)"
+        stroke="#2f5bd8"
         strokeWidth="1.5"
         points={pts}
       />
@@ -41,7 +42,16 @@ function MiniSpark({ values }: { values: number[] }) {
 export default async function AllocationPage() {
   const org = await getCurrentOrg();
   if (!org) {
-    return <p className="muted">No org — run npm run db:seed</p>;
+    return (
+      <div className="soft-card space-y-3" style={{ background: "#fff1e8" }}>
+        <p className="text-[18px] font-semibold leading-snug">
+          Open a workspace to fix unassigned spend.
+        </p>
+        <Link href="/onboarding" className="btn inline-block">
+          Get started →
+        </Link>
+      </div>
+    );
   }
 
   const [clusters, pctRow, trend, byConnector, types, nodes] = await Promise.all([
@@ -53,7 +63,7 @@ export default async function AllocationPage() {
     getDimensionNodes(org.id),
   ]);
 
-  const typeById = new Map(types.map((t) => [t.id, t]));
+  const unassignedSpend = clusters.reduce((a, c) => a + c.spend, 0);
 
   return (
     <div className="space-y-5">
@@ -64,32 +74,50 @@ export default async function AllocationPage() {
         >
           Alerts
         </div>
-        <p className="mt-2 max-w-2xl text-[16px] font-medium leading-snug">
-          Unallocated spend and threshold alerts — assign clusters or create rules that apply
-          retroactively.
+        <p className="mt-2 max-w-2xl text-[18px] font-semibold leading-snug">
+          Spend we can’t put on a team yet. Pick a bucket, assign it, and the % attributed goes up.
         </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="panel p-3">
-          <div className="muted text-[11px] uppercase tracking-wide">
-            Org allocated (30d)
+        <div className="soft-card">
+          <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+            Spend with a team (30d)
           </div>
           <div className="kpi mt-1">{pct(pctRow.allocatedPct, 0)}</div>
           <div className="mt-2">
             <MiniSpark values={trend.map((t) => t.allocatedPct)} />
           </div>
+          <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+            Higher is better — means fewer mystery bills.
+          </p>
         </div>
-        <div className="panel p-3 md:col-span-2">
-          <div className="muted mb-2 text-[11px] uppercase tracking-wide">
-            By connector
+        <div className="soft-card">
+          <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+            Still unassigned
+          </div>
+          <div className="kpi mt-1">{usd(unassignedSpend)}</div>
+          <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+            {clusters.length === 0
+              ? "Nice — nothing waiting."
+              : `${clusters.length} group${clusters.length === 1 ? "" : "s"} to review below.`}
+          </p>
+          <p className="mt-2 text-[12px]">
+            <Link href="/keys?unmapped=1" className="underline">
+              Unmapped API keys →
+            </Link>
+          </p>
+        </div>
+        <div className="soft-card">
+          <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+            By vendor
           </div>
           {byConnector.length === 0 ? (
-            <p className="muted text-[12px]">
-              No connector-linked cost yet — import or sync to populate.
+            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+              No vendor-linked spend yet — import a CSV or sync a source.
             </p>
           ) : (
-            <ul className="space-y-1 text-[12px]">
+            <ul className="mt-2 space-y-1 text-[13px]">
               {byConnector.map((c) => {
                 const total = Number(c.total) || 1;
                 const ap = Number(c.allocated) / total;
@@ -99,7 +127,7 @@ export default async function AllocationPage() {
                     className="flex items-center justify-between gap-2"
                   >
                     <span>{c.providerName}</span>
-                    <span className="mono muted">
+                    <span style={{ color: "var(--muted)" }}>
                       {pct(ap, 0)} · {usd(Number(c.spend))}
                     </span>
                   </li>
@@ -118,7 +146,8 @@ export default async function AllocationPage() {
           id: n.id,
           key: n.key,
           displayName: n.displayName,
-          dimensionTypeKey: typeById.get(n.dimensionTypeId)?.key ?? "",
+          dimensionTypeKey:
+            types.find((t) => t.id === n.dimensionTypeId)?.key ?? "team",
         }))}
       />
     </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertBudgetInOrg, getCurrentOrg } from "@/lib/queries/org";
 import {
+  createBudget,
   createBudgetVersion,
   hierarchyWarnings,
   reallocateBudgets,
@@ -37,18 +38,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No org" }, { status: 404 });
   }
   const body = (await req.json()) as {
-    action: "version" | "reallocate" | "refresh";
+    action: "version" | "reallocate" | "refresh" | "create";
     budgetId?: string;
     fromBudgetId?: string;
     toBudgetId?: string;
     amount?: number;
     changeNote?: string;
+    name?: string;
+    dimensionNodeId?: string | null;
   };
 
   try {
     if (body.action === "refresh") {
       const statuses = await refreshBudgetSnapshots(org.id);
       return NextResponse.json({ statuses });
+    }
+    if (body.action === "create") {
+      if (!body.name || body.amount == null) {
+        return NextResponse.json(
+          { error: "name and amount required" },
+          { status: 400 }
+        );
+      }
+      const budget = await createBudget(org.id, {
+        name: body.name,
+        amount: body.amount,
+        dimensionNodeId: body.dimensionNodeId ?? null,
+        changeNote: body.changeNote,
+      });
+      await refreshBudgetSnapshots(org.id);
+      return NextResponse.json({ budget });
     }
     if (body.action === "version") {
       if (!body.budgetId || body.amount == null || !body.changeNote) {
