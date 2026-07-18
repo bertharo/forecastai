@@ -287,12 +287,42 @@ export default function ImportPage() {
     setColumnMap(next);
   };
 
+  const waitForBatch = async (name: string, startedAt: number) => {
+    // Browser / proxy may drop the POST while the server keeps writing — poll Past uploads.
+    for (let i = 0; i < 90; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const res = await fetch("/api/import");
+      const data = await res.json();
+      const list = (data.batches ?? []) as Batch[];
+      setBatches(list);
+      setTemplates(data.templates ?? []);
+      const match = list.find(
+        (b) =>
+          b.fileName === name &&
+          new Date(b.createdAt).getTime() >= startedAt - 5000 &&
+          (b.status === "completed" || b.status === "failed")
+      );
+      if (match) return match;
+      if (i % 5 === 4) {
+        setMessage(
+          `Still uploading ${name}… large files can take a few minutes. Don’t close this tab.`
+        );
+      }
+    }
+    return null;
+  };
+
   const runImport = async () => {
     setBusy(true);
-    setMessage(null);
+    setMessage(
+      rowCount > 5000
+        ? `Uploading ${rowCount.toLocaleString()} rows — this can take a few minutes…`
+        : "Uploading…"
+    );
     setErrors([]);
+    const startedAt = Date.now();
     try {
-      const res = await fetch("/api/import", {
+      const post = fetch("/api/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -304,18 +334,92 @@ export default function ImportPage() {
           mappingTemplateId: templateId || null,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "Upload failed");
+
+      // Race: prefer POST body; if the connection dies, fall back to polling
+      const raced = await Promise.race([
+        post.then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          return { kind: "post" as const, res, data };
+        }),
+        waitForBatch(fileName, startedAt).then((batch) => ({
+          kind: "poll" as const,
+          batch,
+        })),
+      ]);
+
+      if (raced.kind === "post") {
+        if (
+          !raced.res.ok &&
+          raced.data?.error !== "duplicate_file"
+        ) {
+          // POST may 504 while work finished — check batches
+          const batch = await waitForBatch(fileName, startedAt);
+          if (batch?.status === "completed") {
+            setMessage(
+              `Done — ${batch.rowsWritten} rows added` +
+                (batch.rowsSkipped ? ` · ${batch.rowsSkipped} already had` : "")
+            );
+            await refresh();
+            setTab("history");
+            return;
+          }
+          throw new Error(
+            raced.data.message || raced.data.error || "Upload failed"
+          );
+        }
+        if (raced.data?.error === "duplicate_file") {
+          setMessage(
+            "This file is already uploaded. See Past uploads (you can Undo and retry)."
+          );
+          await refresh();
+          setTab("history");
+          return;
+        }
+        setMessage(
+          `Done — ${raced.data.written} rows added` +
+            (raced.data.skipped ? ` · ${raced.data.skipped} already had` : "") +
+            (raced.data.errored ? ` · ${raced.data.errored} had problems` : "")
+        );
+        setErrors(raced.data.errors ?? []);
+        await refresh();
+        setTab("history");
+        return;
+      }
+
+      if (raced.batch?.status === "completed") {
+        setMessage(
+          `Done — ${raced.batch.rowsWritten} rows added` +
+            (raced.batch.rowsSkipped
+              ? ` · ${raced.batch.rowsSkipped} already had`
+              : "")
+        );
+        await refresh();
+        setTab("history");
+        return;
+      }
+      if (raced.batch?.status === "failed") {
+        setMessage(
+          `Upload failed — ${summarizeErrors(raced.batch.errorReport) ?? "see Past uploads"}`
+        );
+        await refresh();
+        setTab("history");
+        return;
+      }
       setMessage(
-        `Done — ${data.written} rows added` +
-          (data.skipped ? ` · ${data.skipped} already had` : "") +
-          (data.errored ? ` · ${data.errored} had problems` : "")
+        "Upload is still running in the background. Refresh Past uploads in a minute."
       );
-      setErrors(data.errors ?? []);
       await refresh();
       setTab("history");
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
+      // Last chance: server may have finished after a network error
+      const batch = await waitForBatch(fileName, startedAt).catch(() => null);
+      if (batch?.status === "completed") {
+        setMessage(`Done — ${batch.rowsWritten} rows added`);
+        await refresh();
+        setTab("history");
+      } else {
+        setMessage(e instanceof Error ? e.message : String(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -349,6 +453,33 @@ export default function ImportPage() {
     { id: "history", label: "Past uploads" },
   ];
 
+  const visibleBatches = (() => {
+    // Prefer newest success for a filename; keep older failures collapsed under it
+    const byName = new Map<string, Batch[]>();
+    for (const b of batches) {
+      const list = byName.get(b.fileName) ?? [];
+      list.push(b);
+      byName.set(b.fileName, list);
+    }
+    const out: Batch[] = [];
+    for (const list of byName.values()) {
+      list.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const best =
+        list.find((b) => b.status === "completed") ??
+        list.find((b) => b.status === "importing") ??
+        list[0];
+      if (best) out.push(best);
+    }
+    out.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    return out;
+  })();
+
   return (
     <div className="space-y-5">
       <div className="soft-card" style={{ background: "var(--card-mint)" }}>
@@ -377,7 +508,10 @@ export default function ImportPage() {
             type="button"
             className="pill-tab"
             data-active={tab === t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              if (t.id === "history") void refresh();
+            }}
           >
             {t.label}
           </button>
@@ -415,7 +549,7 @@ export default function ImportPage() {
             Undo a bad upload anytime. Failed rows show a short reason below.
           </p>
           <div className="mt-4 space-y-3">
-            {batches.map((b) => {
+            {visibleBatches.map((b) => {
               const why = summarizeErrors(b.errorReport);
               return (
                 <div
@@ -428,22 +562,29 @@ export default function ImportPage() {
                     <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
                       {b.status === "failed" ? (
                         <span style={{ color: "var(--danger)" }}>Failed</span>
+                      ) : b.status === "importing" ? (
+                        <span style={{ color: "var(--warning)" }}>Still uploading…</span>
                       ) : (
                         <span style={{ color: "var(--success)" }}>Uploaded</span>
                       )}
                       {" · "}
-                      {b.rowsWritten} added · {b.rowsSkipped} already had ·{" "}
-                      {b.rowsErrored} problems
+                      {b.rowsWritten.toLocaleString()} added ·{" "}
+                      {b.rowsSkipped.toLocaleString()} already had ·{" "}
+                      {b.rowsErrored.toLocaleString()} problems
                     </div>
-                    {why && (
+                    {b.status === "completed" && (
+                      <p className="mt-1 text-[13px]" style={{ color: "var(--success)" }}>
+                        Spend rows are in — check Home for vendor / department totals.
+                      </p>
+                    )}
+                    {why && b.status === "failed" && (
                       <p className="mt-1 text-[13px]" style={{ color: "var(--danger)" }}>
                         Why: {why}
                       </p>
                     )}
                     {b.status === "failed" && (
                       <p className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
-                        Fix: open Bills & usage, drop the file again — we now match Anthropic
-                        columns automatically — then upload.
+                        Fix: Bills & usage → drop the file again → Upload spend.
                       </p>
                     )}
                   </div>
@@ -460,7 +601,7 @@ export default function ImportPage() {
                 </div>
               );
             })}
-            {batches.length === 0 && (
+            {visibleBatches.length === 0 && (
               <p className="text-[13px]" style={{ color: "var(--muted)" }}>
                 No uploads yet.
               </p>

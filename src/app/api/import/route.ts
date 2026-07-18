@@ -15,6 +15,9 @@ import {
 } from "@/lib/import/execute";
 import { eq, desc, and } from "drizzle-orm";
 
+/** Large CSVs can take minutes — keep the serverless fn alive (Pro); Hobby may still cut the HTTP response. */
+export const maxDuration = 300;
+
 export async function GET() {
   const org = await getCurrentOrg();
   if (!org) return NextResponse.json({ error: "No org" }, { status: 400 });
