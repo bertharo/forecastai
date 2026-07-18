@@ -56,6 +56,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "csv required" }, { status: 400 });
   }
 
-  const result = await importRosterCsv(org.id, body.csv, body.columnMap);
-  return NextResponse.json({ ok: true, ...result });
+  try {
+    const result = await importRosterCsv(org.id, body.csv, body.columnMap);
+    const ok = result.upserted > 0;
+    return NextResponse.json(
+      { ok, ...result },
+      { status: ok ? 200 : 400 }
+    );
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : String(e) },
+      { status: 500 }
+    );
+  }
 }
