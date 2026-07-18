@@ -1,10 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { IconBell, IconSearch } from "@/components/shell/icons";
 
-function greeting(): string {
-  const h = new Date().getHours();
+function greetingForHour(h: number): string {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
@@ -18,15 +18,21 @@ export function TopBar({
   currentOrg?: { id: string; name: string; slug: string } | null;
 }) {
   const orgName = currentOrg?.name ?? "your org";
+  // Stable on SSR + first client paint — avoid hydration mismatch from server UTC vs local hours
+  const [greeting, setGreeting] = useState("Hello");
+
+  useEffect(() => {
+    setGreeting(greetingForHour(new Date().getHours()));
+  }, []);
 
   return (
     <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 className="page-title">
-          {greeting()}, Bert <span className="wave">👋</span>
+          {greeting}, Bert <span className="wave">👋</span>
         </h1>
         <p className="mt-1 text-[14px]" style={{ color: "var(--muted)" }}>
-          {orgName} · here&apos;s where spend stands this morning.
+          {orgName} · here&apos;s where spend stands.
         </p>
       </div>
 
