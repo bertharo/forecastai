@@ -116,8 +116,8 @@ export async function runConnectorSync(
         healthMessage: failed
           ? String(result.errors[0])
           : config.mock
-            ? "Sync OK (demo) · auto every 6h"
-            : "Sync OK · auto every 6h",
+            ? "Sync OK (demo) · auto daily"
+            : "Sync OK · auto daily",
         syncCursor: {
           ...(connector.connectors.syncCursor as Record<string, unknown>),
           lastPhase: phase,

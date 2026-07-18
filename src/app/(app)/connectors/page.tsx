@@ -210,7 +210,7 @@ export default async function ConnectorsPage() {
               )}
               {provider.key === "anthropic" && (
                 <p className="muted mt-1 text-[11px]">
-                  Auto-syncs every 6 hours (Vercel Cron).
+                  Auto-syncs daily (Vercel Cron). Use Run sync anytime for a fresh pull.
                 </p>
               )}
               {[1].includes(connector.tier) &&

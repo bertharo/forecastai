@@ -20,7 +20,7 @@ function authorize(req: NextRequest): boolean {
 }
 
 /**
- * Vercel Cron: every 6h (see vercel.json).
+ * Vercel Cron: daily at 12:00 UTC (Hobby plan limit — see vercel.json).
  * Incremental Anthropic Admin sync (7d lookback) for every org connector.
  */
 export async function GET(req: NextRequest) {
