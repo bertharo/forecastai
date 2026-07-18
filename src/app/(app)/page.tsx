@@ -191,7 +191,7 @@ function BriefView({
             <div className="mt-2 text-[1.75rem] font-bold">
               <Metric
                 metric={aiCost.costPerPr}
-                format={(v) => (aiCost.mergedPrs ? usd(v) : "—")}
+                display={aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}
               />
             </div>
             <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>

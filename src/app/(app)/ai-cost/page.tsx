@@ -73,13 +73,16 @@ export default async function AiCostPage({
         <div className="row-card">
           <div className="muted text-[11px] uppercase">Spend</div>
           <div className="mt-1 text-[1.75rem] font-bold">
-            <Metric metric={summary.spend} format={(v) => usd(v)} />
+            <Metric metric={summary.spend} display={usd(summary.spend.value)} />
           </div>
         </div>
         <div className="row-card">
           <div className="muted text-[11px] uppercase">Cost / merged PR</div>
           <div className="mt-1 text-[1.75rem] font-bold">
-            <Metric metric={summary.costPerPr} format={(v) => (v ? usd(v) : "—")} />
+            <Metric
+              metric={summary.costPerPr}
+              display={summary.mergedPrs ? usd(summary.costPerPr.value) : "—"}
+            />
           </div>
           <div className="muted mt-1 text-[11px]">{summary.mergedPrs} PRs</div>
         </div>

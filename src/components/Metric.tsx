@@ -4,13 +4,14 @@ import { useState } from "react";
 import type { MetricResult } from "@/lib/metrics/compute";
 import { formatTrace } from "@/lib/metrics/compute";
 
+/** Display value must be a string — do not pass format functions from Server Components. */
 export function Metric({
   metric,
-  format = (v) => String(v),
+  display,
   className,
 }: {
   metric: MetricResult;
-  format?: (v: number) => string;
+  display: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +27,7 @@ export function Metric({
         title="Show calculation provenance"
       >
         <span className="kpi" style={{ fontSize: "inherit" }}>
-          {format(metric.value)}
+          {display}
         </span>
         {stale && (
           <span className="ml-1 text-[10px]" style={{ color: "var(--warning)" }}>
