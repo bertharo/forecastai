@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { getCurrentOrg } from "@/lib/queries/org";
-import {
-  contentHash,
-  parseCsv,
-  parseJsonl,
-  type ColumnMap,
-} from "@/lib/import/parse";
+import { contentHash, type ColumnMap } from "@/lib/import/parse";
 import {
   executeUsageImport,
   findActiveBatchByHash,
   listTemplates,
 } from "@/lib/import/execute";
+import {
+  isExcelFileName,
+  parseTabularUpload,
+  rowsToCsv,
+} from "@/lib/import/spreadsheet";
 import { eq, desc, and } from "drizzle-orm";
 
 /** Large CSVs can take minutes — keep the serverless fn alive (Pro); Hobby may still cut the HTTP response. */
@@ -30,7 +30,11 @@ export async function GET() {
       .orderBy(desc(s.importBatches.createdAt))
       .limit(20),
   ]);
-  return NextResponse.json({ templates, batches });
+  return NextResponse.json({
+    templates,
+    batches,
+    acceptedFormats: [".csv", ".xlsx", ".xls", ".xlsm", ".jsonl"],
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -41,13 +45,17 @@ export async function POST(req: NextRequest) {
     action?: "preview" | "import";
     fileName?: string;
     content?: string;
-    sourceKind?: "csv" | "jsonl" | "invoice";
+    base64?: string;
+    sourceKind?: "csv" | "jsonl" | "invoice" | "excel";
     columnMap?: ColumnMap;
     mappingTemplateId?: string | null;
   };
 
-  if (!body.content || !body.fileName) {
-    return NextResponse.json({ error: "fileName and content required" }, { status: 400 });
+  if (!body.fileName || (!body.content && !body.base64)) {
+    return NextResponse.json(
+      { error: "fileName and content (or base64 for Excel) required" },
+      { status: 400 }
+    );
   }
 
   const [orgMeta] = await db
@@ -66,10 +74,37 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sourceKind = body.sourceKind ?? "csv";
-  const hash = contentHash(body.content);
+  let parsed: { headers: string[]; rows: ReturnType<typeof parseTabularUpload>["rows"]; format: string };
+  try {
+    parsed = parseTabularUpload({
+      fileName: body.fileName,
+      content: body.content,
+      base64: body.base64,
+      sourceKind:
+        body.sourceKind === "excel" || isExcelFileName(body.fileName)
+          ? "excel"
+          : body.sourceKind === "jsonl"
+            ? "jsonl"
+            : "csv",
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : String(e) },
+      { status: 400 }
+    );
+  }
+
+  // Hash stable tabular form so re-saving the same sheet as CSV/XLSX still dedupes
+  const canonical = rowsToCsv(parsed.headers, parsed.rows);
+  const hash = contentHash(canonical);
   const existing = await findActiveBatchByHash(org.id, hash);
-  if (existing && body.action === "import") {
+  // Allow retry when a prior import completed with row errors (e.g. missing meters).
+  // Already-written rows are skipped via content hash; failed rows get another chance.
+  const canRetryPartial =
+    !!existing &&
+    existing.status === "completed" &&
+    (existing.rowsErrored ?? 0) > 0;
+  if (existing && body.action === "import" && !canRetryPartial) {
     return NextResponse.json(
       {
         error: "duplicate_file",
@@ -80,8 +115,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const parsed =
-    sourceKind === "jsonl" ? parseJsonl(body.content) : parseCsv(body.content);
+  const sourceKind: "csv" | "jsonl" | "invoice" =
+    body.sourceKind === "invoice"
+      ? "invoice"
+      : body.sourceKind === "jsonl" || parsed.format === "jsonl"
+        ? "jsonl"
+        : "csv";
 
   if (body.action === "preview" || !body.action) {
     return NextResponse.json({
@@ -90,6 +129,7 @@ export async function POST(req: NextRequest) {
       rowCount: parsed.rows.length,
       contentHash: hash,
       duplicateBatchId: existing?.id ?? null,
+      format: parsed.format,
     });
   }
 
@@ -147,11 +187,13 @@ export async function POST(req: NextRequest) {
       skipped: result.skipped,
       errored: result.errored,
       fileName: body.fileName,
+      format: parsed.format,
     },
   });
 
   return NextResponse.json({
     batchId: batch.id,
+    format: parsed.format,
     ...result,
   });
 }

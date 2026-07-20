@@ -89,37 +89,29 @@ export async function executeUsageImport(opts: {
         throw Object.assign(new Error("invalid timestamp"), { field: "timestamp" });
       const { start: eventTime, end } = parsedTs;
 
-      let meter = meters.find(
-        (m) =>
-          m.providerId === provider!.id &&
-          (m.meterKey === meterRaw ||
-            (meterRaw.toLowerCase().includes("input") &&
-              m.meterKey === "input_tokens") ||
-            (meterRaw.toLowerCase().includes("output") &&
+      // Token meters first; then seat/credit vendors (Perplexity/Replit/Lovable/…).
+      // Telemetry CSVs often force meter=input_tokens even when the vendor catalog
+      // only has seats/credits — still land the dollar amount on any provider meter.
+      const forProvider = meters.filter((m) => m.providerId === provider!.id);
+      const meterRawLower = meterRaw.toLowerCase();
+      let meter =
+        forProvider.find(
+          (m) =>
+            m.meterKey === meterRaw ||
+            (meterRawLower.includes("input") && m.meterKey === "input_tokens") ||
+            (meterRawLower.includes("output") &&
               m.meterKey === "output_tokens") ||
-            (meterRaw.toLowerCase().includes("token") &&
-              m.meterKey === "input_tokens"))
-      );
-      if (!meter) {
-        meter = meters.find(
-          (m) => m.providerId === provider!.id && m.meterKey === "input_tokens"
-        );
-      }
-      if (!meter) {
-        meter = meters.find(
-          (m) => m.providerId === provider!.id && m.meterKey === "premium_requests"
-        );
-      }
-      if (!meter && sourceKind === "invoice") {
-        meter = meters.find(
-          (m) => m.providerId === provider!.id && m.category === "seat"
-        );
-      }
-      if (!meter) {
-        meter = meters.find(
-          (m) => m.providerId === provider!.id && m.consumedUnit === "Tokens"
-        );
-      }
+            (meterRawLower.includes("token") && m.meterKey === "input_tokens")
+        ) ||
+        forProvider.find((m) => m.meterKey === "input_tokens") ||
+        forProvider.find((m) => m.meterKey === "premium_requests") ||
+        forProvider.find((m) => m.meterKey === "seats") ||
+        forProvider.find((m) => m.meterKey === "credits") ||
+        forProvider.find((m) => m.consumedUnit === "Tokens") ||
+        (sourceKind === "invoice"
+          ? forProvider.find((m) => m.category === "seat")
+          : undefined) ||
+        forProvider[0];
       if (!meter)
         throw Object.assign(new Error("no matching meter"), { field: "meter" });
 

@@ -113,7 +113,19 @@ export function parseImportTimestamp(raw: string): {
 export function resolveProviderKey(raw: string): string {
   const x = raw.trim().toLowerCase();
   if (!x) return "";
-  if (["anthropic", "openai", "cursor", "google", "aws_bedrock", "azure_openai"].includes(x)) {
+  if (
+    [
+      "anthropic",
+      "openai",
+      "cursor",
+      "google",
+      "aws_bedrock",
+      "azure_openai",
+      "perplexity",
+      "replit",
+      "lovable",
+    ].includes(x)
+  ) {
     return x;
   }
   if (x.includes("cursor")) return "cursor";
@@ -132,6 +144,9 @@ export function resolveProviderKey(raw: string): string {
   }
   if (x.includes("bedrock") || x.includes("amazon")) return "aws_bedrock";
   if (x.includes("azure")) return "azure_openai";
+  if (x.includes("perplexity") || x.includes("pplx")) return "perplexity";
+  if (x.includes("replit")) return "replit";
+  if (x.includes("lovable")) return "lovable";
   // Unknown tool label — keep raw lowercased; caller may still fail on unknown provider
   return x.replace(/\s+/g, "_");
 }
