@@ -13,6 +13,7 @@ import {
   resolveProviderKey,
   TELEMETRY_TEMPLATE,
 } from "@/lib/import/telemetry";
+import { projectCodingToolImportsToAiDaily } from "@/lib/ai-tools/from-import";
 
 export type ImportError = { row: number; field?: string; message: string };
 
@@ -250,6 +251,12 @@ export async function executeUsageImport(opts: {
     }
   }
 
+  // AI Cost reads ai_tool_daily (connector sync). Project coding-tool import
+  // rows into the same grain so person/team views stay filled.
+  if (written > 0) {
+    await projectCodingToolImportsToAiDaily(orgId);
+  }
+
   return { written, skipped, errored, errors };
 }
 
@@ -285,6 +292,9 @@ export async function rollbackImportBatch(orgId: string, batchId: string) {
       .where(inArray(s.usageEventDimensions.usageEventId, usageIds));
     await db.delete(s.usageEvents).where(inArray(s.usageEvents.id, usageIds));
   }
+
+  // Rebuild AI Cost grains from remaining import cost_records
+  await projectCodingToolImportsToAiDaily(orgId);
 
   await db
     .update(s.importBatches)

@@ -2,6 +2,10 @@ import { db } from "@/db";
 import * as s from "@/db/schema";
 import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
 import { computeMetric, type MetricResult } from "@/lib/metrics/compute";
+import {
+  needsCodingToolImportProjection,
+  projectCodingToolImportsToAiDaily,
+} from "@/lib/ai-tools/from-import";
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -16,6 +20,12 @@ export async function getAiCostSummary(
   const days = opts?.days ?? 30;
   const from = daysAgo(days);
   const to = new Date().toISOString().slice(0, 10);
+
+  // Spreadsheet imports historically wrote cost_records only. Project orphaned
+  // coding-tool rows into ai_tool_daily so AI Cost matches connector syncs.
+  if (await needsCodingToolImportProjection(orgId)) {
+    await projectCodingToolImportsToAiDaily(orgId);
+  }
 
   const filters = [
     eq(s.aiToolDaily.orgId, orgId),

@@ -42,7 +42,7 @@ export default async function AiCostPage({
     <div className="space-y-5">
       {noData && (
         <EmptyState
-          message="No coding-tool spend yet. Sync Claude, Cursor, or Copilot under Sources."
+          message="No coding-tool spend yet. Upload a people + spend spreadsheet, or sync Claude, Cursor, or Copilot under Sources."
           action={{ href: "/connectors", label: "Open Sources" }}
         />
       )}
@@ -129,7 +129,7 @@ export default async function AiCostPage({
             })}
             {summary.byTool.length === 0 && (
               <li className="muted text-[13px]">
-                No AI tool data yet — sync Claude/Cursor demo or import a DX export.
+                No AI tool data yet — upload a spend spreadsheet under Sources, or sync Claude/Cursor.
               </li>
             )}
           </ul>

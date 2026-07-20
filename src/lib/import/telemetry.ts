@@ -158,6 +158,32 @@ export function resolveProviderKey(raw: string): string {
   return x.replace(/\s+/g, "_");
 }
 
+/**
+ * Map ai_tool labels → AI Cost tool keys (ai_tool_daily.tool_key).
+ * Returns null when the label is not a coding tool (so generic cloud API
+ * invoices stay on FinOps spend only).
+ */
+export function resolveCodingToolKey(raw: string): string | null {
+  const x = raw.trim().toLowerCase().replace(/[\s\-]+/g, "_");
+  if (!x) return null;
+  if (x === "claude_code" || x.includes("claude") || x.includes("anthropic")) {
+    return "claude_code";
+  }
+  if (x.includes("cursor")) return "cursor";
+  if (x.includes("copilot")) return "copilot";
+  if (x.includes("codex")) return "codex";
+  if (
+    x.includes("chatgpt") ||
+    x === "chat_gpt" ||
+    x === "openai" ||
+    x === "gpt" ||
+    x.startsWith("gpt_")
+  ) {
+    return "chatgpt";
+  }
+  return null;
+}
+
 export const TELEMETRY_TEMPLATE = {
   name: "AI telemetry (email × month × tool)",
   sourceFormat: "telemetry_monthly",
