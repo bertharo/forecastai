@@ -52,7 +52,9 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
     "org_unit",
     "division",
     "cost_center_chain_level_04",
+    "cost_center_chain_level_4",
     "cost_center_chain_level_03",
+    "cost_center_chain_level_3",
   ],
   cost_center: [
     "cost_center",
@@ -61,8 +63,11 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
     "costcentre",
     "cost_centre",
     "cost_center_chain_level_07",
+    "cost_center_chain_level_7",
     "cost_center_chain_level_06",
+    "cost_center_chain_level_6",
     "cost_center_chain_level_05",
+    "cost_center_chain_level_5",
   ],
   employment_status: [
     "employment_status",
@@ -88,17 +93,20 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
   team_key: ["team_key", "team", "team_id", "team_name", "squad"],
 };
 
-const CHAIN_LEVELS = [
-  "cost_center_chain_level_02",
-  "cost_center_chain_level_03",
-  "cost_center_chain_level_04",
-  "cost_center_chain_level_05",
-  "cost_center_chain_level_06",
-  "cost_center_chain_level_07",
-] as const;
+const CHAIN_LEVELS = [2, 3, 4, 5, 6, 7] as const;
 
 function normHeader(h: string) {
   return normalizeHeaderKey(h);
+}
+
+/** Accept Level 02 and Level 2 (and Excel en-dashes via normalizeHeaderKey). */
+function chainHeaderKeys(level: number): string[] {
+  const n = String(level);
+  const padded = n.padStart(2, "0");
+  return [
+    `cost_center_chain_level_${padded}`,
+    `cost_center_chain_level_${n}`,
+  ];
 }
 
 function normalizeRows(headers: string[], rows: Record<string, string>[]) {
@@ -136,23 +144,40 @@ function cell(row: Record<string, string>, col?: string) {
   return (row[col] ?? row[normHeader(col)] ?? "").trim();
 }
 
+function cellAny(row: Record<string, string>, keys: string[]) {
+  for (const k of keys) {
+    const v = cell(row, k);
+    if (v) return v;
+  }
+  return "";
+}
+
 /** Department from mid chain; cost center from deepest non-empty level. */
 function fromCostCenterChain(row: Record<string, string>): {
   department: string | null;
   costCenter: string | null;
 } {
-  const levels = CHAIN_LEVELS.map((k) => ({ key: k, value: cell(row, k) }));
+  const levels = CHAIN_LEVELS.map((level) => ({
+    level,
+    value: cellAny(row, chainHeaderKeys(level)),
+  }));
   const filled = levels.filter((l) => l.value);
   if (!filled.length) return { department: null, costCenter: null };
 
   const dept =
-    cell(row, "cost_center_chain_level_04") ||
-    cell(row, "cost_center_chain_level_03") ||
-    cell(row, "cost_center_chain_level_05") ||
+    cellAny(row, chainHeaderKeys(4)) ||
+    cellAny(row, chainHeaderKeys(3)) ||
+    cellAny(row, chainHeaderKeys(5)) ||
     filled[0].value;
 
   const costCenter = [...filled].reverse()[0]?.value ?? null;
   return { department: dept || null, costCenter };
+}
+
+function hasCostCenterChain(normalizedHeaders: string[]): boolean {
+  return CHAIN_LEVELS.some((level) =>
+    chainHeaderKeys(level).some((k) => normalizedHeaders.includes(k))
+  );
 }
 
 function asDateOrNull(raw: string): string | null {
@@ -192,7 +217,7 @@ export async function importRosterCsv(
   const rows = normalizeRows(headers, rawRows);
   const normalizedHeaders = headers.map(normHeader);
   const map = resolveMap(normalizedHeaders, columnMap);
-  const hasChain = CHAIN_LEVELS.some((k) => normalizedHeaders.includes(k));
+  const hasChain = hasCostCenterChain(normalizedHeaders);
 
   if (!map.email || !normalizedHeaders.includes(normHeader(map.email))) {
     return {

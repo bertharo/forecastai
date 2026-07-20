@@ -22,12 +22,18 @@ export function normalizeHeaderKey(h: string): string {
     .replace(/^\uFEFF/, "")
     .trim()
     .toLowerCase()
-    .replace(/[\s\-]+/g, "_");
+    // spaces, hyphens, en/em dashes, underscores → single _
+    .replace(/[\s\-_–—−]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 }
 
 /**
- * Parse timestamps including month-only telemetry (YYYY-MM, MM/YYYY).
- * Returns { start, end, monthGrain }.
+ * Parse timestamps including month-only telemetry (YYYY-MM, MM/YYYY, "June 2026").
+ * Month-grain dating:
+ * - completed months → last day of month (stays in trailing-30d into the next month)
+ * - current month → today (so mid-month uploads are visible immediately)
+ * - future months → first of that month
  */
 export function parseImportTimestamp(raw: string): {
   start: Date;
@@ -37,22 +43,52 @@ export function parseImportTimestamp(raw: string): {
   const t = raw.trim();
   if (!t) return null;
 
+  const monthGrainDates = (y: number, mo0: number) => {
+    const monthStart = new Date(Date.UTC(y, mo0, 1, 12, 0, 0));
+    const monthLast = new Date(Date.UTC(y, mo0 + 1, 0, 12, 0, 0));
+    const monthEndExcl = new Date(Date.UTC(y, mo0 + 1, 1, 0, 0, 0));
+    const now = new Date();
+    const today = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0)
+    );
+    let start: Date;
+    if (monthLast.getTime() <= today.getTime()) {
+      start = monthLast;
+    } else if (monthStart.getTime() > today.getTime()) {
+      start = monthStart;
+    } else {
+      start = today;
+    }
+    return { start, end: monthEndExcl, monthGrain: true as const };
+  };
+
   let m = /^(\d{4})-(\d{2})$/.exec(t);
-  if (m) {
-    const y = Number(m[1]);
-    const mo = Number(m[2]) - 1;
-    const start = new Date(Date.UTC(y, mo, 1, 12, 0, 0));
-    const end = new Date(Date.UTC(y, mo + 1, 1, 0, 0, 0));
-    return { start, end, monthGrain: true };
-  }
+  if (m) return monthGrainDates(Number(m[1]), Number(m[2]) - 1);
 
   m = /^(\d{1,2})\/(\d{4})$/.exec(t);
+  if (m) return monthGrainDates(Number(m[2]), Number(m[1]) - 1);
+
+  m =
+    /^(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{4})$/i.exec(
+      t
+    );
   if (m) {
-    const mo = Number(m[1]) - 1;
-    const y = Number(m[2]);
-    const start = new Date(Date.UTC(y, mo, 1, 12, 0, 0));
-    const end = new Date(Date.UTC(y, mo + 1, 1, 0, 0, 0));
-    return { start, end, monthGrain: true };
+    const names = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
+    const idx = names.findIndex((n) => m![1].toLowerCase().startsWith(n));
+    if (idx >= 0) return monthGrainDates(Number(m[2]), idx);
   }
 
   m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);

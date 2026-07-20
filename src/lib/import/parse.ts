@@ -89,15 +89,16 @@ export function mappedValue(row: RawRow, source: string | undefined): string {
   if (Object.prototype.hasOwnProperty.call(row, source) && row[source] !== "") {
     return String(row[source]);
   }
-  const want = source.trim().toLowerCase().replace(/[\s\-]+/g, "_");
+  const norm = (h: string) =>
+    h
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\-_–—−]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
+  const want = norm(source);
   for (const [k, v] of Object.entries(row)) {
-    const key = k.trim().toLowerCase().replace(/[\s\-]+/g, "_");
-    if (key === want) return String(v ?? "");
-  }
-  // Also try exact lower match without underscore normalize
-  const lower = source.toLowerCase();
-  for (const [k, v] of Object.entries(row)) {
-    if (k.toLowerCase() === lower) return String(v ?? "");
+    if (norm(k) === want) return String(v ?? "");
   }
   return "";
 }
