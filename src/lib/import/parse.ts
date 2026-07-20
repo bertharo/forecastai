@@ -82,9 +82,22 @@ export const IMPORT_TARGETS = [
 
 export type ColumnMap = Record<string, string>;
 
-/** Resolve mapped value; `_literal:x` or `_literal:x` style sources. */
+/** Resolve mapped value; `_literal:x` style sources. Case-insensitive headers. */
 export function mappedValue(row: RawRow, source: string | undefined): string {
   if (!source) return "";
   if (source.startsWith("_literal:")) return source.slice("_literal:".length);
-  return row[source] ?? "";
+  if (Object.prototype.hasOwnProperty.call(row, source) && row[source] !== "") {
+    return String(row[source]);
+  }
+  const want = source.trim().toLowerCase().replace(/[\s\-]+/g, "_");
+  for (const [k, v] of Object.entries(row)) {
+    const key = k.trim().toLowerCase().replace(/[\s\-]+/g, "_");
+    if (key === want) return String(v ?? "");
+  }
+  // Also try exact lower match without underscore normalize
+  const lower = source.toLowerCase();
+  for (const [k, v] of Object.entries(row)) {
+    if (k.toLowerCase() === lower) return String(v ?? "");
+  }
+  return "";
 }

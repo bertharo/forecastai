@@ -60,8 +60,8 @@ export function RosterImport() {
       <div>
         <h2 className="text-[15px] font-semibold">People</h2>
         <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-          Upload a list of employees (email + department). We use email to put spend on
-          the right department — you don’t need a department column on the bill file.
+          Upload employees with email (or Project worker) + department / cost-center chain.
+          Headers can be any case. We join spend on email.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -80,16 +80,22 @@ export function RosterImport() {
         <a className="btn btn-ghost text-[13px]" href="/fixtures/hris-roster.csv">
           Download example
         </a>
+        <a
+          className="btn btn-ghost text-[13px]"
+          href="/fixtures/people-cost-center-chain.csv"
+        >
+          Cost-center chain example
+        </a>
       </div>
       <details className="text-[12px]" style={{ color: "var(--muted)" }}>
         <summary className="cursor-pointer">What columns do I need?</summary>
         <p className="mt-2">
-          Required: <strong>email</strong> (or Work Email). Helpful: name, department,
-          cost center, employment status, start/end dates, team.
+          Required: <strong>email</strong> or <strong>Project worker</strong> (must be an
+          email). Optional: department, or Cost Center Chain levels 02–07 (any case).
+          Deepest chain level → cost center; level 04/03 → department.
         </p>
         <p className="mt-1 mono text-[11px]">
-          email, display_name, department, cost_center, employment_status, started_on,
-          ended_on, team_key
+          Project worker, Cost Center Chain - Level 02 … Level 07
         </p>
       </details>
       {fileName && (

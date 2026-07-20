@@ -30,11 +30,27 @@ function pickUsageTemplate(
   templates: Template[],
   headers: string[]
 ): Template | undefined {
-  const lower = new Set(headers.map((h) => h.toLowerCase()));
+  const lower = new Set(headers.map((h) => h.toLowerCase().replace(/[\s\-]+/g, "_")));
   const usable = templates.filter(
     (t) => t.sourceFormat !== "org_structure" && t.sourceFormat !== "dx_ai_metrics"
   );
   if (!usable.length) return undefined;
+
+  // Monthly AI telemetry: email + month + ai_tool + spend/tokens
+  if (
+    (lower.has("email") || lower.has("user_email")) &&
+    lower.has("month") &&
+    (lower.has("ai_tool") || lower.has("tool")) &&
+    (lower.has("total_spend_dollars") ||
+      lower.has("total_sepnd_dollars") ||
+      lower.has("total_tokens") ||
+      lower.has("total_spend"))
+  ) {
+    return (
+      usable.find((t) => t.sourceFormat === "telemetry_monthly") ??
+      usable.find((t) => /telemetry/i.test(t.name))
+    );
+  }
 
   // Anthropic console: created_at + model + tokens
   if (lower.has("created_at") && lower.has("model") && lower.has("tokens")) {
@@ -149,15 +165,34 @@ export default function ImportPage() {
       setHeaders(hdrs);
       setPreview(data.preview ?? []);
       setRowCount(data.rowCount ?? 0);
-      const lower = new Set(hdrs.map((h) => h.toLowerCase()));
+      const norm = (h: string) => h.toLowerCase().replace(/[\s\-]+/g, "_");
+      const lower = new Set(hdrs.map(norm));
+      const byLower = Object.fromEntries(hdrs.map((h) => [norm(h), h]));
       const looksDx =
         lower.has("tool") && (lower.has("spend") || lower.has("cost")) && lower.has("day");
       const looksOrg =
         lower.has("node_name") &&
         (lower.has("parent_name") || lower.has("dimension_type"));
+      const looksTelemetry =
+        (lower.has("email") || lower.has("user_email")) &&
+        lower.has("month") &&
+        (lower.has("ai_tool") || lower.has("tool")) &&
+        (lower.has("total_spend_dollars") ||
+          lower.has("total_sepnd_dollars") ||
+          lower.has("total_tokens") ||
+          lower.has("total_spend"));
       const looksUsage =
-        (lower.has("cost") || lower.has("cost_usd") || lower.has("amount")) &&
-        (lower.has("model") || lower.has("tokens") || lower.has("created_at") || lower.has("seats"));
+        looksTelemetry ||
+        ((lower.has("cost") ||
+          lower.has("cost_usd") ||
+          lower.has("amount") ||
+          lower.has("total_spend_dollars")) &&
+          (lower.has("model") ||
+            lower.has("tokens") ||
+            lower.has("total_tokens") ||
+            lower.has("created_at") ||
+            lower.has("month") ||
+            lower.has("seats")));
       const looksSeats = lower.has("seats") || lower.has("vendor");
 
       if (looksDx) {
@@ -169,18 +204,41 @@ export default function ImportPage() {
         setTab("teams");
       } else if (!looksOrg && (looksUsage || looksSeats) && templates.length) {
         const usageTpl = pickUsageTemplate(templates, hdrs);
-        const byLower = Object.fromEntries(hdrs.map((h) => [h.toLowerCase(), h]));
         const next: Record<string, string> = { ...(usageTpl?.columnMap ?? {}) };
 
         // Header-based guesses fill gaps (and fix wrong template columns)
         const guesses: Record<string, string[]> = {
-          timestamp: ["created_at", "start_time", "timestamp", "date", "period_end"],
-          provider: ["provider", "vendor", "system"],
+          timestamp: [
+            "month",
+            "created_at",
+            "start_time",
+            "timestamp",
+            "date",
+            "period_end",
+            "usage_month",
+          ],
+          provider: ["ai_tool", "tool", "provider", "vendor", "system", "product"],
           model: ["model", "sku"],
           meter: ["type", "meter", "n_context_tokens_total"],
-          quantity: ["tokens", "quantity", "n_context_tokens_total", "seats"],
-          cost: ["cost", "cost_usd", "amount"],
-          "tags.email": ["email", "user_email", "user"],
+          quantity: [
+            "total_tokens",
+            "tokens",
+            "quantity",
+            "n_context_tokens_total",
+            "seats",
+          ],
+          cost: [
+            "total_spend_dollars",
+            "total_sepnd_dollars",
+            "total_spend",
+            "spend_dollars",
+            "cost",
+            "cost_usd",
+            "amount",
+            "spend",
+          ],
+          "tags.email": ["email", "user_email", "user", "work_email"],
+          "tags.ai_tool": ["ai_tool", "tool", "product"],
           "tags.api_key": ["api_key", "api_key_id", "key_id"],
           "tags.seat_status": ["seat_status"],
         };
@@ -194,8 +252,10 @@ export default function ImportPage() {
           }
         }
         // Anthropic / OpenAI exports rarely include a vendor column
-        if (!next.provider || (next.provider && !next.provider.startsWith("_literal:") && !byLower[next.provider.toLowerCase()])) {
-          if (lower.has("created_at") && lower.has("tokens")) {
+        if (!next.provider || (next.provider && !next.provider.startsWith("_literal:") && !byLower[norm(next.provider)])) {
+          if (looksTelemetry && byLower.ai_tool) {
+            next.provider = byLower.ai_tool;
+          } else if (lower.has("created_at") && lower.has("tokens")) {
             next.provider = "_literal:anthropic";
           } else if (lower.has("n_context_tokens_total") || lower.has("start_time")) {
             next.provider = "_literal:openai";
@@ -206,7 +266,7 @@ export default function ImportPage() {
         // Drop mapped sources that aren't in this file (except literals)
         for (const [target, source] of Object.entries(next)) {
           if (!source || source.startsWith("_literal:")) continue;
-          if (!byLower[source.toLowerCase()] && !hdrs.includes(source)) {
+          if (!byLower[norm(source)] && !hdrs.includes(source)) {
             delete next[target];
           }
         }
@@ -221,7 +281,9 @@ export default function ImportPage() {
           }
         }
         if (!next.provider) {
-          if (lower.has("created_at") && lower.has("tokens")) {
+          if (looksTelemetry && byLower.ai_tool) {
+            next.provider = byLower.ai_tool;
+          } else if (lower.has("created_at") && lower.has("tokens")) {
             next.provider = "_literal:anthropic";
           }
         }
@@ -261,15 +323,41 @@ export default function ImportPage() {
 
   const autoMap = () => {
     const next: Record<string, string> = { ...columnMap };
-    const lower = Object.fromEntries(headers.map((h) => [h.toLowerCase(), h]));
+    const lower = Object.fromEntries(
+      headers.map((h) => [h.toLowerCase().replace(/[\s\-]+/g, "_"), h])
+    );
     const guesses: Record<string, string[]> = {
-      timestamp: ["created_at", "start_time", "timestamp", "date", "period_end"],
-      provider: ["provider", "vendor", "system"],
+      timestamp: [
+        "month",
+        "created_at",
+        "start_time",
+        "timestamp",
+        "date",
+        "period_end",
+        "usage_month",
+      ],
+      provider: ["ai_tool", "tool", "provider", "vendor", "system", "product"],
       model: ["model", "sku"],
       meter: ["type", "meter", "n_context_tokens_total"],
-      quantity: ["tokens", "quantity", "n_context_tokens_total", "seats"],
-      cost: ["cost", "cost_usd", "amount"],
-      "tags.email": ["email", "user_email", "user"],
+      quantity: [
+        "total_tokens",
+        "tokens",
+        "quantity",
+        "n_context_tokens_total",
+        "seats",
+      ],
+      cost: [
+        "total_spend_dollars",
+        "total_sepnd_dollars",
+        "total_spend",
+        "spend_dollars",
+        "cost",
+        "cost_usd",
+        "amount",
+        "spend",
+      ],
+      "tags.email": ["email", "user_email", "user", "work_email"],
+      "tags.ai_tool": ["ai_tool", "tool", "product"],
       "tags.api_key": ["api_key", "api_key_id", "key_id"],
       "tags.feature": ["feature", "workspace", "project_id"],
       "tags.team": ["team"],
@@ -641,6 +729,14 @@ export default function ImportPage() {
                 </div>
               )}
               <div className="flex flex-wrap justify-center gap-2 text-[12px]">
+                <a
+                  className="underline"
+                  href="/fixtures/telemetry-spend.csv"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Example telemetry file
+                </a>
+                <span>·</span>
                 <a
                   className="underline"
                   href="/fixtures/vendor-anthropic-usage.csv"

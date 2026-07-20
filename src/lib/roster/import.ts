@@ -3,6 +3,7 @@ import * as s from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { parseCsv } from "@/lib/import/parse";
 import { upsertContributor } from "@/lib/contributors/upsert";
+import { normalizeHeaderKey } from "@/lib/import/telemetry";
 
 export type RosterColumnMap = {
   email: string;
@@ -26,18 +27,43 @@ const DEFAULT_MAP: RosterColumnMap = {
   team_key: "team_key",
 };
 
-/** Common HRIS / Excel header aliases → canonical field */
+/** Common HRIS / Excel header aliases → canonical field (matched after normalizeHeaderKey). */
 const ALIASES: Record<keyof RosterColumnMap, string[]> = {
-  email: ["email", "work_email", "user_email", "e-mail", "mail"],
+  email: [
+    "email",
+    "work_email",
+    "user_email",
+    "e-mail",
+    "mail",
+    "project_worker", // enterprise people export
+  ],
   display_name: [
     "display_name",
     "name",
     "full_name",
     "employee_name",
     "preferred_name",
+    "project_worker",
   ],
-  department: ["department", "dept", "dept_name", "org_unit", "division"],
-  cost_center: ["cost_center", "cost_center_code", "cc", "costcentre", "cost_centre"],
+  department: [
+    "department",
+    "dept",
+    "dept_name",
+    "org_unit",
+    "division",
+    "cost_center_chain_level_04",
+    "cost_center_chain_level_03",
+  ],
+  cost_center: [
+    "cost_center",
+    "cost_center_code",
+    "cc",
+    "costcentre",
+    "cost_centre",
+    "cost_center_chain_level_07",
+    "cost_center_chain_level_06",
+    "cost_center_chain_level_05",
+  ],
   employment_status: [
     "employment_status",
     "status",
@@ -62,12 +88,17 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
   team_key: ["team_key", "team", "team_id", "team_name", "squad"],
 };
 
+const CHAIN_LEVELS = [
+  "cost_center_chain_level_02",
+  "cost_center_chain_level_03",
+  "cost_center_chain_level_04",
+  "cost_center_chain_level_05",
+  "cost_center_chain_level_06",
+  "cost_center_chain_level_07",
+] as const;
+
 function normHeader(h: string) {
-  return h
-    .replace(/^\uFEFF/, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\-]+/g, "_");
+  return normalizeHeaderKey(h);
 }
 
 function normalizeRows(headers: string[], rows: Record<string, string>[]) {
@@ -94,8 +125,8 @@ function resolveMap(
       resolved[field] = normHeader(current);
       continue;
     }
-    const alias = ALIASES[field].find((a) => present.has(a));
-    if (alias) resolved[field] = alias;
+    const alias = ALIASES[field].find((a) => present.has(normHeader(a)));
+    if (alias) resolved[field] = normHeader(alias);
   }
   return resolved;
 }
@@ -105,9 +136,27 @@ function cell(row: Record<string, string>, col?: string) {
   return (row[col] ?? row[normHeader(col)] ?? "").trim();
 }
 
+/** Department from mid chain; cost center from deepest non-empty level. */
+function fromCostCenterChain(row: Record<string, string>): {
+  department: string | null;
+  costCenter: string | null;
+} {
+  const levels = CHAIN_LEVELS.map((k) => ({ key: k, value: cell(row, k) }));
+  const filled = levels.filter((l) => l.value);
+  if (!filled.length) return { department: null, costCenter: null };
+
+  const dept =
+    cell(row, "cost_center_chain_level_04") ||
+    cell(row, "cost_center_chain_level_03") ||
+    cell(row, "cost_center_chain_level_05") ||
+    filled[0].value;
+
+  const costCenter = [...filled].reverse()[0]?.value ?? null;
+  return { department: dept || null, costCenter };
+}
+
 function asDateOrNull(raw: string): string | null {
   if (!raw) return null;
-  // Accept YYYY-MM-DD or ISO; reject junk so one bad cell doesn't kill the batch
   const d = raw.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
   const t = Date.parse(d);
@@ -143,6 +192,7 @@ export async function importRosterCsv(
   const rows = normalizeRows(headers, rawRows);
   const normalizedHeaders = headers.map(normHeader);
   const map = resolveMap(normalizedHeaders, columnMap);
+  const hasChain = CHAIN_LEVELS.some((k) => normalizedHeaders.includes(k));
 
   if (!map.email || !normalizedHeaders.includes(normHeader(map.email))) {
     return {
@@ -152,7 +202,7 @@ export async function importRosterCsv(
       errors: [
         {
           row: 0,
-          message: `No email column found. Saw: ${normalizedHeaders.join(", ") || "(none)"}. Need a column like email / work_email.`,
+          message: `No email / Project worker column found. Saw: ${normalizedHeaders.join(", ") || "(none)"}. Need email or Project worker.`,
         },
       ],
       detected: map,
@@ -172,24 +222,35 @@ export async function importRosterCsv(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNum = i + 2;
-    const email = cell(row, map.email).toLowerCase();
-    if (!email) {
+    const worker = cell(row, map.email);
+    const email = worker.includes("@") ? worker.toLowerCase() : worker.toLowerCase();
+
+    if (!worker) {
       skipped++;
       continue;
     }
+
+    // Project worker may be a name — require @ for spend join
     if (!email.includes("@")) {
       skipped++;
-      errors.push({ row: rowNum, message: `Not an email: ${email}` });
+      errors.push({
+        row: rowNum,
+        message: `Project worker must be an email to join spend (got “${worker}”)`,
+      });
       continue;
     }
 
     try {
+      const chain = hasChain ? fromCostCenterChain(row) : { department: null, costCenter: null };
       const teamKey = cell(row, map.team_key);
+      const rawName = cell(row, map.display_name);
+      const displayName =
+        rawName && rawName.toLowerCase() !== email ? rawName : email.split("@")[0];
       await upsertContributor(orgId, {
         email,
-        displayName: cell(row, map.display_name) || email.split("@")[0],
-        department: cell(row, map.department) || null,
-        costCenter: cell(row, map.cost_center) || null,
+        displayName,
+        department: cell(row, map.department) || chain.department,
+        costCenter: cell(row, map.cost_center) || chain.costCenter,
         employmentStatus: cell(row, map.employment_status) || "active",
         startedOn: asDateOrNull(cell(row, map.started_on)),
         endedOn: asDateOrNull(cell(row, map.ended_on)),

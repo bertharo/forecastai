@@ -40,6 +40,13 @@ export async function GET() {
       "started_on",
       "ended_on",
       "team_key",
+      "Project worker",
+      "Cost Center Chain - Level 02",
+      "Cost Center Chain - Level 03",
+      "Cost Center Chain - Level 04",
+      "Cost Center Chain - Level 05",
+      "Cost Center Chain - Level 06",
+      "Cost Center Chain - Level 07",
     ],
   });
 }

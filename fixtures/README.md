@@ -4,9 +4,8 @@
 
 | File | Use |
 |------|-----|
-| `hris-roster.csv` | HRIS roster → `POST /api/roster` or Import → HRIS roster |
-| `vendor-anthropic-usage.csv` | Anthropic-style usage with `email` + `api_key` |
-| `vendor-cursor-seats.csv` | Seat invoice rows with email + amount |
+| `people-cost-center-chain.csv` | People with Project worker + Cost Center Chain L02–L07 |
+| `telemetry-spend.csv` | Monthly telemetry: email, month, ai_tool, model, tokens, $ |
 | *(in-app)* Load sample data | `POST /api/demo/finops-sample` — deterministic ~2k roster, 6 terminated seats (~$1.2k/mo), ~10% inactive seats, exactly 2 unmapped API keys |
 
 Department never comes from the usage CSV. Join on `tags.email` → roster, or fall back to key registry.

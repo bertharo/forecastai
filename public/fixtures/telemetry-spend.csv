@@ -1,0 +1,5 @@
+email,month,ai_tool,model,total_tokens,total_spend_dollars
+alex.chen@acme.example,2026-06,Claude,claude-sonnet-4,1200000,12.40
+alex.chen@acme.example,2026-06,Cursor,cursor-premium,80000,4.10
+jordan.lee@acme.example,2026-06,ChatGPT,gpt-4o,450000,3.25
+morgan.patel@acme.example,2026-05,Claude,claude-haiku-3.5,2200000,5.80

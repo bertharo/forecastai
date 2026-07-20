@@ -8,6 +8,11 @@ import {
   rowContentHash,
 } from "@/lib/import/parse";
 import { applyAllocationRules } from "@/lib/allocation/apply";
+import {
+  parseImportTimestamp,
+  resolveProviderKey,
+  TELEMETRY_TEMPLATE,
+} from "@/lib/import/telemetry";
 
 export type ImportError = { row: number; field?: string; message: string };
 
@@ -41,46 +46,78 @@ export async function executeUsageImport(opts: {
     const rowNum = i + 2; // 1-indexed + header
     try {
       const tsRaw = mappedValue(row, columnMap.timestamp);
-      const providerKey = mappedValue(row, columnMap.provider).toLowerCase();
+      const providerRaw = mappedValue(row, columnMap.provider);
+      const providerKey = resolveProviderKey(providerRaw);
       const model = mappedValue(row, columnMap.model);
       const meterRaw = mappedValue(row, columnMap.meter) || "input_tokens";
-      const qtyRaw = mappedValue(row, columnMap.quantity);
-      const costRaw = mappedValue(row, columnMap.cost);
+      let qtyRaw = mappedValue(row, columnMap.quantity);
+      // Accept common spend column typo from telemetry exports
+      let costRaw = mappedValue(row, columnMap.cost);
+      if (!costRaw) {
+        costRaw =
+          mappedValue(row, "total_spend_dollars") ||
+          mappedValue(row, "total_sepnd_dollars") ||
+          mappedValue(row, "total_spend");
+      }
+      if (!qtyRaw) {
+        qtyRaw =
+          mappedValue(row, "total_tokens") || mappedValue(row, "tokens") || "";
+      }
 
       if (!tsRaw) throw Object.assign(new Error("missing timestamp"), { field: "timestamp" });
       if (!providerKey)
         throw Object.assign(new Error("missing provider"), { field: "provider" });
-      const qty = Number(qtyRaw);
-      if (!Number.isFinite(qty))
-        throw Object.assign(new Error("invalid quantity"), { field: "quantity" });
 
-      const provider = providerByKey.get(providerKey);
+      let qty = Number(String(qtyRaw).replace(/,/g, ""));
+      if (!Number.isFinite(qty) || qty < 0) {
+        // Cost-only telemetry row — keep a unit quantity so the dollar amount lands
+        if (costRaw && Number.isFinite(Number(String(costRaw).replace(/[$,]/g, "")))) {
+          qty = 1;
+        } else {
+          throw Object.assign(new Error("invalid quantity"), { field: "quantity" });
+        }
+      }
+
+      let provider = providerByKey.get(providerKey);
       if (!provider)
-        throw Object.assign(new Error(`unknown provider: ${providerKey}`), {
+        throw Object.assign(new Error(`unknown provider / ai_tool: ${providerRaw || providerKey}`), {
           field: "provider",
         });
 
-      const eventTime = new Date(tsRaw);
-      if (Number.isNaN(eventTime.getTime()))
+      const parsedTs = parseImportTimestamp(tsRaw);
+      if (!parsedTs)
         throw Object.assign(new Error("invalid timestamp"), { field: "timestamp" });
+      const { start: eventTime, end } = parsedTs;
 
       let meter = meters.find(
         (m) =>
-          m.providerId === provider.id &&
+          m.providerId === provider!.id &&
           (m.meterKey === meterRaw ||
             (meterRaw.toLowerCase().includes("input") &&
               m.meterKey === "input_tokens") ||
             (meterRaw.toLowerCase().includes("output") &&
-              m.meterKey === "output_tokens"))
+              m.meterKey === "output_tokens") ||
+            (meterRaw.toLowerCase().includes("token") &&
+              m.meterKey === "input_tokens"))
       );
       if (!meter) {
         meter = meters.find(
-          (m) => m.providerId === provider.id && m.meterKey === "input_tokens"
+          (m) => m.providerId === provider!.id && m.meterKey === "input_tokens"
+        );
+      }
+      if (!meter) {
+        meter = meters.find(
+          (m) => m.providerId === provider!.id && m.meterKey === "premium_requests"
         );
       }
       if (!meter && sourceKind === "invoice") {
         meter = meters.find(
-          (m) => m.providerId === provider.id && m.category === "seat"
+          (m) => m.providerId === provider!.id && m.category === "seat"
+        );
+      }
+      if (!meter) {
+        meter = meters.find(
+          (m) => m.providerId === provider!.id && m.consumedUnit === "Tokens"
         );
       }
       if (!meter)
@@ -88,7 +125,8 @@ export async function executeUsageImport(opts: {
 
       const sku = skus.find(
         (sk) =>
-          sk.providerId === provider.id &&
+          sk.providerId === provider!.id &&
+          model &&
           (sk.skuId === model ||
             sk.skuId.includes(model) ||
             model.includes(sk.skuId))
@@ -108,14 +146,25 @@ export async function executeUsageImport(opts: {
               : v;
         }
       }
+      // Preserve original tool label when provider was derived from ai_tool
+      if (providerRaw && !tags.ai_tool) {
+        tags.ai_tool = providerRaw;
+      }
+
+      const cost =
+        costRaw && Number.isFinite(Number(String(costRaw).replace(/[$,]/g, "")))
+          ? Number(String(costRaw).replace(/[$,]/g, ""))
+          : 0;
 
       const hash = rowContentHash(orgId, [
         tsRaw,
-        providerKey,
+        provider.key,
         model,
         meter.meterKey,
         String(qty),
-        costRaw,
+        String(cost),
+        tags.email ?? "",
+        tags.ai_tool ?? "",
         tags.feature ?? "",
       ]);
 
@@ -130,13 +179,7 @@ export async function executeUsageImport(opts: {
       }
 
       const alloc = await applyAllocationRules(orgId, tags);
-      const cost =
-        costRaw && Number.isFinite(Number(costRaw))
-          ? Number(costRaw)
-          : 0;
       const unitPrice = qty > 0 ? cost / qty : 0;
-      const end = new Date(eventTime);
-      end.setUTCHours(end.getUTCHours() + 1);
 
       const [usage] = await db
         .insert(s.usageEvents)
@@ -288,10 +331,34 @@ export async function findActiveBatchByHash(orgId: string, hash: string) {
 }
 
 export async function listTemplates(orgId: string) {
+  await ensureTelemetryMappingTemplate();
   return db
     .select()
     .from(s.mappingTemplates)
     .where(
       sql`${s.mappingTemplates.orgId} = ${orgId} or ${s.mappingTemplates.isSystem} = true`
     );
+}
+
+async function ensureTelemetryMappingTemplate() {
+  const [existing] = await db
+    .select({ id: s.mappingTemplates.id })
+    .from(s.mappingTemplates)
+    .where(
+      and(
+        eq(s.mappingTemplates.isSystem, true),
+        eq(s.mappingTemplates.sourceFormat, TELEMETRY_TEMPLATE.sourceFormat)
+      )
+    )
+    .limit(1);
+  if (existing) return;
+  await db.insert(s.mappingTemplates).values({
+    orgId: null,
+    providerId: null,
+    name: TELEMETRY_TEMPLATE.name,
+    sourceFormat: TELEMETRY_TEMPLATE.sourceFormat,
+    isSystem: true,
+    columnMap: TELEMETRY_TEMPLATE.columnMap,
+    sampleHeaders: TELEMETRY_TEMPLATE.sampleHeaders,
+  });
 }

@@ -109,7 +109,8 @@ async function seed() {
     .values({
       name: "Northstar Analytics",
       slug: "northstar",
-      // Claim via POST /api/orgs/claim { token: "ws_demo_northstar" }
+      isPrivate: false,
+      // Optional claim via POST /api/orgs/claim { token: "ws_demo_northstar" }
       accessTokenHash: createHash("sha256")
         .update("ws_demo_northstar")
         .digest("hex"),
@@ -1596,6 +1597,31 @@ async function seed() {
         "tags.feature": "project_id",
       },
       sampleHeaders: ["start_time", "model", "n_context_tokens_total", "cost", "project_id"],
+    },
+    {
+      orgId: null,
+      providerId: null,
+      name: "AI telemetry (email × month × tool)",
+      sourceFormat: "telemetry_monthly",
+      isSystem: true,
+      columnMap: {
+        timestamp: "month",
+        provider: "ai_tool",
+        model: "model",
+        meter: "_literal:input_tokens",
+        quantity: "total_tokens",
+        cost: "total_spend_dollars",
+        "tags.email": "email",
+        "tags.ai_tool": "ai_tool",
+      },
+      sampleHeaders: [
+        "email",
+        "month",
+        "ai_tool",
+        "model",
+        "total_tokens",
+        "total_spend_dollars",
+      ],
     },
     {
       orgId: null,
