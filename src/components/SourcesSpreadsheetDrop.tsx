@@ -56,6 +56,16 @@ function guessColumnMap(headers: string[]): Record<string, string> {
   return next;
 }
 
+async function clearSampleWorkspace(): Promise<void> {
+  const res = await fetch("/api/demo/finops-sample", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "clear" }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || "Could not clear sample");
+}
+
 /**
  * Data & sources: click / drag spreadsheet → people or spend import.
  */
@@ -64,66 +74,114 @@ export function SourcesSpreadsheetDrop() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState(false);
+  const [sampleBlocked, setSampleBlocked] = useState(false);
+  const [pending, setPending] = useState<DroppedUpload | null>(null);
+
+  async function importUpload(upload: DroppedUpload) {
+    const previewRes = await fetch("/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "preview",
+        fileName: upload.fileName,
+        content: upload.content,
+        base64: upload.base64,
+        sourceKind: upload.base64 ? "excel" : "csv",
+      }),
+    });
+    const preview = await previewRes.json();
+    if (!previewRes.ok) {
+      throw new Error(preview.error || "Could not read file");
+    }
+    const headers: string[] = preview.headers ?? [];
+
+    if (looksLikePeopleHeaders(headers)) {
+      const res = await fetch("/api/roster", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: upload.content,
+          base64: upload.base64,
+          fileName: upload.fileName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const err = new Error(data.message || data.error || "People import failed") as Error & {
+          code?: string;
+        };
+        err.code = data.error;
+        throw err;
+      }
+      setMsg(`Added ${data.upserted} people from ${upload.fileName}`);
+      router.refresh();
+      return;
+    }
+
+    const columnMap = guessColumnMap(headers);
+    const res = await fetch("/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "import",
+        fileName: upload.fileName,
+        content: upload.content,
+        base64: upload.base64,
+        sourceKind: upload.base64 ? "excel" : "csv",
+        columnMap,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.message || data.error || "Spend import failed") as Error & {
+        code?: string;
+      };
+      err.code = data.error;
+      throw err;
+    }
+    setMsg(
+      `Imported ${data.written ?? 0} spend rows from ${upload.fileName}` +
+        (data.errored ? ` · ${data.errored} problems` : "")
+    );
+    router.refresh();
+  }
 
   async function onFile(upload: DroppedUpload) {
     setBusy(true);
     setMsg(null);
     setErr(false);
+    setSampleBlocked(false);
+    setPending(upload);
     try {
-      // Preview via import API (handles Excel base64)
-      const previewRes = await fetch("/api/import", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          action: "preview",
-          fileName: upload.fileName,
-          content: upload.content,
-          base64: upload.base64,
-          sourceKind: upload.base64 ? "excel" : "csv",
-        }),
-      });
-      const preview = await previewRes.json();
-      if (!previewRes.ok) {
-        throw new Error(preview.error || "Could not read file");
+      await importUpload(upload);
+      setPending(null);
+    } catch (e) {
+      const code = (e as Error & { code?: string }).code;
+      const message = e instanceof Error ? e.message : String(e);
+      setErr(true);
+      if (code === "sample_active" || /sample data is active/i.test(message)) {
+        setSampleBlocked(true);
+        setMsg(
+          "Sample data is active in this workspace. Clear it to upload your real spreadsheet (this removes the sample pack)."
+        );
+      } else {
+        setMsg(message);
       }
-      const headers: string[] = preview.headers ?? [];
+    } finally {
+      setBusy(false);
+    }
+  }
 
-      if (looksLikePeopleHeaders(headers)) {
-        const res = await fetch("/api/roster", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            content: upload.content,
-            base64: upload.base64,
-            fileName: upload.fileName,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || data.error || "People import failed");
-        setMsg(`Added ${data.upserted} people from ${upload.fileName}`);
-        router.refresh();
-        return;
-      }
-
-      const columnMap = guessColumnMap(headers);
-      const res = await fetch("/api/import", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          action: "import",
-          fileName: upload.fileName,
-          content: upload.content,
-          base64: upload.base64,
-          sourceKind: upload.base64 ? "excel" : "csv",
-          columnMap,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "Spend import failed");
-      setMsg(
-        `Imported ${data.written ?? 0} spend rows from ${upload.fileName}` +
-          (data.errored ? ` · ${data.errored} problems` : "")
-      );
+  async function clearSampleAndRetry() {
+    if (!pending) return;
+    setBusy(true);
+    setMsg(null);
+    setErr(false);
+    try {
+      await clearSampleWorkspace();
+      setSampleBlocked(false);
+      await importUpload(pending);
+      setPending(null);
       router.refresh();
     } catch (e) {
       setErr(true);
@@ -149,12 +207,29 @@ export function SourcesSpreadsheetDrop() {
         onFile={onFile}
       />
       {msg && (
-        <p
-          className="text-[13px]"
-          style={{ color: err ? "var(--danger)" : "var(--muted)" }}
-        >
-          {msg}
-        </p>
+        <div className="space-y-2">
+          <p
+            className="text-[13px]"
+            style={{ color: err ? "var(--danger)" : "var(--muted)" }}
+          >
+            {msg}
+          </p>
+          {sampleBlocked && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="btn"
+                disabled={busy || !pending}
+                onClick={() => void clearSampleAndRetry()}
+              >
+                {busy ? "Clearing…" : "Clear sample & upload"}
+              </button>
+              <Link href="/settings" className="text-[12px] underline" style={{ color: "var(--muted)" }}>
+                Or manage sample in Settings
+              </Link>
+            </div>
+          )}
+        </div>
       )}
       <p className="text-[12px]" style={{ color: "var(--muted)" }}>
         Need column mapping?{" "}
