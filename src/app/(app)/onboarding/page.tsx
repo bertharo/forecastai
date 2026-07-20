@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DeleteWorkspaceButton } from "@/components/DeleteWorkspaceButton";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
 import { usd } from "@/lib/format";
 
@@ -108,6 +109,19 @@ export default function OnboardingPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onWorkspaceDeleted(deletedId: string, nextOrgId: string | null) {
+    setKnownOrgs((prev) => prev.filter((o) => o.id !== deletedId));
+    setCurrentOrgId(nextOrgId);
+    if (org?.id === deletedId) {
+      setOrg(null);
+      setOtelKey(null);
+      setWorkspaceToken(null);
+      setPhase("list");
+    }
+    await refreshKnown();
+    router.refresh();
   }
 
   async function createWorkspace() {
@@ -276,14 +290,25 @@ export default function OnboardingPage() {
                           )}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="btn shrink-0"
-                        disabled={busy || currentOrgId === o.id}
-                        onClick={() => void switchTo(o.id)}
-                      >
-                        {currentOrgId === o.id ? "You’re here" : "Open"}
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <DeleteWorkspaceButton
+                          orgId={o.id}
+                          orgName={o.name}
+                          label="Delete"
+                          className="btn btn-ghost"
+                          onDeleted={(nextOrgId) =>
+                            void onWorkspaceDeleted(o.id, nextOrgId)
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={busy || currentOrgId === o.id}
+                          onClick={() => void switchTo(o.id)}
+                        >
+                          {currentOrgId === o.id ? "You’re here" : "Open"}
+                        </button>
+                      </div>
                     </li>
                   );
                 })}

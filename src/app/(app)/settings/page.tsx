@@ -2,6 +2,7 @@ import { ClearSampleButton, LoadSampleButton } from "@/components/LoadSampleButt
 import { getCurrentOrg, getOrgById } from "@/lib/queries/org";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
+import { SettingsDeleteWorkspace } from "./SettingsDeleteWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,15 @@ export default async function SettingsPage() {
         <Link href="/connectors#price-cards" className="btn btn-ghost inline-block">
           Open price cards →
         </Link>
+      </div>
+
+      <div className="panel space-y-3 p-4">
+        <h2 className="text-[15px] font-semibold">Danger zone</h2>
+        <p className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+          Delete <strong style={{ color: "var(--text)" }}>{org.name}</strong> and all of its
+          spend, roster, sources, and settings. Other workspaces are not affected.
+        </p>
+        <SettingsDeleteWorkspace orgId={org.id} orgName={org.name} />
       </div>
     </div>
   );

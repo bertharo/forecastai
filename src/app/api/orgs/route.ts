@@ -2,17 +2,41 @@ import { createHash, randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { getCurrentOrg, listWorkspacesWithStats } from "@/lib/queries/org";
+import { getCurrentOrg, getOrgById, listWorkspacesWithStats } from "@/lib/queries/org";
 import {
   ORG_COOKIE,
   ORG_COOKIE_MAX_AGE,
   parseWorkspaceRegistry,
   serializeWorkspaceRegistry,
   upsertWorkspaceEntry,
+  type WorkspaceEntry,
   WS_REGISTRY_COOKIE,
 } from "@/lib/org/cookie";
-import { hashWorkspaceToken, mintWorkspaceToken } from "@/lib/org/access";
-import { eq } from "drizzle-orm";
+import {
+  hashWorkspaceToken,
+  mintWorkspaceToken,
+  verifyWorkspaceAccess,
+} from "@/lib/org/access";
+import { deleteOrganization } from "@/lib/org/delete";
+import { asc, eq } from "drizzle-orm";
+
+/** After deleting the active workspace, pick another this browser can open. */
+async function pickFallbackOrgId(
+  registry: WorkspaceEntry[]
+): Promise<string | null> {
+  for (const entry of registry) {
+    if (await verifyWorkspaceAccess(entry.id, entry.token)) {
+      return entry.id;
+    }
+  }
+  const [open] = await db
+    .select({ id: s.organizations.id })
+    .from(s.organizations)
+    .where(eq(s.organizations.isPrivate, false))
+    .orderBy(asc(s.organizations.name))
+    .limit(1);
+  return open?.id ?? null;
+}
 
 function slugify(name: string): string {
   return name
@@ -231,5 +255,98 @@ export async function POST(req: NextRequest) {
     workspaceToken: accessToken,
   });
   setWorkspaceCookies(res, req, { id: org.id, token: accessToken });
+  return res;
+}
+
+/**
+ * Permanently delete a workspace and all org-scoped data.
+ * Open workspaces: anyone who can list them. Private: requires claimed token.
+ */
+export async function DELETE(req: NextRequest) {
+  const body = (await req.json().catch(() => ({}))) as {
+    orgId?: string;
+    /** Client must send true after an explicit confirm dialog. */
+    confirmed?: boolean;
+  };
+  const orgId = body.orgId?.trim();
+  if (!orgId) {
+    return NextResponse.json({ error: "orgId required" }, { status: 400 });
+  }
+  if (body.confirmed !== true) {
+    return NextResponse.json(
+      { error: "Confirmation required. Delete was not confirmed." },
+      { status: 400 }
+    );
+  }
+
+  const org = await getOrgById(orgId);
+  if (!org) {
+    return NextResponse.json({ error: "org not found" }, { status: 404 });
+  }
+
+  const registry = parseWorkspaceRegistry(
+    req.cookies.get(WS_REGISTRY_COOKIE)?.value
+  );
+
+  if (org.isPrivate) {
+    const entry = registry.find((e) => e.id === orgId);
+    if (!entry) {
+      return NextResponse.json(
+        {
+          error:
+            "This workspace is private. Open it with a workspace token before deleting.",
+        },
+        { status: 403 }
+      );
+    }
+    const ok = await verifyWorkspaceAccess(entry.id, entry.token);
+    if (!ok) {
+      return NextResponse.json(
+        { error: "Invalid workspace access" },
+        { status: 403 }
+      );
+    }
+  }
+
+  await deleteOrganization(orgId);
+
+  const nextRegistry = registry.filter((e) => e.id !== orgId);
+  const currentCookie = req.cookies.get(ORG_COOKIE)?.value;
+  const wasCurrent = currentCookie === orgId;
+  const nextOrgId = wasCurrent
+    ? await pickFallbackOrgId(nextRegistry)
+    : currentCookie && currentCookie !== orgId
+      ? currentCookie
+      : null;
+
+  const res = NextResponse.json({
+    ok: true,
+    deletedOrgId: orgId,
+    currentOrgId: nextOrgId,
+  });
+
+  res.cookies.set(WS_REGISTRY_COOKIE, serializeWorkspaceRegistry(nextRegistry), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: ORG_COOKIE_MAX_AGE,
+  });
+
+  if (nextOrgId) {
+    res.cookies.set(ORG_COOKIE, nextOrgId, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: ORG_COOKIE_MAX_AGE,
+    });
+  } else if (wasCurrent) {
+    res.cookies.set(ORG_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+
   return res;
 }
