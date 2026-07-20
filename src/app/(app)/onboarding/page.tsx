@@ -6,7 +6,7 @@ import { OrgStructureImport } from "@/components/OrgStructureImport";
 
 type Step = 1 | 2 | 3 | 4;
 
-type ListedOrg = { id: string; name: string; slug: string };
+type ListedOrg = { id: string; name: string; slug: string; isPrivate?: boolean };
 
 const DEMO_TOKEN = "ws_demo_northstar";
 
@@ -14,11 +14,15 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [org, setOrg] = useState<{ id: string; name: string; slug: string } | null>(
-    null
-  );
+  const [org, setOrg] = useState<{
+    id: string;
+    name: string;
+    slug: string;
+    isPrivate?: boolean;
+  } | null>(null);
   const [otelKey, setOtelKey] = useState<string | null>(null);
   const [workspaceToken, setWorkspaceToken] = useState<string | null>(null);
   const [claimToken, setClaimToken] = useState("");
@@ -71,7 +75,7 @@ export default function OnboardingPage() {
       const res = await fetch("/api/orgs", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, isPrivate }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn’t create workspace");
@@ -175,11 +179,11 @@ export default function OnboardingPage() {
           Workspaces
         </div>
         <p className="mt-2 text-[18px] font-semibold leading-snug">
-          A workspace is your private folder for AI spend.
+          A workspace is a folder for AI spend.
         </p>
         <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
-          Think of it like a separate company file — budgets, bills, and forecasts stay
-          inside. No signup. This browser remembers which folders you’ve opened.
+          Budgets, bills, and forecasts stay inside each workspace. Workspaces are shared
+          by default so everyone can open them — mark one private only if you need a code.
         </p>
       </div>
 
@@ -216,7 +220,7 @@ export default function OnboardingPage() {
         <div className="space-y-3">
           {knownOrgs.length > 0 && (
             <div className="panel space-y-3 p-4">
-              <h2 className="text-sm font-semibold">Your workspaces</h2>
+              <h2 className="text-sm font-semibold">Workspaces</h2>
               <p className="muted text-[13px]">
                 Pick one to open. You can also switch anytime with{" "}
                 <strong>Workspace</strong> in the top right.
@@ -227,7 +231,12 @@ export default function OnboardingPage() {
                     key={o.id}
                     className="row-card flex items-center justify-between gap-2"
                   >
-                    <div className="font-medium">{o.name}</div>
+                    <div>
+                      <div className="font-medium">{o.name}</div>
+                      {o.isPrivate && (
+                        <div className="muted text-[11px]">Private</div>
+                      )}
+                    </div>
                     <button
                       type="button"
                       className="btn"
@@ -264,8 +273,8 @@ export default function OnboardingPage() {
           <div className="panel space-y-3 p-4">
             <h2 className="text-sm font-semibold">Start your own (empty)</h2>
             <p className="muted text-[13px]">
-              Fresh workspace for your company. You’ll add spend next — nothing is shared with
-              anyone else.
+              Fresh workspace for your company. Shared by default — others can open it from
+              the list. You’ll add spend next.
             </p>
             <label className="block text-[13px]">
               Name
@@ -275,6 +284,20 @@ export default function OnboardingPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+            </label>
+            <label className="flex items-start gap-2 text-[13px]">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+              />
+              <span>
+                Make this workspace private
+                <span className="muted mt-0.5 block text-[12px]">
+                  Only browsers with the access code can see or open it.
+                </span>
+              </span>
             </label>
             <button
               type="button"
@@ -288,11 +311,11 @@ export default function OnboardingPage() {
 
           <details className="panel p-4">
             <summary className="cursor-pointer text-sm font-semibold">
-              Have an invite code?
+              Have a private workspace code?
             </summary>
             <p className="muted mt-2 text-[13px]">
-              If someone shared a workspace code with you (starts with{" "}
-              <span className="mono">ws_</span>), paste it here to open their folder on this
+              Private workspaces need a code (starts with{" "}
+              <span className="mono">ws_</span>). Paste it here to open that folder on this
               browser.
             </p>
             <input
@@ -319,15 +342,18 @@ export default function OnboardingPage() {
             <h2 className="text-sm font-semibold">{org.name} is ready</h2>
             <p className="muted text-[13px]">
               You’re in. Spend you add later only shows up here — not in other workspaces.
+              {org.isPrivate
+                ? " This workspace is private."
+                : " Others can open it from the workspace list."}
             </p>
-            {workspaceToken && (
+            {workspaceToken && org.isPrivate && (
               <div>
                 <div className="mb-1 text-[12px] font-semibold">
-                  Save your reopen code
+                  Save your private access code
                 </div>
                 <p className="muted mb-2 text-[12px]">
-                  Like a house key for this workspace. You’ll need it if you switch browsers or
-                  clear cookies. We only show it once.
+                  Required to open this private workspace on another browser. We only show it
+                  once.
                 </p>
                 <pre
                   className="mono overflow-auto p-2 text-[11px]"

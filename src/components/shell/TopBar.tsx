@@ -14,8 +14,8 @@ export function TopBar({
   orgs = [],
   currentOrg,
 }: {
-  orgs?: { id: string; name: string; slug: string }[];
-  currentOrg?: { id: string; name: string; slug: string } | null;
+  orgs?: { id: string; name: string; slug: string; isPrivate?: boolean }[];
+  currentOrg?: { id: string; name: string; slug: string; isPrivate?: boolean } | null;
 }) {
   const orgName = currentOrg?.name ?? "your org";
   // Stable on SSR + first client paint — avoid hydration mismatch from server UTC vs local hours

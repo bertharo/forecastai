@@ -32,7 +32,12 @@ export async function POST(req: NextRequest) {
 
   const res = NextResponse.json({
     ok: true,
-    org: { id: org.id, name: org.name, slug: org.slug },
+    org: {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      isPrivate: org.isPrivate,
+    },
   });
   res.cookies.set(ORG_COOKIE, org.id, {
     httpOnly: true,

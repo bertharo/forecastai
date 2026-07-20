@@ -18,8 +18,13 @@ export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-  /** SHA-256 of workspace access token — gates cookie registry without user accounts. */
+  /** SHA-256 of workspace access token — gates private workspaces without user accounts. */
   accessTokenHash: text("access_token_hash"),
+  /**
+   * When false (default), any browser can list and open this workspace.
+   * When true, only browsers that claim the access token can see/open it.
+   */
+  isPrivate: boolean("is_private").notNull().default(false),
   /** When set, workspace is showing deterministic FinOps sample fixtures — show watermark. */
   sampleDataLoadedAt: timestamp("sample_data_loaded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

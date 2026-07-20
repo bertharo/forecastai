@@ -7,7 +7,7 @@ export function OrgSwitcher({
   orgs,
   currentOrgId,
 }: {
-  orgs: { id: string; name: string; slug: string }[];
+  orgs: { id: string; name: string; slug: string; isPrivate?: boolean }[];
   currentOrgId?: string;
 }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export function OrgSwitcher({
       >
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>
-            {o.name}
+            {o.isPrivate ? `${o.name} (private)` : o.name}
           </option>
         ))}
       </select>

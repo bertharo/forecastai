@@ -7,8 +7,8 @@ import { getCurrentOrg, getOrgById, listOrgs } from "@/lib/queries/org";
 import { countUnmappedKeys } from "@/lib/keys/registry";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  let orgs: { id: string; name: string; slug: string }[] = [];
-  let currentOrg: { id: string; name: string; slug: string } | null = null;
+  let orgs: { id: string; name: string; slug: string; isPrivate?: boolean }[] = [];
+  let currentOrg: { id: string; name: string; slug: string; isPrivate?: boolean } | null = null;
   let unmappedKeys = 0;
   let sampleActive = false;
   try {

@@ -45,22 +45,24 @@ function setWorkspaceCookies(
   });
 }
 
-/** List only workspaces this browser owns. */
+/** List open workspaces plus private ones this browser has claimed. */
 export async function GET() {
   const [orgs, current] = await Promise.all([listOrgs(), getCurrentOrg()]);
   return NextResponse.json({ orgs, currentOrgId: current?.id ?? null });
 }
 
-/** Create a private workspace + access token (shown once). */
+/** Create a workspace (shared by default) + access token (shown once). */
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     name?: string;
     slug?: string;
+    isPrivate?: boolean;
   };
   const name = (body.name ?? "").trim();
   if (!name) {
     return NextResponse.json({ error: "name required" }, { status: 400 });
   }
+  const isPrivate = body.isPrivate === true;
   let slug = (body.slug ?? slugify(name)).trim() || slugify(name);
 
   const [slugTaken] = await db
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
     .values({
       name,
       slug,
+      isPrivate,
       accessTokenHash: hashWorkspaceToken(accessToken),
     })
     .returning();
@@ -203,9 +206,14 @@ export async function POST(req: NextRequest) {
 
   const res = NextResponse.json({
     ok: true,
-    org: { id: org.id, name: org.name, slug: org.slug },
+    org: {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      isPrivate: org.isPrivate,
+    },
     otelKey: rawKey,
-    /** Shown once — store it to open this workspace on another browser. */
+    /** Shown once — required to reopen private workspaces on another browser. */
     workspaceToken: accessToken,
   });
   setWorkspaceCookies(res, req, { id: org.id, token: accessToken });

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { assertDb, db } from "@/db";
 import * as s from "@/db/schema";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import {
   ORG_COOKIE,
   parseWorkspaceRegistry,
@@ -19,6 +19,7 @@ export type PublicOrg = {
   id: string;
   name: string;
   slug: string;
+  isPrivate: boolean;
   createdAt: Date;
 };
 
@@ -27,6 +28,7 @@ function toPublic(org: Org): PublicOrg {
     id: org.id,
     name: org.name,
     slug: org.slug,
+    isPrivate: org.isPrivate,
     createdAt: org.createdAt,
   };
 }
@@ -36,18 +38,44 @@ async function readRegistry(): Promise<WorkspaceEntry[]> {
   return parseWorkspaceRegistry(jar.get(WS_REGISTRY_COOKIE)?.value);
 }
 
-/** Workspaces this browser owns (registry cookie ∩ valid tokens). */
+async function canAccessOrg(
+  org: Org,
+  registry: WorkspaceEntry[]
+): Promise<boolean> {
+  if (!org.isPrivate) return true;
+  const entry = registry.find((e) => e.id === org.id);
+  if (!entry) return false;
+  return verifyWorkspaceAccess(entry.id, entry.token);
+}
+
+/**
+ * Workspaces visible to this browser:
+ * - all non-private workspaces
+ * - plus private ones claimed in the registry cookie
+ */
 export async function listOrgs(): Promise<PublicOrg[]> {
   await assertDb();
   const registry = await filterValidRegistry(await readRegistry());
-  if (registry.length === 0) return [];
+  const privateIds = registry.map((e) => e.id);
 
-  const ids = registry.map((e) => e.id);
-  const rows = await db
-    .select()
-    .from(s.organizations)
-    .where(inArray(s.organizations.id, ids))
-    .orderBy(asc(s.organizations.name));
+  const rows =
+    privateIds.length === 0
+      ? await db
+          .select()
+          .from(s.organizations)
+          .where(eq(s.organizations.isPrivate, false))
+          .orderBy(asc(s.organizations.name))
+      : await db
+          .select()
+          .from(s.organizations)
+          .where(
+            or(
+              eq(s.organizations.isPrivate, false),
+              inArray(s.organizations.id, privateIds)
+            )
+          )
+          .orderBy(asc(s.organizations.name));
+
   return rows.map(toPublic);
 }
 
@@ -73,10 +101,10 @@ export async function getOrgBySlug(slug: string): Promise<Org | undefined> {
 
 /**
  * Resolve the active workspace for this browser.
- * Requires a valid access token in the workspace registry — no cross-workspace fallback.
+ * Open workspaces need only the org cookie; private ones need a valid registry token.
  */
 export async function getCurrentOrg(_opts?: {
-  /** @deprecated Ignored — URL org override removed for workspace isolation. */
+  /** @deprecated Ignored — kept for call-site compatibility. */
   orgParam?: string | null;
 }): Promise<PublicOrg | undefined> {
   await assertDb();
@@ -84,18 +112,29 @@ export async function getCurrentOrg(_opts?: {
   const registry = await filterValidRegistry(
     parseWorkspaceRegistry(jar.get(WS_REGISTRY_COOKIE)?.value)
   );
-  if (registry.length === 0) return undefined;
-
   const preferred = jar.get(ORG_COOKIE)?.value;
-  const entry =
-    (preferred && registry.find((e) => e.id === preferred)) || registry[0];
 
-  if (!(await verifyWorkspaceAccess(entry.id, entry.token))) {
-    return undefined;
+  if (preferred) {
+    const org = await getOrgById(preferred);
+    if (org && (await canAccessOrg(org, registry))) {
+      return toPublic(org);
+    }
   }
 
-  const org = await getOrgById(entry.id);
-  return org ? toPublic(org) : undefined;
+  for (const entry of registry) {
+    const org = await getOrgById(entry.id);
+    if (org && (await canAccessOrg(org, registry))) {
+      return toPublic(org);
+    }
+  }
+
+  const [open] = await db
+    .select()
+    .from(s.organizations)
+    .where(eq(s.organizations.isPrivate, false))
+    .orderBy(asc(s.organizations.name))
+    .limit(1);
+  return open ? toPublic(open) : undefined;
 }
 
 /** @deprecated use getCurrentOrg */

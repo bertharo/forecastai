@@ -115,10 +115,11 @@ Verify script: `npx tsx scripts/verify-finops-sample.ts` (optional org id).
 ## Workspaces (no user accounts)
 
 - Create under **Workspaces**; data scoped to that org only  
-- Browser httpOnly registry cookie `meter_ws` = `{ id, token }[]`  
-- Access token shown **once** at create; claim via **Open an existing workspace**  
-- No URL `?org=` override; no “first org in DB” fallback  
-- Demo: `ws_demo_northstar`  
+- **Shared by default** — anyone can list/open non-private workspaces  
+- Opt-in **private** at create (`is_private`); then access token required  
+- Browser httpOnly registry cookie `meter_ws` = `{ id, token }[]` (private claims)  
+- Private access token shown **once** at create; claim via **Have a private workspace code?**  
+- Demo: `ws_demo_northstar` (open/shared)  
 - Hierarchy: BU → department → team (+ flat cost centers)  
 - Org-structure CSV + IdP adapter contract (Okta/Workday sync **not** live)
 
