@@ -3,8 +3,9 @@ import { getCurrentOrg, getDimensionNodes } from "@/lib/queries/org";
 import { getAiCostSummary } from "@/lib/queries/ai-cost";
 import { findOverlappingAiSources } from "@/lib/ai-tools/persist";
 import { Metric } from "@/components/Metric";
-import { usd, pct } from "@/lib/format";
+import { formatCostPerMTokens, usd, pct } from "@/lib/format";
 import { AiCostActions } from "./AiCostActions";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -16,15 +17,10 @@ export default async function AiCostPage({
   const org = await getCurrentOrg();
   if (!org) {
     return (
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <p className="font-semibold">Open a workspace first</p>
-        <p className="muted mt-2 text-[14px]">
-          AI cost is per workspace — open one (or the demo) to see coding-tool spend.
-        </p>
-        <a className="btn mt-3 inline-block" href="/onboarding">
-          Get started →
-        </a>
-      </div>
+      <EmptyState
+        message="Open a workspace to see coding-tool spend."
+        action={{ href: "/onboarding", label: "Open Workspaces" }}
+      />
     );
   }
 
@@ -40,39 +36,34 @@ export default async function AiCostPage({
   ]);
 
   const teams = nodes.filter((n) => n.path.split("/").filter(Boolean).length >= 2);
+  const noData = summary.byTool.length === 0 && summary.spend.value === 0;
 
   return (
     <div className="space-y-5">
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          AI cost
-        </div>
-        <p className="mt-2 max-w-3xl text-[16px] font-medium leading-snug">
-          What your team spends on AI coding tools (Claude, Cursor, Copilot), by person and
-          team — and how that compares to pull requests shipped.{" "}
-          <Link href="/connectors" className="underline">
-            Add a source
-          </Link>
-        </p>
-      </div>
+      {noData && (
+        <EmptyState
+          message="No coding-tool spend yet. Sync Claude, Cursor, or Copilot under Sources."
+          action={{ href: "/connectors", label: "Open Sources" }}
+        />
+      )}
 
       {overlaps.length > 0 && (
         <div
-          className="soft-card text-[13px]"
-          style={{ background: "#fff6e8", color: "var(--warning)" }}
+          className="rounded-[var(--radius-sm)] border px-4 py-3 text-[13px]"
+          style={{
+            borderColor: "rgba(196,90,42,0.35)",
+            background: "rgba(196,90,42,0.08)",
+            color: "var(--warning)",
+          }}
         >
           <strong>Possible duplicate sources</strong> — {overlaps.length} day/tool
-          overlaps (e.g. console + enterprise). Set a primary source per tool under
-          Data &amp; sources.
+          overlaps. Set a primary source per tool under Sources.
         </div>
       )}
 
       <AiCostActions days={days} tools={summary.byTool.map((t) => t.toolKey)} teams={teams.map((t) => ({ id: t.id, key: t.key, name: t.displayName }))} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="row-card">
           <div className="muted text-[11px] uppercase">Spend</div>
           <div className="mt-1 text-[1.75rem] font-bold">
@@ -88,6 +79,12 @@ export default async function AiCostPage({
             />
           </div>
           <div className="muted mt-1 text-[11px]">{summary.mergedPrs} PRs</div>
+        </div>
+        <div className="row-card">
+          <div className="muted text-[11px] uppercase">$ / M tokens</div>
+          <div className="kpi mt-1" style={{ fontSize: "1.75rem" }}>
+            {formatCostPerMTokens(summary.spend.value, summary.tokens)}
+          </div>
         </div>
         <div className="row-card">
           <div className="muted text-[11px] uppercase">Tokens</div>
@@ -118,8 +115,13 @@ export default async function AiCostPage({
                     className="row-card flex items-center justify-between gap-2"
                   >
                     <span className="font-medium">{t.toolKey}</span>
-                    <span className="mono text-[13px]">
-                      {usd(t.spend)} · {pct(share, 0)}
+                    <span className="mono text-right text-[13px]">
+                      <div>
+                        {usd(t.spend)} · {pct(share, 0)}
+                      </div>
+                      <div className="muted text-[11px]">
+                        {formatCostPerMTokens(t.spend, t.tokens)} · $ / M tokens
+                      </div>
                     </span>
                   </Link>
                 </li>
@@ -142,7 +144,12 @@ export default async function AiCostPage({
                   className="row-card flex items-center justify-between gap-2"
                 >
                   <span className="font-medium">{t.team}</span>
-                  <span className="mono text-[13px]">{usd(t.spend)}</span>
+                  <span className="mono text-right text-[13px]">
+                    <div>{usd(t.spend)}</div>
+                    <div className="muted text-[11px]">
+                      {formatCostPerMTokens(t.spend, t.tokens)} · $ / M tokens
+                    </div>
+                  </span>
                 </Link>
               </li>
             ))}
@@ -164,6 +171,7 @@ export default async function AiCostPage({
               <th>Team</th>
               <th className="text-right">Spend</th>
               <th className="text-right">Tokens</th>
+              <th className="text-right">$ / M tokens</th>
             </tr>
           </thead>
           <tbody>
@@ -178,11 +186,14 @@ export default async function AiCostPage({
                 <td className="mono text-right">
                   {Math.round(c.tokens).toLocaleString()}
                 </td>
+                <td className="mono text-right">
+                  {formatCostPerMTokens(c.spend, c.tokens)}
+                </td>
               </tr>
             ))}
             {summary.byContributor.length === 0 && (
               <tr>
-                <td colSpan={4} className="muted">
+                <td colSpan={5} className="muted">
                   No contributor-attributed AI spend in this window.
                 </td>
               </tr>

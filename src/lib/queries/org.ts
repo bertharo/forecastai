@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { assertDb, db } from "@/db";
 import * as s from "@/db/schema";
-import { and, asc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, or, sql } from "drizzle-orm";
 import {
   ORG_COOKIE,
   parseWorkspaceRegistry,
@@ -21,7 +21,17 @@ export type PublicOrg = {
   slug: string;
   isPrivate: boolean;
   createdAt: Date;
+  sampleDataLoadedAt?: Date | null;
 };
+
+export type WorkspaceListItem = PublicOrg & {
+  spend30d: number;
+  memberCount: number;
+  isSample: boolean;
+};
+
+const SAMPLE_NAME_RE =
+  /sample|demo|northstar|verify|fixture|test\b|playground/i;
 
 function toPublic(org: Org): PublicOrg {
   return {
@@ -30,7 +40,20 @@ function toPublic(org: Org): PublicOrg {
     slug: org.slug,
     isPrivate: org.isPrivate,
     createdAt: org.createdAt,
+    sampleDataLoadedAt: org.sampleDataLoadedAt ?? null,
   };
+}
+
+export function isSampleWorkspace(org: {
+  name: string;
+  slug: string;
+  sampleDataLoadedAt?: Date | null;
+}): boolean {
+  return (
+    Boolean(org.sampleDataLoadedAt) ||
+    SAMPLE_NAME_RE.test(org.name) ||
+    SAMPLE_NAME_RE.test(org.slug)
+  );
 }
 
 async function readRegistry(): Promise<WorkspaceEntry[]> {
@@ -167,4 +190,62 @@ export async function assertBudgetInOrg(budgetId: string, orgId: string) {
     .where(and(eq(s.budgets.id, budgetId), eq(s.budgets.orgId, orgId)))
     .limit(1);
   return !!row;
+}
+
+/** Workspaces with 30d spend + roster size for the Workspaces page. */
+export async function listWorkspacesWithStats(): Promise<WorkspaceListItem[]> {
+  const orgs = await listOrgs();
+  if (orgs.length === 0) return [];
+
+  const ids = orgs.map((o) => o.id);
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - 30);
+
+  const [spendRows, memberRows, sampleRows] = await Promise.all([
+    db
+      .select({
+        orgId: s.costRecords.orgId,
+        spend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}), 0)`,
+      })
+      .from(s.costRecords)
+      .where(
+        and(
+          inArray(s.costRecords.orgId, ids),
+          gte(s.costRecords.chargePeriodStart, since)
+        )
+      )
+      .groupBy(s.costRecords.orgId),
+    db
+      .select({
+        orgId: s.contributors.orgId,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(s.contributors)
+      .where(inArray(s.contributors.orgId, ids))
+      .groupBy(s.contributors.orgId),
+    db
+      .select({
+        id: s.organizations.id,
+        sampleDataLoadedAt: s.organizations.sampleDataLoadedAt,
+      })
+      .from(s.organizations)
+      .where(inArray(s.organizations.id, ids)),
+  ]);
+
+  const spendBy = new Map(spendRows.map((r) => [r.orgId, Number(r.spend)]));
+  const membersBy = new Map(memberRows.map((r) => [r.orgId, Number(r.n)]));
+  const sampleBy = new Map(
+    sampleRows.map((r) => [r.id, r.sampleDataLoadedAt ?? null])
+  );
+
+  return orgs.map((o) => {
+    const sampleDataLoadedAt = sampleBy.get(o.id) ?? o.sampleDataLoadedAt ?? null;
+    const enriched = { ...o, sampleDataLoadedAt };
+    return {
+      ...enriched,
+      spend30d: spendBy.get(o.id) ?? 0,
+      memberCount: membersBy.get(o.id) ?? 0,
+      isSample: isSampleWorkspace(enriched),
+    };
+  });
 }

@@ -21,3 +21,16 @@ export function pct(n: number, digits = 0): string {
 export function num(n: number): string {
   return new Intl.NumberFormat("en-US").format(Math.round(n));
 }
+
+/** Cost per million tokens: cost / tokens × 1e6. Null when tokens are missing/zero. */
+export function costPerMillionTokens(cost: number, tokens: number): number | null {
+  if (!Number.isFinite(cost) || !Number.isFinite(tokens) || tokens <= 0) return null;
+  return (cost / tokens) * 1_000_000;
+}
+
+/** Display "$x.xx" or em dash when tokens are unavailable. */
+export function formatCostPerMTokens(cost: number, tokens: number): string {
+  const v = costPerMillionTokens(cost, tokens);
+  if (v == null) return "—";
+  return usd(v, { digits: 2 });
+}

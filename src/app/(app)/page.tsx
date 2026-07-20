@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import { FilterBar } from "@/components/FilterBar";
 import { assertDb } from "@/db";
 import {
@@ -20,46 +20,33 @@ import {
 } from "@/lib/queries/brief";
 import { Metric } from "@/components/Metric";
 import { FinopsOnePager } from "@/components/FinopsOnePager";
-import { LoadSampleButton } from "@/components/LoadSampleButton";
-import { pct, usd } from "@/lib/format";
+import { SetupChecklist } from "@/components/SetupChecklist";
+import { EmptyState } from "@/components/EmptyState";
+import { formatCostPerMTokens, pct, usd } from "@/lib/format";
 import { IconChevron } from "@/components/shell/icons";
+import { countUnmappedKeys } from "@/lib/keys/registry";
+import { db } from "@/db";
+import * as s from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-function ActionOrb({
-  label,
-  href,
-  icon,
-}: {
-  label: string;
-  href: string;
-  icon: ReactNode;
-}) {
-  return (
-    <Link href={href} className="flex flex-col items-center gap-1.5">
-      <span
-        className="flex h-11 w-11 items-center justify-center rounded-full text-white"
-        style={{ background: "#12141a" }}
-      >
-        {icon}
-      </span>
-      <span className="text-[12px] font-medium">{label}</span>
-    </Link>
-  );
-}
-
 function BriefView({
-  orgName,
   summary,
   clusters,
   aiCost,
   facts,
+  setup,
 }: {
-  orgName: string;
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
   clusters: Awaited<ReturnType<typeof getUnallocatedClusters>>;
   aiCost: Awaited<ReturnType<typeof getAiCostSummary>>;
   facts: BriefFacts;
+  setup: {
+    hasSource: boolean;
+    keysMapped: boolean;
+    hasPlan: boolean;
+  };
 }) {
   const showForecast = canShowBriefForecast(facts);
   const forecast = summary.runRate * 12 || facts.totalSpend * 12;
@@ -69,47 +56,25 @@ function BriefView({
 
   const empty = facts.empty;
   const attention = empty
-    ? [
-        {
-          initials: "1",
-          color: "#2f5bd8",
-          name: "Load sample data",
-          role: "FinOps",
-          body: "One click: ~2,000-person roster, vendor spend, terminated seats, and unmapped keys — no connectors.",
-        },
-        {
-          initials: "2",
-          color: "#7c5cbf",
-          name: "Or import CSVs",
-          role: "Import",
-          body: "Upload an HRIS roster and a vendor usage / seat CSV. Department joins on email only.",
-        },
-        {
-          initials: "3",
-          color: "#2a9d8f",
-          name: "Open the Northstar demo",
-          role: "Workspaces",
-          body: "Want the fuller product tour? Open Workspaces and tap “Open the demo”.",
-        },
-      ]
+    ? []
     : [
         {
           initials: "AI",
-          color: "#e8843a",
+          color: "var(--warning)",
           name: "AI coding tools",
           role: "AI cost",
           body: `${usd(aiCost.spend.value)} trailing ${aiCost.from.slice(5)}→${aiCost.to.slice(5)} across ${aiCost.activeContributors} contributors · cost/PR ${aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}.`,
         },
         {
           initials: "PR",
-          color: "#7c5cbf",
+          color: "var(--accent)",
           name: "Product Copilot",
           role: "Budget pace",
           body: `Support Copilot is ${pct(summary.budget?.mtdPct ?? 0.84, 0)} of org budget pace. Model a change to shift Sonnet → Haiku.`,
         },
         {
           initials: "MK",
-          color: "#2a9d8f",
+          color: "var(--success)",
           name: "Allocation",
           role: "FinOps",
           body:
@@ -121,178 +86,162 @@ function BriefView({
 
   return (
     <div className="space-y-6">
+      <SetupChecklist
+        steps={[
+          {
+            id: "source",
+            label: "Connect a source",
+            href: "/connectors",
+            done: setup.hasSource,
+          },
+          {
+            id: "keys",
+            label: "Map keys to teams",
+            href: "/keys",
+            done: setup.keysMapped,
+          },
+          {
+            id: "plan",
+            label: "Set a plan",
+            href: "/budgets",
+            done: setup.hasPlan,
+          },
+        ]}
+      />
+
       <FinopsOnePager facts={facts} />
 
-      {empty && (
-        <div className="flex flex-wrap gap-3">
-          <LoadSampleButton />
-          <Link href="/import" className="btn btn-ghost">
-            Import CSV →
-          </Link>
-        </div>
-      )}
-
-      <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
-        <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-          {showForecast && plan != null ? (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-[13px] font-semibold">FY26 Forecast</div>
-                <span
-                  className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
-                  style={{
-                    background:
-                      overPct >= 0 ? "rgba(196,59,59,0.12)" : "rgba(42,157,143,0.12)",
-                    color: overPct >= 0 ? "var(--danger)" : "var(--success)",
-                  }}
-                >
-                  ▲ {pct(Math.abs(overPct), 1)} {overPct >= 0 ? "over" : "under"} plan
-                </span>
-              </div>
-              <div className="kpi mt-3">{usd(forecast)}</div>
-              <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
-                {orgName} annualized run rate vs {facts.planName ?? "plan"} ({usd(plan)}).{" "}
-                {pct(facts.attribution.attributedPct, 0)} of {facts.period.label} spend is
-                attributed.
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="text-[13px] font-semibold">Trailing spend</div>
-              <div className="kpi mt-3">{usd(facts.totalSpend)}</div>
-              <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
-                {facts.period.label} · {pct(facts.attribution.attributedPct, 0)} attributed.
-                {!facts.hasUserPlan
-                  ? " Set a plan under Plan to see forecast vs plan."
-                  : ` Need ≥60 days of history for a forecast (have ${facts.historyDays}).`}
-              </p>
-              <Link href="/budgets" className="btn mt-4 inline-block">
-                Set a plan →
-              </Link>
-            </>
-          )}
-          <div className="mt-6 flex flex-wrap gap-5">
-            <ActionOrb
-              label="Model"
-              href="/scenarios"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 11 L8 3 L13 11 Z" stroke="white" strokeWidth="1.5" />
-                </svg>
-              }
-            />
-            <ActionOrb
-              label="Share"
-              href="/budgets"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <circle cx="12" cy="4" r="1.5" fill="white" />
-                  <circle cx="4" cy="8" r="1.5" fill="white" />
-                  <circle cx="12" cy="12" r="1.5" fill="white" />
-                  <path d="M5.5 7.5 L10.5 4.5M5.5 8.5 L10.5 11.5" stroke="white" strokeWidth="1.25" />
-                </svg>
-              }
-            />
-            <ActionOrb
-              label="Approve"
-              href="/budgets"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3.5 8.5 L6.5 11.5 L12.5 4.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
-                </svg>
-              }
-            />
-            <ActionOrb
-              label="Compare"
-              href="/?tab=breakdown"
-              icon={
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 12 V6M7 12 V3M11 12 V8" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              }
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <div className="soft-card" style={{ background: "var(--card-pink)" }}>
-            <div className="text-[13px] font-semibold">Plan of record</div>
-            {facts.hasUserPlan && plan != null ? (
+      {!empty && (
+        <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
+          <div className="panel p-4">
+            {showForecast && plan != null ? (
               <>
-                <div className="kpi mt-2">{usd(plan)}</div>
-                <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
-                  {facts.planName}
-                  {summary.budget ? ` · MTD ${pct(summary.budget.mtdPct, 0)} used` : ""}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[13px] font-semibold">FY26 Forecast</div>
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
+                    style={{
+                      background:
+                        overPct >= 0 ? "rgba(196,59,59,0.12)" : "rgba(31,122,69,0.12)",
+                      color: overPct >= 0 ? "var(--danger)" : "var(--success)",
+                    }}
+                  >
+                    {pct(Math.abs(overPct), 1)} {overPct >= 0 ? "over" : "under"} plan
+                  </span>
+                </div>
+                <div className="kpi mt-3">{usd(forecast)}</div>
+                <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                  Annualized run rate vs {facts.planName ?? "plan"} ({usd(plan)}).{" "}
+                  {pct(facts.attribution.attributedPct, 0)} of {facts.period.label} spend is
+                  attributed.
                 </p>
               </>
             ) : (
               <>
-                <div className="kpi mt-2" style={{ fontSize: "1.5rem" }}>
-                  —
-                </div>
-                <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
-                  No org budget —{" "}
-                  <Link href="/budgets" className="underline">
-                    set one under Plan
-                  </Link>
+                <div className="text-[13px] font-semibold">Trailing spend</div>
+                <div className="kpi mt-3">{usd(facts.totalSpend)}</div>
+                <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                  {facts.period.label} · {pct(facts.attribution.attributedPct, 0)} attributed.
+                  {!facts.hasUserPlan
+                    ? " Set a plan under Plan to see forecast vs plan."
+                    : ` Need ≥60 days of history for a forecast (have ${facts.historyDays}).`}
                 </p>
+                <Link href="/budgets" className="btn mt-4 inline-block">
+                  Set a plan →
+                </Link>
               </>
             )}
           </div>
-          <div className="soft-card" style={{ background: "var(--card-green)" }}>
-            <div className="text-[13px] font-semibold">AI cost / merged PR</div>
-            <div className="mt-2 text-[1.75rem] font-bold">
-              <Metric
-                metric={aiCost.costPerPr}
-                display={aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}
-              />
-            </div>
-            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
-              {usd(aiCost.spend.value)} coding-tool spend · {aiCost.mergedPrs} PRs ·{" "}
-              <Link href="/ai-cost" className="underline">
-                AI cost
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
 
-      <div>
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="text-[17px] font-bold tracking-tight">Needs your attention</h2>
-            <p className="text-[13px]" style={{ color: "var(--muted)" }}>
-              {attention.length} drivers · top of the gap
-            </p>
-          </div>
-          <Link href="/allocation" className="text-[13px] font-semibold">
-            See all →
-          </Link>
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {attention.map((a) => (
-            <div key={a.name} className="row-card">
-              <div className="mb-3 flex items-center gap-2.5">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-[12px] font-bold text-white"
-                  style={{ background: a.color }}
-                >
-                  {a.initials}
-                </div>
-                <div>
-                  <div className="text-[14px] font-semibold">{a.name}</div>
-                  <div className="text-[12px]" style={{ color: "var(--muted)" }}>
-                    {a.role}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="panel p-4">
+              <div className="text-[13px] font-semibold">Plan of record</div>
+              {facts.hasUserPlan && plan != null ? (
+                <>
+                  <div className="kpi mt-2">{usd(plan)}</div>
+                  <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                    {facts.planName}
+                    {summary.budget ? ` · MTD ${pct(summary.budget.mtdPct, 0)} used` : ""}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="kpi mt-2" style={{ fontSize: "1.5rem" }}>
+                    —
                   </div>
-                </div>
+                  <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                    No org budget —{" "}
+                    <Link href="/budgets" className="underline">
+                      set one under Plan
+                    </Link>
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="panel p-4">
+              <div className="text-[13px] font-semibold">AI cost / merged PR</div>
+              <div className="mt-2 text-[1.75rem] font-bold">
+                <Metric
+                  metric={aiCost.costPerPr}
+                  display={aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}
+                />
               </div>
-              <p className="text-[13px] leading-relaxed" style={{ color: "#3a4050" }}>
-                {a.body}
+              <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                {usd(aiCost.spend.value)} coding-tool spend · {aiCost.mergedPrs} PRs ·{" "}
+                <Link href="/ai-cost" className="underline">
+                  AI cost
+                </Link>
               </p>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {attention.length > 0 && (
+        <div>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-[17px] font-bold tracking-tight">Needs your attention</h2>
+              <p className="text-[13px]" style={{ color: "var(--muted)" }}>
+                {attention.length} drivers · top of the gap
+              </p>
+            </div>
+            <Link href="/allocation" className="text-[13px] font-semibold">
+              See all →
+            </Link>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {attention.map((a) => (
+              <div key={a.name} className="row-card">
+                <div className="mb-3 flex items-center gap-2.5">
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                    style={{
+                      background:
+                        a.color === "var(--warning)"
+                          ? "#c45a2a"
+                          : a.color === "var(--success)"
+                            ? "#1f7a45"
+                            : "#12141a",
+                    }}
+                  >
+                    {a.initials}
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-semibold">{a.name}</div>
+                    <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+                      {a.role}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                  {a.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -311,6 +260,7 @@ function BreakdownView({
           label: r.team,
           sub: "Team slice",
           value: r.effective,
+          tokens: r.tokens,
           abbr: r.team.slice(0, 3).toUpperCase(),
           href: `/?tab=org&node=${r.nodeId}`,
         }))
@@ -320,6 +270,7 @@ function BreakdownView({
             label: r.feature,
             sub: "Feature",
             value: r.effective,
+            tokens: r.tokens,
             abbr: r.feature.slice(0, 3).toUpperCase(),
             href: `/?tab=breakdown&feature=${encodeURIComponent(r.feature)}`,
           }))
@@ -328,6 +279,7 @@ function BreakdownView({
             label: r.name,
             sub: "Vendor",
             value: r.effective,
+            tokens: r.tokens,
             abbr: r.name.slice(0, 3).toUpperCase(),
             href: `/?tab=breakdown&provider=${encodeURIComponent(r.key)}`,
           }));
@@ -335,21 +287,17 @@ function BreakdownView({
   const total = rows.reduce((a, r) => a + r.value, 0) || 1;
   const max = Math.max(...rows.map((r) => r.value), 1);
 
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        message="No spend to break down yet."
+        action={{ href: "/connectors", label: "Connect a source" }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          Breakdown
-        </div>
-        <p className="mt-2 max-w-2xl text-[16px] font-medium leading-snug">
-          {usd(summary.trailing30)} trailing 30d, sliced three ways. Same total — a
-          different lens on where it runs, who you pay, and who&apos;s consuming it.
-        </p>
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-[17px] font-bold">
@@ -359,7 +307,7 @@ function BreakdownView({
             </span>
           </h2>
           <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-            Click a row to drill into filters. Aggregated from live cost records.
+            Same total, three lenses — vendor, feature, or team.
           </p>
         </div>
         <div className="flex gap-1.5">
@@ -391,7 +339,7 @@ function BreakdownView({
           >
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-              style={{ background: "var(--card-blue)" }}
+              style={{ background: "var(--panel-soft)" }}
             >
               {r.abbr}
             </div>
@@ -408,15 +356,23 @@ function BreakdownView({
                   className="h-full rounded-full"
                   style={{
                     width: `${(r.value / max) * 100}%`,
-                    background: "#2f5bd8",
+                    background: "var(--accent)",
                   }}
                 />
               </div>
             </div>
-            <div className="text-right">
+            <div className="shrink-0 text-right">
               <div className="text-[15px] font-bold">{usd(r.value)}</div>
               <div className="text-[12px]" style={{ color: "var(--success)" }}>
                 {pct(r.value / total, 0)}
+              </div>
+            </div>
+            <div className="w-[5.5rem] shrink-0 text-right">
+              <div className="text-[13px] font-semibold">
+                {formatCostPerMTokens(r.value, r.tokens)}
+              </div>
+              <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                $ / M tokens
               </div>
             </div>
             <span style={{ color: "var(--muted)" }}>
@@ -437,20 +393,21 @@ function ByOrgView({
   const teams = summary.byTeam;
   const total = teams.reduce((a, t) => a + t.effective, 0) || 1;
 
+  if (teams.length === 0) {
+    return (
+      <EmptyState
+        message="No team spend yet. Map keys or import a roster to slice by org."
+        action={{ href: "/keys", label: "Map keys" }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          By org
-        </div>
-        <p className="mt-2 max-w-2xl text-[16px] font-medium leading-snug">
-          Team slices for the trailing 30 days — {teams.length} teams, {usd(total)}{" "}
-          attributed.
-        </p>
-      </div>
+      <p className="text-[14px]" style={{ color: "var(--muted)" }}>
+        Team slices for the trailing 30 days — {teams.length} teams, {usd(total)}{" "}
+        attributed.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {teams.map((t) => (
           <Link
@@ -489,26 +446,15 @@ export default async function HomePage({
     const org = await getCurrentOrg();
     if (!org) {
       return (
-        <div className="soft-card space-y-3" style={{ background: "var(--card-blue)" }}>
-          <div className="text-[11px] font-semibold uppercase tracking-wider muted">
-            Get started
-          </div>
-          <p className="text-[18px] font-semibold leading-snug">
-            Open a workspace to see AI spend and forecasts.
-          </p>
-          <p className="text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
-            A workspace is your private folder for this company. No account needed — try the
-            sample demo or start empty.
-          </p>
-          <a className="btn inline-block" href="/onboarding">
-            Get started →
-          </a>
-        </div>
+        <EmptyState
+          message="Open a workspace to see AI spend and forecasts."
+          action={{ href: "/onboarding", label: "Open Workspaces" }}
+        />
       );
     }
 
     const briefPeriod = trailingBriefPeriod(30);
-    const [types, nodes, summary, options, stale, clusters, aiCost, facts] =
+    const [types, nodes, summary, options, stale, clusters, aiCost, facts, unmapped, costCount, keyCount] =
       await Promise.all([
         getDimensionTypes(org.id),
         getDimensionNodes(org.id),
@@ -518,14 +464,36 @@ export default async function HomePage({
         getUnallocatedClusters(org.id, 30),
         getAiCostSummary(org.id, { days: 30 }),
         getBriefFacts(org.id, briefPeriod),
+        countUnmappedKeys(org.id),
+        db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(s.costRecords)
+          .where(eq(s.costRecords.orgId, org.id))
+          .then((r) => Number(r[0]?.n ?? 0)),
+        db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(s.providerKeyRegistry)
+          .where(eq(s.providerKeyRegistry.orgId, org.id))
+          .then((r) => Number(r[0]?.n ?? 0)),
       ]);
+
+    const hasSource = costCount > 0 || !facts.empty;
+    const setup = {
+      hasSource,
+      keysMapped: keyCount > 0 ? unmapped === 0 : hasSource,
+      hasPlan: facts.hasUserPlan,
+    };
 
     return (
       <div className="space-y-4">
         {stale.length > 0 && (
           <div
-            className="soft-card text-[13px]"
-            style={{ background: "#fff6e8", color: "var(--warning)" }}
+            className="rounded-[var(--radius-sm)] border px-4 py-3 text-[13px]"
+            style={{
+              borderColor: "rgba(196,90,42,0.35)",
+              background: "rgba(196,90,42,0.08)",
+              color: "var(--warning)",
+            }}
           >
             <strong>Stale data sources</strong> —{" "}
             {stale
@@ -570,18 +538,18 @@ export default async function HomePage({
           <ByOrgView summary={summary} />
         ) : (
           <BriefView
-            orgName={org.name}
             summary={summary}
             clusters={clusters}
             aiCost={aiCost}
             facts={facts}
+            setup={setup}
           />
         )}
       </div>
     );
   } catch (e) {
     return (
-      <div className="soft-card">
+      <div className="panel p-4">
         <p style={{ color: "var(--danger)" }}>
           Failed to load: {e instanceof Error ? e.message : String(e)}
         </p>

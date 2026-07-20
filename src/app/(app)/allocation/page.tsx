@@ -8,6 +8,7 @@ import {
 } from "@/lib/queries/allocation";
 import { AllocationClient } from "./AllocationClient";
 import { pct, usd } from "@/lib/format";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -43,14 +44,10 @@ export default async function AllocationPage() {
   const org = await getCurrentOrg();
   if (!org) {
     return (
-      <div className="soft-card space-y-3" style={{ background: "#fff1e8" }}>
-        <p className="text-[18px] font-semibold leading-snug">
-          Open a workspace to fix unassigned spend.
-        </p>
-        <Link href="/onboarding" className="btn inline-block">
-          Get started →
-        </Link>
-      </div>
+      <EmptyState
+        message="Open a workspace to fix unassigned spend."
+        action={{ href: "/onboarding", label: "Open Workspaces" }}
+      />
     );
   }
 
@@ -67,20 +64,8 @@ export default async function AllocationPage() {
 
   return (
     <div className="space-y-5">
-      <div className="soft-card" style={{ background: "#fff1e8" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          Alerts
-        </div>
-        <p className="mt-2 max-w-2xl text-[18px] font-semibold leading-snug">
-          Spend we can’t put on a team yet. Pick a bucket, assign it, and the % attributed goes up.
-        </p>
-      </div>
-
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="soft-card">
+        <div className="panel p-4">
           <div className="text-[12px]" style={{ color: "var(--muted)" }}>
             Spend with a team (30d)
           </div>
@@ -89,17 +74,17 @@ export default async function AllocationPage() {
             <MiniSpark values={trend.map((t) => t.allocatedPct)} />
           </div>
           <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
-            Higher is better — means fewer mystery bills.
+            Higher is better — fewer unassigned bills.
           </p>
         </div>
-        <div className="soft-card">
+        <div className="panel p-4">
           <div className="text-[12px]" style={{ color: "var(--muted)" }}>
             Still unassigned
           </div>
           <div className="kpi mt-1">{usd(unassignedSpend)}</div>
           <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
             {clusters.length === 0
-              ? "Nice — nothing waiting."
+              ? "Nothing waiting."
               : `${clusters.length} group${clusters.length === 1 ? "" : "s"} to review below.`}
           </p>
           <p className="mt-2 text-[12px]">
@@ -108,7 +93,7 @@ export default async function AllocationPage() {
             </Link>
           </p>
         </div>
-        <div className="soft-card">
+        <div className="panel p-4">
           <div className="text-[12px]" style={{ color: "var(--muted)" }}>
             By vendor
           </div>

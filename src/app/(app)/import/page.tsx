@@ -579,24 +579,12 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-5">
-      <div className="soft-card" style={{ background: "var(--card-mint)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          Upload
-        </div>
-        <p className="mt-2 max-w-2xl text-[18px] font-semibold leading-snug">
-          Add a people list, then a bill or usage file. That’s enough for department spend —
-          no live connector required.
-        </p>
-        <p className="mt-2 text-[13px]" style={{ color: "#3a4050" }}>
-          Prefer a live sync?{" "}
-          <Link href="/connectors" className="underline">
-            Connect Anthropic / Cursor →
-          </Link>
-        </p>
-      </div>
+      <p className="text-[14px]" style={{ color: "var(--muted)" }}>
+        Upload a people list, then a bill or usage file. Prefer a live sync?{" "}
+        <Link href="/connectors" className="underline">
+          Connect Anthropic / Cursor →
+        </Link>
+      </p>
 
       <div className="flex flex-wrap gap-1.5">
         {tabs.map((t) => (
@@ -616,7 +604,7 @@ export default function ImportPage() {
       </div>
 
       {message && (
-        <div className="soft-card text-[13px]" style={{ background: "var(--card-blue)" }}>
+        <div className="panel p-3 text-[13px]">
           {message}
         </div>
       )}

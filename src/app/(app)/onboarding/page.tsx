@@ -1,18 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
+import { usd } from "@/lib/format";
 
-type Step = 1 | 2 | 3 | 4;
-
-type ListedOrg = { id: string; name: string; slug: string; isPrivate?: boolean };
+type ListedOrg = {
+  id: string;
+  name: string;
+  slug: string;
+  isPrivate?: boolean;
+  createdAt?: string;
+  spend30d?: number;
+  memberCount?: number;
+  isSample?: boolean;
+};
 
 const DEMO_TOKEN = "ws_demo_northstar";
 
+function formatCreated(iso?: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,6 +48,10 @@ export default function OnboardingPage() {
   const [knownOrgs, setKnownOrgs] = useState<ListedOrg[]>([]);
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showSamples, setShowSamples] = useState(false);
+  const [phase, setPhase] = useState<"list" | "created" | "optional" | "done">(
+    "list"
+  );
 
   const refreshKnown = useCallback(async () => {
     try {
@@ -46,6 +68,26 @@ export default function OnboardingPage() {
   useEffect(() => {
     void refreshKnown();
   }, [refreshKnown]);
+
+  const displayOrgs = useMemo(() => {
+    const nameCounts = new Map<string, number>();
+    for (const o of knownOrgs) {
+      const k = o.name.trim().toLowerCase();
+      nameCounts.set(k, (nameCounts.get(k) ?? 0) + 1);
+    }
+
+    const sorted = [...knownOrgs].sort((a, b) => {
+      const aSample = Boolean(a.isSample);
+      const bSample = Boolean(b.isSample);
+      if (aSample !== bSample) return aSample ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+
+    const visible = showSamples ? sorted : sorted.filter((o) => !o.isSample);
+    const sampleCount = knownOrgs.filter((o) => o.isSample).length;
+
+    return { rows: visible, nameCounts, sampleCount };
+  }, [knownOrgs, showSamples]);
 
   async function switchTo(orgId: string) {
     setBusy(true);
@@ -83,7 +125,7 @@ export default function OnboardingPage() {
       setOtelKey(data.otelKey);
       setWorkspaceToken(data.workspaceToken ?? null);
       setCurrentOrgId(data.org?.id ?? null);
-      setStep(2);
+      setPhase("created");
       await refreshKnown();
       router.refresh();
     } catch (e) {
@@ -107,7 +149,7 @@ export default function OnboardingPage() {
       setOrg(data.org);
       setWorkspaceToken(token.trim());
       setCurrentOrgId(data.org?.id ?? null);
-      setStep(4);
+      setPhase("done");
       await refreshKnown();
       router.refresh();
     } catch (e) {
@@ -147,8 +189,8 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Test didn’t go through");
-      setTestResult("Nice — sample AI usage is in your workspace now.");
-      setStep(4);
+      setTestResult("Sample usage is in your workspace.");
+      setPhase("done");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -167,98 +209,97 @@ export default function OnboardingPage() {
     }
   }
 
-  const steps = ["Start", "Optional setup", "Sample data", "Done"] as const;
-
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          Workspaces
-        </div>
-        <p className="mt-2 text-[18px] font-semibold leading-snug">
-          A workspace is a folder for AI spend.
-        </p>
-        <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "#3a4050" }}>
-          Budgets, bills, and forecasts stay inside each workspace. Workspaces are shared
-          by default so everyone can open them — mark one private only if you need a code.
-        </p>
-      </div>
-
-      <ol className="flex flex-wrap gap-2 text-[11px]">
-        {steps.map((label, i) => {
-          const n = (i + 1) as Step;
-          const active = step === n;
-          return (
-            <li
-              key={label}
-              className="rounded-full px-2.5 py-1"
-              style={{
-                background: active ? "#12141a" : "var(--panel)",
-                border: "1px solid var(--border)",
-                color: active ? "#fff" : "var(--muted)",
-              }}
-            >
-              {n}. {label}
-            </li>
-          );
-        })}
-      </ol>
-
       {error && (
         <div
-          className="soft-card text-[13px]"
-          style={{ background: "#ffe8e8", color: "var(--danger)" }}
+          className="rounded-[var(--radius-sm)] border px-4 py-3 text-[13px]"
+          style={{
+            borderColor: "rgba(196,59,59,0.35)",
+            background: "rgba(196,59,59,0.06)",
+            color: "var(--danger)",
+          }}
         >
           {error}
         </div>
       )}
 
-      {step === 1 && (
+      {phase === "list" && (
         <div className="space-y-3">
           {knownOrgs.length > 0 && (
             <div className="panel space-y-3 p-4">
-              <h2 className="text-sm font-semibold">Workspaces</h2>
-              <p className="muted text-[13px]">
-                Pick one to open. You can also switch anytime with{" "}
-                <strong>Workspace</strong> in the top right.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">Your workspaces</h2>
+                {displayOrgs.sampleCount > 0 && (
+                  <label className="flex items-center gap-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                    <input
+                      type="checkbox"
+                      checked={showSamples}
+                      onChange={(e) => setShowSamples(e.target.checked)}
+                    />
+                    Show samples ({displayOrgs.sampleCount})
+                  </label>
+                )}
+              </div>
               <ul className="space-y-2">
-                {knownOrgs.map((o) => (
-                  <li
-                    key={o.id}
-                    className="row-card flex items-center justify-between gap-2"
-                  >
-                    <div>
-                      <div className="font-medium">{o.name}</div>
-                      {o.isPrivate && (
-                        <div className="muted text-[11px]">Private</div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busy || currentOrgId === o.id}
-                      onClick={() => void switchTo(o.id)}
+                {displayOrgs.rows.map((o) => {
+                  const dup =
+                    (displayOrgs.nameCounts.get(o.name.trim().toLowerCase()) ?? 0) >
+                    1;
+                  return (
+                    <li
+                      key={o.id}
+                      className="row-card flex items-center justify-between gap-3"
                     >
-                      {currentOrgId === o.id ? "You’re here" : "Open"}
-                    </button>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{o.name}</span>
+                          {o.isSample && <span className="badge">Sample</span>}
+                          {o.isPrivate && (
+                            <span className="badge">Private</span>
+                          )}
+                        </div>
+                        <div
+                          className="mt-1 flex flex-wrap gap-x-3 text-[12px]"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          <span>Created {formatCreated(o.createdAt)}</span>
+                          <span>{usd(o.spend30d ?? 0)} · 30d</span>
+                          <span>
+                            {o.memberCount ?? 0} member
+                            {(o.memberCount ?? 0) === 1 ? "" : "s"}
+                          </span>
+                          {dup && (
+                            <span className="mono" title={o.id}>
+                              {o.slug}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn shrink-0"
+                        disabled={busy || currentOrgId === o.id}
+                        onClick={() => void switchTo(o.id)}
+                      >
+                        {currentOrgId === o.id ? "You’re here" : "Open"}
+                      </button>
+                    </li>
+                  );
+                })}
+                {displayOrgs.rows.length === 0 && (
+                  <li className="text-[13px]" style={{ color: "var(--muted)" }}>
+                    No workspaces yet — create one below, or show samples.
                   </li>
-                ))}
+                )}
               </ul>
             </div>
           )}
 
-          <div
-            className="panel space-y-3 p-4"
-            style={{ borderColor: "rgba(47,91,216,0.25)" }}
-          >
+          <div className="panel space-y-3 p-4">
             <h2 className="text-sm font-semibold">Just looking around?</h2>
             <p className="muted text-[13px]">
-              Open the sample company (Northstar) with fake data already filled in — forecasts,
-              teams, and AI tool costs.
+              Open the sample company (Northstar) with demo data already filled in.
             </p>
             <button
               type="button"
@@ -271,10 +312,9 @@ export default function OnboardingPage() {
           </div>
 
           <div className="panel space-y-3 p-4">
-            <h2 className="text-sm font-semibold">Start your own (empty)</h2>
+            <h2 className="text-sm font-semibold">Start your own</h2>
             <p className="muted text-[13px]">
-              Fresh workspace for your company. Shared by default — others can open it from
-              the list. You’ll add spend next.
+              Fresh workspace for your company. Shared by default.
             </p>
             <label className="block text-[13px]">
               Name
@@ -295,7 +335,7 @@ export default function OnboardingPage() {
               <span>
                 Make this workspace private
                 <span className="muted mt-0.5 block text-[12px]">
-                  Only browsers with the access code can see or open it.
+                  Only browsers with the access code can open it.
                 </span>
               </span>
             </label>
@@ -314,9 +354,8 @@ export default function OnboardingPage() {
               Have a private workspace code?
             </summary>
             <p className="muted mt-2 text-[13px]">
-              Private workspaces need a code (starts with{" "}
-              <span className="mono">ws_</span>). Paste it here to open that folder on this
-              browser.
+              Paste a code starting with <span className="mono">ws_</span> to open
+              that workspace here.
             </p>
             <input
               className="select mono mt-3 w-full text-[12px]"
@@ -336,12 +375,12 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {step === 2 && org && (
+      {phase === "created" && org && (
         <div className="space-y-3">
           <div className="panel space-y-3 p-4">
             <h2 className="text-sm font-semibold">{org.name} is ready</h2>
             <p className="muted text-[13px]">
-              You’re in. Spend you add later only shows up here — not in other workspaces.
+              You’re in. Spend you add later only shows up here.
               {org.isPrivate
                 ? " This workspace is private."
                 : " Others can open it from the workspace list."}
@@ -352,8 +391,7 @@ export default function OnboardingPage() {
                   Save your private access code
                 </div>
                 <p className="muted mb-2 text-[12px]">
-                  Required to open this private workspace on another browser. We only show it
-                  once.
+                  Required on another browser. We only show it once.
                 </p>
                 <pre
                   className="mono overflow-auto p-2 text-[11px]"
@@ -361,16 +399,24 @@ export default function OnboardingPage() {
                 >
                   {workspaceToken}
                 </pre>
-                <button type="button" className="btn btn-ghost mt-2" onClick={() => void copyToken()}>
+                <button
+                  type="button"
+                  className="btn btn-ghost mt-2"
+                  onClick={() => void copyToken()}
+                >
                   {copied ? "Copied" : "Copy code"}
                 </button>
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn" onClick={() => setStep(3)}>
+              <button type="button" className="btn" onClick={() => setPhase("optional")}>
                 Continue
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setStep(4)}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setPhase("done")}
+              >
                 Skip to home
               </button>
             </div>
@@ -380,22 +426,21 @@ export default function OnboardingPage() {
               Optional: upload your team list
             </summary>
             <p className="muted mt-2 mb-3 text-[13px]">
-              Already have departments and teams in a spreadsheet? You can import them now, or
-              skip and do it later.
+              Import departments and teams now, or skip and do it later.
             </p>
             <OrgStructureImport bare />
           </details>
         </div>
       )}
 
-      {step === 3 && (
+      {phase === "optional" && (
         <div className="panel space-y-3 p-4">
           <h2 className="text-sm font-semibold">Add a tiny bit of sample spend</h2>
           {otelKey ? (
             <>
               <p className="muted text-[13px]">
-                This drops one fake AI request into your workspace so Home isn’t empty. You can
-                connect real billing later under <strong>Sources</strong>.
+                Drops one fake AI request so Home isn’t empty. Connect real billing later under
+                Sources.
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -406,7 +451,11 @@ export default function OnboardingPage() {
                 >
                   {busy ? "Adding…" : "Add sample spend"}
                 </button>
-                <button type="button" className="btn btn-ghost" onClick={() => setStep(4)}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setPhase("done")}
+                >
                   Skip
                 </button>
               </div>
@@ -414,9 +463,9 @@ export default function OnboardingPage() {
           ) : (
             <>
               <p className="muted text-[13px]">
-                You’re all set. Connect bills anytime under Sources, or go look around.
+                You’re all set. Connect bills anytime under Sources.
               </p>
-              <button type="button" className="btn" onClick={() => setStep(4)}>
+              <button type="button" className="btn" onClick={() => setPhase("done")}>
                 Continue
               </button>
             </>
@@ -424,22 +473,18 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {step === 4 && (
+      {phase === "done" && (
         <div className="panel space-y-3 p-4">
           <h2 className="text-sm font-semibold">You’re in</h2>
           {testResult && <p className="text-[13px]">{testResult}</p>}
           <p className="muted text-[13px]">
             {org ? (
               <>
-                <strong style={{ color: "var(--text)" }}>{org.name}</strong> is open. Home shows
-                your forecast; <strong>Sources</strong> is where you plug in bills;{" "}
-                <strong>AI cost</strong> is for coding-tool spend by person.
+                <strong style={{ color: "var(--text)" }}>{org.name}</strong> is open. Finish setup
+                from Home, or add a source now.
               </>
             ) : (
-              <>
-                Home shows your forecast. Use <strong>Workspace</strong> (top right) to switch
-                folders. <strong>Sources</strong> is where bills come in.
-              </>
+              <>Home shows your forecast. Use Workspace (top right) to switch folders.</>
             )}
           </p>
           <div className="flex flex-wrap gap-2">

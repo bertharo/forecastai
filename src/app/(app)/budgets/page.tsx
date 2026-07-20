@@ -11,6 +11,7 @@ import {
   type BudgetStatus,
 } from "@/lib/budgets/status";
 import { BudgetActions } from "./BudgetActions";
+import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -121,14 +122,10 @@ export default async function BudgetsPage() {
   const org = await getCurrentOrg();
   if (!org) {
     return (
-      <div className="soft-card space-y-3" style={{ background: "var(--card-pink)" }}>
-        <p className="text-[18px] font-semibold leading-snug">
-          Open a workspace to set spend limits.
-        </p>
-        <Link href="/onboarding" className="btn inline-block">
-          Get started →
-        </Link>
-      </div>
+      <EmptyState
+        message="Open a workspace to set spend limits."
+        action={{ href: "/onboarding", label: "Open Workspaces" }}
+      />
     );
   }
 
@@ -190,22 +187,14 @@ export default async function BudgetsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="soft-card" style={{ background: "var(--card-pink)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          Plan
-        </div>
-        <p className="mt-2 max-w-2xl text-[18px] font-semibold leading-snug">
-          Set a monthly spend limit. We’ll tell you if you’re on track — or about to go over.
-        </p>
-      </div>
-
       {warnings.length > 0 && (
         <div
-          className="soft-card text-[13px]"
-          style={{ background: "#fff6e8", color: "var(--warning)" }}
+          className="rounded-[var(--radius-sm)] border px-4 py-3 text-[13px]"
+          style={{
+            borderColor: "rgba(196,90,42,0.35)",
+            background: "rgba(196,90,42,0.08)",
+            color: "var(--warning)",
+          }}
         >
           <strong>Check your nested limits</strong> —{" "}
           {warnings
@@ -218,13 +207,7 @@ export default async function BudgetsPage() {
       )}
 
       {sorted.length === 0 ? (
-        <div className="soft-card space-y-2" style={{ background: "var(--card-blue)" }}>
-          <div className="text-[15px] font-semibold">No limits yet</div>
-          <p className="text-[13px]" style={{ color: "var(--muted)" }}>
-            Add a company-wide or team monthly budget below. Once spend is flowing, you’ll
-            see burn and heads-ups here.
-          </p>
-        </div>
+        <EmptyState message="No limits yet. Add a company-wide or team monthly budget below." />
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">

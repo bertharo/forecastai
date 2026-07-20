@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { getCurrentOrg, listOrgs } from "@/lib/queries/org";
+import { getCurrentOrg, listWorkspacesWithStats } from "@/lib/queries/org";
 import {
   ORG_COOKIE,
   ORG_COOKIE_MAX_AGE,
@@ -47,8 +47,22 @@ function setWorkspaceCookies(
 
 /** List open workspaces plus private ones this browser has claimed. */
 export async function GET() {
-  const [orgs, current] = await Promise.all([listOrgs(), getCurrentOrg()]);
-  return NextResponse.json({ orgs, currentOrgId: current?.id ?? null });
+  const [orgs, current] = await Promise.all([
+    listWorkspacesWithStats(),
+    getCurrentOrg(),
+  ]);
+  return NextResponse.json({
+    orgs: orgs.map((o) => ({
+      ...o,
+      createdAt:
+        o.createdAt instanceof Date ? o.createdAt.toISOString() : o.createdAt,
+      sampleDataLoadedAt:
+        o.sampleDataLoadedAt instanceof Date
+          ? o.sampleDataLoadedAt.toISOString()
+          : o.sampleDataLoadedAt,
+    })),
+    currentOrgId: current?.id ?? null,
+  });
 }
 
 /** Create a workspace (shared by default) + access token (shown once). */

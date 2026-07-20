@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { OrgSwitcher } from "@/components/OrgSwitcher";
 import { IconBell, IconSearch } from "@/components/shell/icons";
+import { metaForPath } from "@/components/shell/pageMeta";
+
+/** Display name for the signed-in person — never the workspace name. */
+const USER_FIRST_NAME = "Bert";
 
 function greetingForHour(h: number): string {
   if (h < 12) return "Good morning";
@@ -17,7 +22,8 @@ export function TopBar({
   orgs?: { id: string; name: string; slug: string; isPrivate?: boolean }[];
   currentOrg?: { id: string; name: string; slug: string; isPrivate?: boolean } | null;
 }) {
-  const orgName = currentOrg?.name ?? "your org";
+  const pathname = usePathname();
+  const meta = metaForPath(pathname);
   // Stable on SSR + first client paint — avoid hydration mismatch from server UTC vs local hours
   const [greeting, setGreeting] = useState("Hello");
 
@@ -28,12 +34,25 @@ export function TopBar({
   return (
     <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="page-title">
-          {greeting}, Bert <span className="wave">👋</span>
-        </h1>
-        <p className="mt-1 text-[14px]" style={{ color: "var(--muted)" }}>
-          {orgName} · here&apos;s where spend stands.
-        </p>
+        {meta.isHome ? (
+          <>
+            <h1 className="page-title">
+              {greeting}, {USER_FIRST_NAME}
+            </h1>
+            <p className="mt-1 text-[14px]" style={{ color: "var(--muted)" }}>
+              {meta.subtitle}
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="page-title">{meta.title}</h1>
+            {meta.subtitle ? (
+              <p className="mt-1 text-[14px]" style={{ color: "var(--muted)" }}>
+                {meta.subtitle}
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -52,7 +71,7 @@ export function TopBar({
           </span>
           <input
             className="w-full bg-transparent text-[13px] outline-none"
-            placeholder="Search workloads, teams, decisions…"
+            placeholder="Search workloads, teams…"
           />
         </label>
         <button
@@ -62,15 +81,12 @@ export function TopBar({
           aria-label="Notifications"
         >
           <IconBell />
-          <span
-            className="absolute right-2 top-2 h-2 w-2 rounded-full"
-            style={{ background: "var(--danger)" }}
-          />
         </button>
         <div
           className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-semibold text-white"
-          style={{ background: "#7c5cbf" }}
-          aria-label="Bert Haro"
+          style={{ background: "var(--accent)" }}
+          aria-label={`${USER_FIRST_NAME} Haro`}
+          title={`${USER_FIRST_NAME} Haro`}
         >
           BH
         </div>

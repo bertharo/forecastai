@@ -23,7 +23,7 @@ const NAV = [
   { href: "/scenarios", label: "Scenarios", icon: IconScenarios },
   { href: "/connectors", label: "Sources", icon: IconSources },
   { href: "/allocation", label: "Alerts", icon: IconAlerts },
-  { href: "/price-cards", label: "Settings", icon: IconSettings },
+  { href: "/settings", label: "Settings", icon: IconSettings },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -35,10 +35,13 @@ function isActive(pathname: string, href: string, exact?: boolean) {
 export function Sidebar({
   currentOrg,
   unmappedKeys = 0,
+  pendingDecisions = 0,
 }: {
   orgs?: { id: string; name: string; slug: string }[];
   currentOrg?: { id: string; name: string; slug: string } | null;
   unmappedKeys?: number;
+  /** Open budget alerts / notifications that need attention */
+  pendingDecisions?: number;
 }) {
   const pathname = usePathname();
 
@@ -85,7 +88,7 @@ export function Sidebar({
               {badge != null && (
                 <span
                   className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white"
-                  style={{ background: "#e8843a" }}
+                  style={{ background: "var(--warning)" }}
                 >
                   {badge > 9 ? "9+" : badge}
                 </span>
@@ -95,15 +98,20 @@ export function Sidebar({
         })}
       </nav>
 
-      <div
-        className="mt-auto rounded-2xl p-3.5"
-        style={{ background: "var(--panel)", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}
-      >
-        <div className="text-[13px] font-semibold">Q3 plan lock</div>
-        <p className="mt-1 text-[12px] leading-snug" style={{ color: "var(--muted)" }}>
-          5 days remaining. 3 decisions still pending your sign-off.
-        </p>
-      </div>
+      {pendingDecisions > 0 ? (
+        <Link
+          href="/budgets"
+          className="mt-auto rounded-2xl p-3.5 transition-opacity hover:opacity-90"
+          style={{ background: "var(--panel)", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}
+        >
+          <div className="text-[13px] font-semibold">Pending decisions</div>
+          <p className="mt-1 text-[12px] leading-snug" style={{ color: "var(--muted)" }}>
+            {pendingDecisions} item{pendingDecisions === 1 ? "" : "s"} need review on Plan.
+          </p>
+        </Link>
+      ) : (
+        <div className="mt-auto" />
+      )}
     </aside>
   );
 }

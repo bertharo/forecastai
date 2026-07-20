@@ -24,6 +24,9 @@ function valueExpr(metric: MetricMode) {
   return sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`;
 }
 
+/** Token quantity only — seats/requests/etc. excluded from $/M tokens. */
+const tokensQtyExpr = sql<string>`coalesce(sum(${s.costRecords.consumedQuantity}) filter (where lower(${s.costRecords.consumedUnit}) = 'tokens'),0)`;
+
 export async function getSpendSummary(
   orgId: string,
   filters: AnalyticsFilters | string | undefined = {}
@@ -116,6 +119,7 @@ export async function getSpendSummary(
       name: s.providers.displayName,
       value: value,
       effective: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      tokens: tokensQtyExpr,
     })
     .from(s.costRecords)
     .innerJoin(s.providers, eq(s.costRecords.providerId, s.providers.id))
@@ -129,6 +133,7 @@ export async function getSpendSummary(
       skuId: s.skus.skuId,
       value: value,
       effective: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      tokens: tokensQtyExpr,
     })
     .from(s.costRecords)
     .innerJoin(s.skus, eq(s.costRecords.skuId, s.skus.id))
@@ -142,6 +147,7 @@ export async function getSpendSummary(
       feature: sql<string>`coalesce(${s.costRecords.tags}->>'feature','unallocated')`,
       value: value,
       effective: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      tokens: tokensQtyExpr,
     })
     .from(s.costRecords)
     .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)))
@@ -154,6 +160,7 @@ export async function getSpendSummary(
       nodeId: s.dimensionNodes.id,
       value: value,
       effective: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
+      tokens: tokensQtyExpr,
     })
     .from(s.costRecords)
     .innerJoin(
@@ -236,23 +243,27 @@ export async function getSpendSummary(
       name: r.name,
       effective: Number(r.effective),
       value: Number(r.value ?? r.effective),
+      tokens: Number(r.tokens),
     })),
     bySku: bySku.map((r) => ({
       sku: r.sku,
       skuId: r.skuId,
       effective: Number(r.effective),
       value: Number(r.value ?? r.effective),
+      tokens: Number(r.tokens),
     })),
     byFeature: byFeature.map((r) => ({
       feature: r.feature,
       effective: Number(r.effective),
       value: Number(r.value ?? r.effective),
+      tokens: Number(r.tokens),
     })),
     byTeam: byTeam.map((r) => ({
       team: r.team,
       nodeId: r.nodeId,
       effective: Number(r.effective),
       value: Number(r.value ?? r.effective),
+      tokens: Number(r.tokens),
     })),
     daily,
     anomalies,

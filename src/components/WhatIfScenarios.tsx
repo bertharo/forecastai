@@ -305,19 +305,6 @@ export function WhatIfScenarios() {
 
   return (
     <div className="space-y-5">
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          What if…
-        </div>
-        <p className="mt-2 max-w-2xl text-[18px] font-semibold leading-snug">
-          Try a change before you make it. Pick a team, tweak the model or a spend
-          limit, and see the monthly impact in plain numbers.
-        </p>
-      </div>
-
       <div className="flex flex-wrap gap-1.5">
         {tabs.map((t) => (
           <button
@@ -404,7 +391,7 @@ export function WhatIfScenarios() {
             )}
           </div>
 
-          <div className="soft-card space-y-4" style={{ background: "var(--card-blue)" }}>
+          <div className="soft-card space-y-4">
             <div className="text-[13px] font-semibold">
               {team.label} · monthly estimate
             </div>
@@ -507,7 +494,7 @@ export function WhatIfScenarios() {
             </label>
           </div>
 
-          <div className="soft-card space-y-3" style={{ background: "var(--card-blue)" }}>
+          <div className="soft-card space-y-3">
             <div className="text-[13px] font-semibold">{capTeamRow.label} vs {usd(capUsd)} cap</div>
             <div className="kpi text-2xl">
               {overCap > 0 ? "Would go over" : "Stays under the cap"}
@@ -547,7 +534,7 @@ export function WhatIfScenarios() {
 
       {tab === "role" && (
         <div className="space-y-3">
-          <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+          <div className="soft-card">
             <div className="text-[13px] font-semibold">Suggested models by role</div>
             <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
               Starting points based on the kind of work — not hard rules. Numbers assume
@@ -655,7 +642,7 @@ export function WhatIfScenarios() {
               </label>
             </div>
           </div>
-          <div className="soft-card space-y-3" style={{ background: "var(--card-blue)" }}>
+          <div className="soft-card space-y-3">
             <div className="text-[13px] font-semibold">Suggestion</div>
             <div className="kpi text-2xl">
               <Money value={commit.recommendedCommit} digits={0} />

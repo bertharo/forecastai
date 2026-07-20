@@ -10,6 +10,8 @@ import { AnthropicKeyForm } from "./AnthropicKeyForm";
 import { CodingToolsPanel } from "./CodingToolsPanel";
 import { ContributorsPanel } from "./ContributorsPanel";
 import { SourcesSpreadsheetDrop } from "@/components/SourcesSpreadsheetDrop";
+import { PriceCardsPanel } from "@/components/PriceCardsPanel";
+import { EmptyState } from "@/components/EmptyState";
 import { headers } from "next/headers";
 import { formatRelativeAgo } from "@/lib/format/relative";
 
@@ -24,7 +26,14 @@ const TIER_LABEL: Record<number, string> = {
 
 export default async function ConnectorsPage() {
   const org = await getCurrentOrg();
-  if (!org) return <p className="muted">No org — run npm run db:seed</p>;
+  if (!org) {
+    return (
+      <EmptyState
+        message="Open a workspace to connect sources."
+        action={{ href: "/onboarding", label: "Open Workspaces" }}
+      />
+    );
+  }
 
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000";
@@ -77,28 +86,19 @@ export default async function ConnectorsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="soft-card" style={{ background: "var(--card-mint)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          Data & sources
-        </div>
-        <p className="mt-2 max-w-3xl text-[18px] font-semibold leading-snug">
-          Two ways in: upload a spreadsheet, or connect a vendor.
-        </p>
-        <p className="mt-2 text-[13px]" style={{ color: "#3a4050" }}>
-          About <strong>{covered.toFixed(0)}%</strong> of spend is covered ·{" "}
-          <strong>{liveCount}</strong> of {rows.length} sources look healthy.
-        </p>
-      </div>
+      <p className="text-[14px]" style={{ color: "var(--muted)" }}>
+        About <strong style={{ color: "var(--text)" }}>{covered.toFixed(0)}%</strong> of
+        spend covered ·{" "}
+        <strong style={{ color: "var(--text)" }}>{liveCount}</strong> of {rows.length}{" "}
+        sources healthy.
+      </p>
 
       <div className="grid gap-3 md:grid-cols-2">
         <SourcesSpreadsheetDrop />
-        <div className="soft-card">
+        <div className="panel p-4">
           <div className="text-[15px] font-semibold">Connect a vendor</div>
           <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
-            Paste an Anthropic Admin key (or similar) below. Then{" "}
+            Paste an Anthropic Admin key below, then{" "}
             <a href="/keys" className="underline">
               map keys to teams
             </a>
@@ -247,6 +247,7 @@ export default async function ConnectorsPage() {
 
       <OtelKeysPanel />
       <GatewaySnippets ingestUrl={ingestUrl} />
+      <PriceCardsPanel />
     </div>
   );
 }

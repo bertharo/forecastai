@@ -1,32 +1,15 @@
 import Link from "next/link";
 import { pct, usd } from "@/lib/format";
-import { LoadSampleButton } from "@/components/LoadSampleButton";
 import type { BriefFacts } from "@/lib/queries/brief";
+import { EmptyState } from "@/components/EmptyState";
 
 export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
   if (facts.empty) {
     return (
-      <div className="soft-card space-y-4" style={{ background: "var(--card-blue)" }}>
-        <div
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--muted)" }}
-        >
-          FinOps
-        </div>
-        <p className="text-[18px] font-semibold leading-snug">
-          See vendor spend, department rollup, and waste findings in one page.
-        </p>
-        <p className="text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
-          Upload an HRIS roster + vendor CSV under Import, or load a deterministic sample
-          pack (~2,000 people, terminated seats, unmapped keys) with no connectors.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <LoadSampleButton />
-          <Link href="/import" className="btn btn-ghost">
-            Import CSV →
-          </Link>
-        </div>
-      </div>
+      <EmptyState
+        message="No spend yet. Connect a source or import a CSV to see vendor and department rollup."
+        action={{ href: "/connectors", label: "Open Sources" }}
+      />
     );
   }
 
@@ -52,14 +35,15 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
         {facts.dataMixed && (
           <span
             className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-            style={{ background: "rgba(196,59,59,0.12)", color: "var(--danger)" }}
+            style={{ background: "rgba(196,90,42,0.12)", color: "var(--warning)" }}
+            title="Sample data and CSV imports are mixed. Reset from Settings to clean up."
           >
-            Sample + imports mixed — reset to clean sample
+            Sample + imports mixed
           </span>
         )}
       </div>
 
-      <div className="soft-card" style={{ background: "var(--card-blue)" }}>
+      <div className="panel p-4">
         <div
           className="text-[11px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--muted)" }}
@@ -72,15 +56,17 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
         >
           {pct(attribution.attributedPct, 0)} of spend attributed
         </Link>
-        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed" style={{ color: "#3a4050" }}>
-          Spend-weighted · {usd(attribution.attributedSpend)} of {usd(attribution.totalSpend)}{" "}
-          · email join {usd(attribution.emailJoinSpend)} · key registry{" "}
-          {usd(attribution.keyRegistrySpend)} · unallocated {usd(attribution.unallocatedSpend)}
+        <p
+          className="mt-2 max-w-2xl text-[13px] leading-relaxed"
+          style={{ color: "var(--muted)" }}
+          title={`Email join ${usd(attribution.emailJoinSpend)} · key registry ${usd(attribution.keyRegistrySpend)} · unallocated ${usd(attribution.unallocatedSpend)}`}
+        >
+          {usd(attribution.attributedSpend)} of {usd(attribution.totalSpend)} mapped to teams
         </p>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="soft-card">
+        <div className="panel p-4">
           <div className="text-[13px] font-semibold">By vendor</div>
           <div className="mt-3 space-y-2">
             {byVendor.slice(0, 6).map((v) => (
@@ -97,10 +83,10 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
           </div>
         </div>
 
-        <div className="soft-card">
+        <div className="panel p-4">
           <div className="text-[13px] font-semibold">By department</div>
           <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
-            Via email → roster (or key-registry team fallback)
+            Via roster email or key → team map
           </p>
           <div className="mt-3 space-y-2">
             {byDepartment.slice(0, 8).map((d) => (
@@ -131,24 +117,13 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {facts.sampleDataLoadedAt ? (
-          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-            Sample pack active — importing CSVs is blocked until you clear sample.
-          </p>
-        ) : (
-          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-            Live workspace — load sample only via reset (replaces all data).
-          </p>
-        )}
-        <LoadSampleButton
-          label="Reset to clean sample"
-          className="btn btn-ghost"
-          replaceExisting
-        />
-      </div>
+      {facts.sampleDataLoadedAt ? (
+        <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+          Sample pack active — clear or reset from Settings before importing CSVs.
+        </p>
+      ) : null}
 
-      <div className="soft-card">
+      <div className="panel p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-[13px] font-semibold">Findings</div>
           <Link href="/import#roster" className="text-[12px]" style={{ color: "var(--muted)" }}>
