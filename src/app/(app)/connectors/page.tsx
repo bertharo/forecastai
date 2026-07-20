@@ -9,6 +9,7 @@ import { OtelKeysPanel } from "./OtelKeysPanel";
 import { AnthropicKeyForm } from "./AnthropicKeyForm";
 import { CodingToolsPanel } from "./CodingToolsPanel";
 import { ContributorsPanel } from "./ContributorsPanel";
+import { SourcesSpreadsheetDrop } from "@/components/SourcesSpreadsheetDrop";
 import { headers } from "next/headers";
 import { formatRelativeAgo } from "@/lib/format/relative";
 
@@ -93,14 +94,7 @@ export default async function ConnectorsPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <a href="/import" className="soft-card block transition-shadow hover:shadow-sm">
-          <div className="text-[15px] font-semibold">Upload a spreadsheet</div>
-          <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
-            People list + usage or seat CSV. Best path for FinOps week-one — no API keys
-            required.
-          </p>
-          <span className="mt-3 inline-block text-[13px] font-medium">Start upload →</span>
-        </a>
+        <SourcesSpreadsheetDrop />
         <div className="soft-card">
           <div className="text-[15px] font-semibold">Connect a vendor</div>
           <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>

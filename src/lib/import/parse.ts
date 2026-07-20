@@ -82,7 +82,19 @@ export const IMPORT_TARGETS = [
 
 export type ColumnMap = Record<string, string>;
 
-/** Resolve mapped value; `_literal:x` style sources. Case-insensitive headers. */
+/** Rebuild CSV text from rows (for hashing / preview paste). */
+export function rowsToCsv(headers: string[], rows: RawRow[]): string {
+  const esc = (v: string) => {
+    if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+    return v;
+  };
+  const lines = [headers.map(esc).join(",")];
+  for (const row of rows) {
+    lines.push(headers.map((h) => esc(row[h] ?? "")).join(","));
+  }
+  return lines.join("\n");
+}
+
 export function mappedValue(row: RawRow, source: string | undefined): string {
   if (!source) return "";
   if (source.startsWith("_literal:")) return source.slice("_literal:".length);

@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FileDropZone } from "@/components/FileDropZone";
+import { rowsToCsv } from "@/lib/import/uploadClient";
 
 export function ContributorsPanel({ count }: { count: number }) {
   const router = useRouter();
   const [csv, setCsv] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [base64, setBase64] = useState<string | undefined>();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [github, setGithub] = useState("");
@@ -42,19 +46,26 @@ export function ContributorsPanel({ count }: { count: number }) {
     }
   }
 
-  async function importCsv() {
+  async function importFile() {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/contributors", {
+      // Prefer full roster importer (handles Project worker + CC chain + Excel)
+      const res = await fetch("/api/roster", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "csv", csv }),
+        body: JSON.stringify({
+          content: csv || undefined,
+          base64,
+          fileName: fileName || "people.csv",
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
-      setMsg(`Upserted ${data.upserted} contributors`);
+      if (!res.ok) throw new Error(data.message || data.error || "Failed");
+      setMsg(`Upserted ${data.upserted} people`);
       setCsv("");
+      setBase64(undefined);
+      setFileName("");
       router.refresh();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
@@ -68,8 +79,8 @@ export function ContributorsPanel({ count }: { count: number }) {
       <h2 className="mb-1 text-sm font-semibold">People on your team</h2>
       <p className="muted mb-3 text-[13px]">
         Who uses AI tools — so spend can land on the right person and team.{" "}
-        <strong>{count}</strong> added. Paste a CSV with email, name, GitHub username, and
-        team.
+        <strong>{count}</strong> added. Drop a CSV/Excel or paste rows (email, name,
+        GitHub, team — or Project worker + cost-center chain).
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <label className="text-[12px]">
@@ -114,20 +125,68 @@ export function ContributorsPanel({ count }: { count: number }) {
           Add
         </button>
       </div>
+
+      <FileDropZone
+        disabled={busy}
+        className="mb-3 min-h-[88px]"
+        label={
+          fileName
+            ? `Ready: ${fileName}`
+            : "Drop people CSV/Excel here, or click to browse"
+        }
+        onFile={async (u) => {
+          setFileName(u.fileName);
+          setBase64(u.base64);
+          if (u.content) {
+            setCsv(u.content);
+          } else if (u.base64) {
+            // Preview path: ask import API for rows, show as CSV text
+            const res = await fetch("/api/import", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                action: "preview",
+                fileName: u.fileName,
+                base64: u.base64,
+                sourceKind: "excel",
+              }),
+            });
+            const data = await res.json();
+            if (res.ok && data.headers && data.preview) {
+              const allRows = data.preview as Record<string, string>[];
+              // preview is only 50 rows — still keep base64 for full upload
+              setCsv(
+                rowsToCsv(data.headers as string[], allRows) +
+                  (data.rowCount > allRows.length
+                    ? `\n… (${data.rowCount} rows total — full file uploads on Import)`
+                    : "")
+              );
+            } else {
+              setCsv(`(Excel “${u.fileName}” — will import first sheet on Upload)`);
+            }
+          }
+        }}
+      />
+
       <textarea
         className="input w-full font-mono text-[12px]"
         rows={4}
         placeholder="email,display_name,github_login,team_key"
         value={csv}
-        onChange={(e) => setCsv(e.target.value)}
+        onChange={(e) => {
+          setCsv(e.target.value);
+          setBase64(undefined);
+          if (!fileName) setFileName("people.csv");
+        }}
+        readOnly={Boolean(base64 && csv.startsWith("(Excel"))}
       />
       <button
         type="button"
         className="btn btn-ghost mt-2"
-        disabled={busy || !csv.trim()}
-        onClick={() => void importCsv()}
+        disabled={busy || (!csv.trim() && !base64)}
+        onClick={() => void importFile()}
       >
-        Import people CSV
+        {busy ? "Uploading…" : "Import people"}
       </button>
       {msg && <p className="muted mt-2 text-[13px]">{msg}</p>}
     </div>

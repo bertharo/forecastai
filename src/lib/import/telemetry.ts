@@ -93,9 +93,16 @@ export function parseImportTimestamp(raw: string): {
 
   m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
   if (m) {
-    const start = new Date(
-      Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0)
-    );
+    const y = Number(m[1]);
+    const mo0 = Number(m[2]) - 1;
+    const day = Number(m[3]);
+    // Excel often turns month labels (2026-06) into the 1st (or last) of month.
+    // Treat those as month-grain so Brief trailing windows stay correct.
+    const lastDay = new Date(Date.UTC(y, mo0 + 1, 0)).getUTCDate();
+    if (day === 1 || day === lastDay) {
+      return monthGrainDates(y, mo0);
+    }
+    const start = new Date(Date.UTC(y, mo0, day, 12, 0, 0));
     if (Number.isNaN(start.getTime())) return null;
     const end = new Date(start);
     end.setUTCHours(end.getUTCHours() + 1);

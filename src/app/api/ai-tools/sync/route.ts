@@ -7,6 +7,9 @@ import {
 } from "@/lib/connectors/ai-tools-sync";
 import { findOverlappingAiSources } from "@/lib/ai-tools/persist";
 import { parseCsv } from "@/lib/import/parse";
+import { parseTabularUpload } from "@/lib/import/spreadsheet";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const org = await getCurrentOrg();
@@ -15,6 +18,8 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as {
     action: "demo" | "claude" | "dx_csv";
     csv?: string;
+    base64?: string;
+    fileName?: string;
   };
 
   try {
@@ -28,9 +33,15 @@ export async function POST(req: NextRequest) {
       const overlaps = await findOverlappingAiSources(org.id);
       return NextResponse.json({ ok: true, ...result, overlaps });
     }
-    if (body.action === "dx_csv" && body.csv) {
-      const { rows } = parseCsv(body.csv);
-      const mapped = rows.map((r) => ({
+    if (body.action === "dx_csv" && (body.csv || body.base64)) {
+      const parsed = body.base64
+        ? parseTabularUpload({
+            fileName: body.fileName || "dx.xlsx",
+            base64: body.base64,
+            sourceKind: "excel",
+          })
+        : parseCsv(body.csv!);
+      const mapped = parsed.rows.map((r) => ({
         day: (r.day || r.date || "").slice(0, 10),
         tool: r.tool || r.tool_key || "claude_code",
         email: r.email || r.contributor_email,

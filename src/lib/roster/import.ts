@@ -1,9 +1,10 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { parseCsv } from "@/lib/import/parse";
+import { type RawRow } from "@/lib/import/parse";
 import { upsertContributor } from "@/lib/contributors/upsert";
 import { normalizeHeaderKey } from "@/lib/import/telemetry";
+import { parseTabularUpload, rowsToCsv } from "@/lib/import/spreadsheet";
 
 export type RosterColumnMap = {
   email: string;
@@ -35,7 +36,8 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
     "user_email",
     "e-mail",
     "mail",
-    "project_worker", // enterprise people export
+    // Fallback when the sheet only has Project Worker (email in that column)
+    "project_worker",
   ],
   display_name: [
     "display_name",
@@ -43,7 +45,7 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
     "full_name",
     "employee_name",
     "preferred_name",
-    "project_worker",
+    "project_worker", // name when Email column is also present
   ],
   department: [
     "department",
@@ -197,13 +199,49 @@ export type RosterImportResult = {
   detected: Partial<RosterColumnMap>;
 };
 
-/** Import HRIS roster CSV into contributors. */
+/** Import HRIS roster from CSV text or Excel bytes. */
 export async function importRosterCsv(
   orgId: string,
   csv: string,
   columnMap?: Partial<RosterColumnMap>
 ): Promise<RosterImportResult> {
-  const { headers, rows: rawRows } = parseCsv(csv);
+  return importRosterFile(orgId, { content: csv, fileName: "roster.csv", columnMap });
+}
+
+export async function importRosterFile(
+  orgId: string,
+  opts: {
+    content?: string;
+    base64?: string;
+    fileName?: string;
+    columnMap?: Partial<RosterColumnMap>;
+  }
+): Promise<RosterImportResult> {
+  let headers: string[] = [];
+  let rawRows: RawRow[] = [];
+  try {
+    const parsed = parseTabularUpload({
+      fileName: opts.fileName || (opts.base64 ? "roster.xlsx" : "roster.csv"),
+      content: opts.content,
+      base64: opts.base64,
+    });
+    headers = parsed.headers;
+    rawRows = parsed.rows;
+  } catch (e) {
+    return {
+      upserted: 0,
+      rows: 0,
+      skipped: 0,
+      errors: [
+        {
+          row: 0,
+          message: e instanceof Error ? e.message : String(e),
+        },
+      ],
+      detected: {},
+    };
+  }
+
   if (!headers.length) {
     return {
       upserted: 0,
@@ -216,7 +254,7 @@ export async function importRosterCsv(
 
   const rows = normalizeRows(headers, rawRows);
   const normalizedHeaders = headers.map(normHeader);
-  const map = resolveMap(normalizedHeaders, columnMap);
+  const map = resolveMap(normalizedHeaders, opts.columnMap);
   const hasChain = hasCostCenterChain(normalizedHeaders);
 
   if (!map.email || !normalizedHeaders.includes(normHeader(map.email))) {
@@ -248,7 +286,7 @@ export async function importRosterCsv(
     const row = rows[i];
     const rowNum = i + 2;
     const worker = cell(row, map.email);
-    const email = worker.includes("@") ? worker.toLowerCase() : worker.toLowerCase();
+    const email = worker.toLowerCase();
 
     if (!worker) {
       skipped++;
@@ -306,4 +344,18 @@ export async function importRosterCsv(
     errors: errors.slice(0, 40),
     detected: map,
   };
+}
+
+/** @internal test helper */
+export function rosterFileToCsvPreview(opts: {
+  content?: string;
+  base64?: string;
+  fileName?: string;
+}): string {
+  const parsed = parseTabularUpload({
+    fileName: opts.fileName || "roster.csv",
+    content: opts.content,
+    base64: opts.base64,
+  });
+  return rowsToCsv(parsed.headers, parsed.rows);
 }

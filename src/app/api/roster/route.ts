@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentOrg } from "@/lib/queries/org";
-import { importRosterCsv, type RosterColumnMap } from "@/lib/roster/import";
+import { importRosterFile, type RosterColumnMap } from "@/lib/roster/import";
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { asc, eq, sql } from "drizzle-orm";
+
+export const runtime = "nodejs";
 
 export async function GET() {
   const org = await getCurrentOrg();
@@ -32,15 +34,8 @@ export async function GET() {
     count: Number(countRow?.n ?? 0),
     sample,
     templateHeaders: [
-      "email",
-      "display_name",
-      "department",
-      "cost_center",
-      "employment_status",
-      "started_on",
-      "ended_on",
-      "team_key",
-      "Project worker",
+      "Email",
+      "Project Worker",
       "Cost Center Chain - Level 02",
       "Cost Center Chain - Level 03",
       "Cost Center Chain - Level 04",
@@ -48,6 +43,7 @@ export async function GET() {
       "Cost Center Chain - Level 06",
       "Cost Center Chain - Level 07",
     ],
+    acceptedFormats: [".csv", ".xlsx", ".xls", ".xlsm"],
   });
 }
 
@@ -57,10 +53,18 @@ export async function POST(req: NextRequest) {
 
   const body = (await req.json()) as {
     csv?: string;
+    content?: string;
+    base64?: string;
+    fileName?: string;
     columnMap?: Partial<RosterColumnMap>;
   };
-  if (!body.csv?.trim()) {
-    return NextResponse.json({ error: "csv required" }, { status: 400 });
+
+  const content = body.content ?? body.csv;
+  if (!content?.trim() && !body.base64) {
+    return NextResponse.json(
+      { error: "csv/content or base64 (Excel) required" },
+      { status: 400 }
+    );
   }
 
   const [orgMeta] = await db
@@ -80,7 +84,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await importRosterCsv(org.id, body.csv, body.columnMap);
+    const result = await importRosterFile(org.id, {
+      content,
+      base64: body.base64,
+      fileName: body.fileName,
+      columnMap: body.columnMap,
+    });
     const ok = result.upserted > 0;
     return NextResponse.json(
       { ok, ...result },

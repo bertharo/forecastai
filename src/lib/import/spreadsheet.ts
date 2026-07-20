@@ -2,7 +2,7 @@
  * Parse CSV / Excel (.xls, .xlsx, .xlsm) into the same tabular shape used by imports.
  */
 import * as XLSX from "xlsx";
-import { parseCsv, parseJsonl, type RawRow } from "@/lib/import/parse";
+import { parseCsv, parseJsonl, type RawRow, rowsToCsv } from "@/lib/import/parse";
 
 export function isExcelFileName(fileName: string): boolean {
   return /\.(xlsx|xls|xlsm)$/i.test(fileName);
@@ -12,16 +12,51 @@ export function isJsonlFileName(fileName: string): boolean {
   return /\.jsonl$/i.test(fileName);
 }
 
+/** Excel serial date (days since 1899-12-30) → YYYY-MM-DD, or null if out of range. */
+export function excelSerialToIsoDate(serial: number): string | null {
+  if (!Number.isFinite(serial)) return null;
+  // Token/cost quantities can be large or small; real calendar serials for ~1955–2089 sit here
+  if (serial < 20000 || serial > 70000) return null;
+  const parsed = XLSX.SSF.parse_date_code(serial);
+  if (!parsed || !parsed.y) return null;
+  const y = parsed.y;
+  const m = String(parsed.m).padStart(2, "0");
+  const d = String(parsed.d).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 function cellToString(value: unknown): string {
   if (value == null) return "";
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    // Prefer YYYY-MM-DD so month/day telemetry parsers accept it
-    return value.toISOString().slice(0, 10);
+    // SheetJS stores Excel calendar days as UTC midnight
+    const y = value.getUTCFullYear();
+    const m = pad2(value.getUTCMonth() + 1);
+    const d = pad2(value.getUTCDate());
+    return `${y}-${m}-${d}`;
   }
   if (typeof value === "number" && Number.isFinite(value)) {
+    const asDate = excelSerialToIsoDate(value);
+    if (asDate) return asDate;
     return String(value);
   }
-  return String(value).trim();
+  const s = String(value).trim();
+  // Formatted serial that slipped through as text
+  if (/^\d{5}(\.\d+)?$/.test(s)) {
+    const asDate = excelSerialToIsoDate(Number(s));
+    if (asDate) return asDate;
+  }
+  // Locale short dates from Excel (M/D/YY or M/D/YYYY)
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);
+  if (us) {
+    let y = Number(us[3]);
+    if (y < 100) y += y >= 70 ? 1900 : 2000;
+    return `${y}-${pad2(Number(us[1]))}-${pad2(Number(us[2]))}`;
+  }
+  return s;
 }
 
 /** First worksheet → headers + string rows. */
@@ -45,16 +80,17 @@ export function parseExcelBuffer(
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) return { headers: [], rows: [] };
 
+  // raw:true so month/date cells stay as Date or Excel serials (not locale strings)
   const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: "",
-    raw: false,
+    raw: true,
   });
   if (!json.length) {
     // Still try to recover headers from an empty sheet with a header row
     const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
       header: 1,
       defval: "",
-      raw: false,
+      raw: true,
     });
     const headerRow = (aoa[0] ?? []).map((h) => cellToString(h));
     return { headers: headerRow.filter(Boolean), rows: [] };
@@ -117,15 +153,5 @@ export function parseTabularUpload(opts: {
   return { ...parseCsv(opts.content), format: "csv" };
 }
 
-/** Rebuild CSV text from rows (for hashing / preview paste). */
-export function rowsToCsv(headers: string[], rows: RawRow[]): string {
-  const esc = (v: string) => {
-    if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
-    return v;
-  };
-  const lines = [headers.map(esc).join(",")];
-  for (const row of rows) {
-    lines.push(headers.map((h) => esc(row[h] ?? "")).join(","));
-  }
-  return lines.join("\n");
-}
+// re-export for server callers that historically imported from spreadsheet
+export { rowsToCsv };

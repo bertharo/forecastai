@@ -2,23 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FileDropZone } from "@/components/FileDropZone";
 
 export function RosterImport() {
   const router = useRouter();
-  const [csv, setCsv] = useState("");
-  const [fileName, setFileName] = useState("");
+  const [payload, setPayload] = useState<{
+    fileName: string;
+    content?: string;
+    base64?: string;
+  } | null>(null);
+  const [previewText, setPreviewText] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ row: number; message: string }[]>([]);
 
-  async function onFile(file: File) {
-    setCsv(await file.text());
-    setFileName(file.name);
-    setMsg(null);
-    setErrors([]);
-  }
-
   async function importRoster() {
+    if (!payload) return;
     setBusy(true);
     setMsg(null);
     setErrors([]);
@@ -26,10 +25,15 @@ export function RosterImport() {
       const res = await fetch("/api/roster", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ csv }),
+        body: JSON.stringify({
+          csv: payload.content,
+          content: payload.content,
+          base64: payload.base64,
+          fileName: payload.fileName,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
+      if (!res.ok) throw new Error(data.message || data.error || "Import failed");
 
       const errList = (data.errors ?? []) as { row: number; message: string }[];
       setErrors(errList);
@@ -39,8 +43,8 @@ export function RosterImport() {
           `Added ${data.upserted} people` +
             (data.skipped ? ` · skipped ${data.skipped}` : "")
         );
-        setCsv("");
-        setFileName("");
+        setPayload(null);
+        setPreviewText("");
         router.refresh();
       } else {
         setMsg(
@@ -60,55 +64,90 @@ export function RosterImport() {
       <div>
         <h2 className="text-[15px] font-semibold">People</h2>
         <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-          Upload employees with email (or Project worker) + department / cost-center chain.
-          Headers can be any case. We join spend on email.
+          Upload people as CSV or Excel. We join spend on <strong>Email</strong>. Cost center
+          chain levels map department + cost center automatically.
         </p>
       </div>
+      <FileDropZone
+        disabled={busy}
+        className="min-h-[100px]"
+        label={
+          payload?.fileName
+            ? `Ready: ${payload.fileName}`
+            : "Drop a CSV or Excel file here, or click to browse"
+        }
+        onFile={async (u) => {
+          setMsg(null);
+          setErrors([]);
+          setPayload({
+            fileName: u.fileName,
+            content: u.content,
+            base64: u.base64,
+          });
+          if (u.content) {
+            setPreviewText(u.content);
+          } else {
+            setPreviewText(
+              `(Excel file “${u.fileName}” — ${Math.round((u.file.size / 1024) * 10) / 10} KB)\nColumns will be read from the first sheet on upload.`
+            );
+          }
+        }}
+      />
       <div className="flex flex-wrap gap-2">
-        <label className="btn cursor-pointer text-[13px]">
-          Choose spreadsheet
-          <input
-            type="file"
-            accept=".csv,text/csv,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onFile(f);
-            }}
-          />
-        </label>
-        <a className="btn btn-ghost text-[13px]" href="/fixtures/hris-roster.csv">
-          Download example
-        </a>
         <a
           className="btn btn-ghost text-[13px]"
           href="/fixtures/people-cost-center-chain.csv"
         >
-          Cost-center chain example
+          Download example
+        </a>
+        <a className="btn btn-ghost text-[13px]" href="/fixtures/hris-roster.csv">
+          Simple roster example
+        </a>
+        <a
+          className="btn btn-ghost text-[13px]"
+          href="/fixtures/people-cost-center-chain.xlsx"
+        >
+          Excel example
         </a>
       </div>
       <details className="text-[12px]" style={{ color: "var(--muted)" }}>
         <summary className="cursor-pointer">What columns do I need?</summary>
         <p className="mt-2">
-          Required: <strong>email</strong> or <strong>Project worker</strong> (must be an
-          email). Optional: department, or Cost Center Chain levels 02–07 (any case).
-          Deepest chain level → cost center; level 04/03 → department.
+          Required: <strong>Email</strong> (or <strong>Project Worker</strong> if it contains
+          the email). Optional: Project Worker as display name, plus Cost Center Chain levels
+          02–07. Level 04 → department; deepest filled level → cost center. Excel: first sheet
+          only.
         </p>
-        <p className="mt-1 mono text-[11px]">
-          Project worker, Cost Center Chain - Level 02 … Level 07
-        </p>
+        <pre className="mono mt-2 overflow-x-auto text-[11px]" style={{ color: "var(--fg)" }}>
+{`Email
+Project Worker
+Cost Center Chain - Level 02
+Cost Center Chain - Level 03
+Cost Center Chain - Level 04
+Cost Center Chain - Level 05
+Cost Center Chain - Level 06
+Cost Center Chain - Level 07`}
+        </pre>
       </details>
-      {fileName && (
+      {payload && (
         <p className="text-[13px]">
-          Ready: <strong>{fileName}</strong>
+          Ready: <strong>{payload.fileName}</strong>
         </p>
       )}
-      {csv.trim() && (
+      {previewText.trim() && (
         <>
           <textarea
             className="input min-h-[100px] w-full font-mono text-[12px]"
-            value={csv}
-            onChange={(e) => setCsv(e.target.value)}
+            value={previewText}
+            onChange={(e) => {
+              setPreviewText(e.target.value);
+              setPayload((p) =>
+                p
+                  ? { fileName: p.fileName, content: e.target.value, base64: undefined }
+                  : { fileName: "roster.csv", content: e.target.value }
+              );
+            }}
+            readOnly={Boolean(payload?.base64)}
           />
           <button
             type="button"
@@ -120,9 +159,9 @@ export function RosterImport() {
           </button>
         </>
       )}
-      {!csv.trim() && (
+      {!previewText.trim() && (
         <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-          Choose a CSV to preview — nothing uploads until you confirm.
+          Choose a CSV or Excel file to preview — nothing uploads until you confirm.
         </p>
       )}
       {msg && (

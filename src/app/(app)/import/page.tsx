@@ -5,6 +5,7 @@ import Link from "next/link";
 import { IMPORT_TARGETS } from "@/lib/import/parse";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
 import { RosterImport } from "@/components/RosterImport";
+import { isExcelFileName, readUploadPayload } from "@/lib/import/uploadClient";
 
 type Template = {
   id: string;
@@ -111,6 +112,7 @@ export default function ImportPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [fileName, setFileName] = useState("");
   const [content, setContent] = useState("");
+  const [base64, setBase64] = useState<string | undefined>(undefined);
   const [headers, setHeaders] = useState<string[]>([]);
   const [preview, setPreview] = useState<Record<string, string>[]>([]);
   const [rowCount, setRowCount] = useState(0);
@@ -138,9 +140,10 @@ export default function ImportPage() {
   const onFile = async (file: File) => {
     setMessage(null);
     setErrors([]);
-    const text = await file.text();
-    setFileName(file.name);
-    setContent(text);
+    const payload = await readUploadPayload(file);
+    setFileName(payload.fileName);
+    setContent(payload.content ?? "");
+    setBase64(payload.base64);
     const kind = file.name.endsWith(".jsonl")
       ? "jsonl"
       : sourceKind === "invoice"
@@ -154,9 +157,10 @@ export default function ImportPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           action: "preview",
-          fileName: file.name,
-          content: text,
-          sourceKind: kind,
+          fileName: payload.fileName,
+          content: payload.content,
+          base64: payload.base64,
+          sourceKind: isExcelFileName(payload.fileName) ? "excel" : kind,
         }),
       });
       const data = await res.json();
@@ -243,7 +247,11 @@ export default function ImportPage() {
           "tags.seat_status": ["seat_status"],
         };
         for (const [target, keys] of Object.entries(guesses)) {
-          // Prefer a column that actually exists in this file
+          // Keep template literals (e.g. meter=_literal:input_tokens) unless a real column matches
+          if (next[target]?.startsWith("_literal:")) {
+            const hasReal = keys.some((k) => byLower[k]);
+            if (!hasReal) continue;
+          }
           for (const k of keys) {
             if (byLower[k]) {
               next[target] = byLower[k];
@@ -416,8 +424,9 @@ export default function ImportPage() {
         body: JSON.stringify({
           action: "import",
           fileName,
-          content,
-          sourceKind,
+          content: content || undefined,
+          base64,
+          sourceKind: isExcelFileName(fileName) ? "excel" : sourceKind,
           columnMap,
           mappingTemplateId: templateId || null,
         }),
@@ -704,8 +713,11 @@ export default function ImportPage() {
             <div>
               <h2 className="text-[15px] font-semibold">Bills & usage</h2>
               <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-                Drop an Anthropic / OpenAI export or a seat invoice. We’ll guess the columns;
-                fix anything that looks wrong before uploading.
+                Preferred telemetry columns:{" "}
+                <span className="mono text-[12px]" style={{ color: "var(--fg)" }}>
+                  email, month, ai_tool, model, total_tokens, total_spend_dollars
+                </span>
+                . Also accepts Anthropic / OpenAI exports and seat invoices (CSV or Excel).
               </p>
             </div>
 
@@ -721,7 +733,7 @@ export default function ImportPage() {
               onClick={() => document.getElementById("import-file")?.click()}
             >
               <div className="text-[15px] font-medium" style={{ color: "var(--fg)" }}>
-                {fileName || "Drop a CSV here, or click to browse"}
+                {fileName || "Drop a CSV or Excel file here, or click to browse"}
               </div>
               {rowCount > 0 && (
                 <div>
@@ -757,7 +769,7 @@ export default function ImportPage() {
             <input
               id="import-file"
               type="file"
-              accept=".csv,.jsonl,.txt"
+              accept=".csv,.jsonl,.txt,.xlsx,.xls,.xlsm,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
