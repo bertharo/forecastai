@@ -1,4 +1,4 @@
-import { LoadSampleButton } from "@/components/LoadSampleButton";
+import { ClearSampleButton, LoadSampleButton } from "@/components/LoadSampleButton";
 import { getCurrentOrg, getOrgById } from "@/lib/queries/org";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
@@ -25,14 +25,17 @@ export default async function SettingsPage() {
         <h2 className="text-[15px] font-semibold">Sample data</h2>
         <p className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
           {sampleActive
-            ? "This workspace is showing the clean sample pack. Resetting replaces all spend, roster, keys, and uploads again."
-            : "Load or reset the deterministic sample pack. This replaces all spend, roster, keys, and past uploads in this workspace."}
+            ? "Sample pack is active. Clear it before uploading your own people or spend files, or reset to reload the clean pack."
+            : "Load the deterministic sample pack, or clear an existing one. These actions replace FinOps spend, roster, keys, and past uploads."}
         </p>
-        <LoadSampleButton
-          label="Reset to clean sample"
-          className="btn btn-ghost"
-          replaceExisting
-        />
+        <div className="flex flex-wrap gap-2">
+          {sampleActive && <ClearSampleButton />}
+          <LoadSampleButton
+            label="Reset to clean sample"
+            className="btn btn-ghost"
+            replaceExisting
+          />
+        </div>
       </div>
 
       <div className="panel space-y-3 p-4">
