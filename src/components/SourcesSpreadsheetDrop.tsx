@@ -6,6 +6,16 @@ import Link from "next/link";
 import { FileDropZone, type DroppedUpload } from "@/components/FileDropZone";
 import { looksLikeTelemetryHeaders } from "@/lib/import/telemetry";
 import { normalizeHeaderKey } from "@/lib/import/telemetry";
+import {
+  parseCsv,
+  computeContentHash,
+  chunkRowsByBytes,
+  rowsToCsv,
+  safeJsonResponse,
+  type RawRow,
+} from "@/lib/import/uploadClient";
+
+const CHUNK_RETRY_LIMIT = 2;
 
 function looksLikePeopleHeaders(headers: string[]): boolean {
   const lower = new Set(headers.map(normalizeHeaderKey));
@@ -85,41 +95,201 @@ export function SourcesSpreadsheetDrop() {
   const [err, setErr] = useState(false);
   const [sampleBlocked, setSampleBlocked] = useState(false);
   const [pending, setPending] = useState<DroppedUpload | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
-  async function importUpload(upload: DroppedUpload) {
-    const previewRes = await fetch("/api/import", {
+  /**
+   * CSV spend files never send the whole file in one request — the file is
+   * parsed locally and pushed as small byte-capped chunks, mirroring
+   * src/app/(app)/import/page.tsx's runChunkedImport. A single whole-file
+   * POST (the old approach) reliably 413s on real-world spend exports once
+   * they cross Vercel's platform request-size limit.
+   */
+  async function importSpendChunked(
+    upload: DroppedUpload,
+    headers: string[],
+    rows: RawRow[]
+  ) {
+    const contentHash = await computeContentHash(headers, rows);
+    const dupRes = await fetch("/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "checkDuplicate", contentHash }),
+    });
+    const dupData = await safeJsonResponse(dupRes);
+    if (dupData.duplicateBatchId) {
+      throw new Error(
+        "This file was already uploaded. Undo it under Import → Past uploads if you want to try again."
+      );
+    }
+
+    const columnMap = guessColumnMap(headers);
+    const startRes = await fetch("/api/import", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        action: "preview",
+        action: "startBatch",
         fileName: upload.fileName,
-        content: upload.content,
-        base64: upload.base64,
-        sourceKind: upload.base64 ? "excel" : "csv",
+        contentHash,
+        rowCount: rows.length,
+        sourceKind: "csv",
       }),
     });
-    const preview = await previewRes.json();
-    if (!previewRes.ok) {
-      throw new Error(preview.error || "Could not read file");
+    const startData = await safeJsonResponse(startRes);
+    if (!startRes.ok) {
+      const e = new Error(
+        (startData.message as string) || (startData.error as string) || "Upload failed to start"
+      ) as Error & { code?: string };
+      e.code = startData.error as string | undefined;
+      throw e;
     }
-    const headers: string[] = preview.headers ?? [];
+    const batchId = startData.batchId as string;
+
+    const chunks = chunkRowsByBytes(headers, rows);
+    let written = 0;
+    let errored = 0;
+    let rowsDone = 0;
+    setProgress({ done: 0, total: rows.length });
+
+    try {
+      for (const chunk of chunks) {
+        const chunkContent = rowsToCsv(headers, chunk);
+        let chunkResult: Record<string, unknown> | null = null;
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt <= CHUNK_RETRY_LIMIT && !chunkResult; attempt++) {
+          try {
+            const res = await fetch("/api/import", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                action: "importChunk",
+                batchId,
+                content: chunkContent,
+                columnMap,
+                sourceKind: "csv",
+              }),
+            });
+            const data = await safeJsonResponse(res);
+            if (!res.ok) throw new Error((data.error as string) || "Chunk upload failed");
+            chunkResult = data;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        if (!chunkResult) {
+          throw lastErr instanceof Error ? lastErr : new Error("Chunk upload failed after retries");
+        }
+        written += Number(chunkResult.written ?? 0);
+        errored += Number(chunkResult.errored ?? 0);
+        rowsDone += chunk.length;
+        setProgress({ done: rowsDone, total: rows.length });
+      }
+    } catch (e) {
+      await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "finishBatch", batchId }),
+      }).catch(() => {});
+      throw e instanceof Error ? e : new Error(String(e));
+    } finally {
+      setProgress(null);
+    }
+
+    const finishRes = await fetch("/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "finishBatch", batchId }),
+    });
+    const finishData = await safeJsonResponse(finishRes);
+    setMsg(
+      `Imported ${finishData.written ?? written} spend rows from ${upload.fileName}` +
+        (Number(finishData.errored ?? errored) ? ` · ${finishData.errored ?? errored} problems` : "")
+    );
+    router.refresh();
+  }
+
+  async function importUpload(upload: DroppedUpload) {
+    if (upload.base64) {
+      // Excel: single-file path (chunking needs a browser xlsx parser —
+      // out of scope; see src/app/(app)/import/page.tsx for the rationale).
+      const previewRes = await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "preview",
+          fileName: upload.fileName,
+          base64: upload.base64,
+          sourceKind: "excel",
+        }),
+      });
+      const preview = await safeJsonResponse(previewRes);
+      if (!previewRes.ok) {
+        throw new Error((preview.error as string) || "Could not read file");
+      }
+      const headers: string[] = (preview.headers as string[]) ?? [];
+
+      if (looksLikePeopleHeaders(headers)) {
+        const res = await fetch("/api/roster", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ base64: upload.base64, fileName: upload.fileName }),
+        });
+        const data = await safeJsonResponse(res);
+        if (!res.ok) {
+          const err = new Error(
+            (data.message as string) || (data.error as string) || "People import failed"
+          ) as Error & { code?: string };
+          err.code = data.error as string | undefined;
+          throw err;
+        }
+        setMsg(`Added ${data.upserted} people from ${upload.fileName}`);
+        router.refresh();
+        return;
+      }
+
+      const columnMap = guessColumnMap(headers);
+      const res = await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "import",
+          fileName: upload.fileName,
+          base64: upload.base64,
+          sourceKind: "excel",
+          columnMap,
+        }),
+      });
+      const data = await safeJsonResponse(res);
+      if (!res.ok) {
+        const err = new Error(
+          (data.message as string) || (data.error as string) || "Spend import failed"
+        ) as Error & { code?: string };
+        err.code = data.error as string | undefined;
+        throw err;
+      }
+      setMsg(
+        `Imported ${data.written ?? 0} spend rows from ${upload.fileName}` +
+          (data.errored ? ` · ${data.errored} problems` : "")
+      );
+      router.refresh();
+      return;
+    }
+
+    // CSV: parse locally so headers/people-vs-spend detection never sends
+    // the whole file in a request.
+    const { headers, rows } = parseCsv(upload.content ?? "");
 
     if (looksLikePeopleHeaders(headers)) {
       const res = await fetch("/api/roster", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          content: upload.content,
-          base64: upload.base64,
-          fileName: upload.fileName,
-        }),
+        body: JSON.stringify({ content: upload.content, fileName: upload.fileName }),
       });
-      const data = await res.json();
+      const data = await safeJsonResponse(res);
       if (!res.ok) {
-        const err = new Error(data.message || data.error || "People import failed") as Error & {
-          code?: string;
-        };
-        err.code = data.error;
+        const err = new Error(
+          (data.message as string) || (data.error as string) || "People import failed"
+        ) as Error & { code?: string };
+        err.code = data.error as string | undefined;
         throw err;
       }
       setMsg(`Added ${data.upserted} people from ${upload.fileName}`);
@@ -127,32 +297,7 @@ export function SourcesSpreadsheetDrop() {
       return;
     }
 
-    const columnMap = guessColumnMap(headers);
-    const res = await fetch("/api/import", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        action: "import",
-        fileName: upload.fileName,
-        content: upload.content,
-        base64: upload.base64,
-        sourceKind: upload.base64 ? "excel" : "csv",
-        columnMap,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data.message || data.error || "Spend import failed") as Error & {
-        code?: string;
-      };
-      err.code = data.error;
-      throw err;
-    }
-    setMsg(
-      `Imported ${data.written ?? 0} spend rows from ${upload.fileName}` +
-        (data.errored ? ` · ${data.errored} problems` : "")
-    );
-    router.refresh();
+    await importSpendChunked(upload, headers, rows);
   }
 
   async function onFile(upload: DroppedUpload) {
@@ -216,7 +361,13 @@ export function SourcesSpreadsheetDrop() {
       </div>
       <FileDropZone
         disabled={busy}
-        label={busy ? "Uploading…" : "Drop a CSV or Excel file here, or click to browse"}
+        label={
+          progress
+            ? `Uploading… ${progress.done.toLocaleString()} of ${progress.total.toLocaleString()} rows`
+            : busy
+              ? "Uploading…"
+              : "Drop a CSV or Excel file here, or click to browse"
+        }
         hint="We’ll detect people vs spend from the headers."
         onFile={onFile}
       />
