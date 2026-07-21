@@ -134,8 +134,9 @@ export async function getAllocationPct(
     allocated,
     totalSpend,
     allocatedSpend,
-    // Spend-weighted: $ allocated / $ total (not row count)
-    allocatedPct: totalSpend > 0 ? allocatedSpend / totalSpend : 1,
+    // Spend-weighted: $ allocated / $ total (not row count).
+    // No spend in window means no allocation signal, not "fully allocated".
+    allocatedPct: totalSpend > 0 ? allocatedSpend / totalSpend : 0,
   };
 }
 
@@ -165,7 +166,7 @@ export async function getAllocationTrend(
     const totalSpend = Number(r.totalSpend) || 0;
     return {
       day: String(r.day),
-      allocatedPct: totalSpend > 0 ? Number(r.allocatedSpend) / totalSpend : 1,
+      allocatedPct: totalSpend > 0 ? Number(r.allocatedSpend) / totalSpend : 0,
     };
   });
 }

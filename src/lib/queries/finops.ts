@@ -93,7 +93,7 @@ export async function getAttributionCoverage(
   const allocatedSpend = Number(data?.allocated_spend ?? 0);
 
   return {
-    allocatedPct: totalSpend > 0 ? allocatedSpend / totalSpend : 1,
+    allocatedPct: totalSpend > 0 ? allocatedSpend / totalSpend : 0,
     totalSpend,
     allocatedSpend,
     joinedEmailSpend: Number(data?.joined_email_spend ?? 0),

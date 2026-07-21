@@ -41,6 +41,7 @@ export type BudgetStatus = {
   name: string;
   status: "ok" | "warn" | "projected-breach" | "exceeded";
   policyAction: BudgetPolicyAction | null;
+  policyThresholdPct: number | null;
   recommendedModel: string | null;
   amount: number;
   spent: number;
@@ -145,7 +146,7 @@ function pickPolicy(
   usedPct: number,
   projectedPct: number,
   policy: BudgetPolicyRule[]
-): { action: BudgetPolicyAction | null; recommendedModel: string | null } {
+): { action: BudgetPolicyAction | null; recommendedModel: string | null; thresholdPct: number | null } {
   const effective = Math.max(usedPct, projectedPct);
   const sorted = [...policy].sort((a, b) => b.pct - a.pct);
   for (const rule of sorted) {
@@ -153,10 +154,11 @@ function pickPolicy(
       return {
         action: rule.action,
         recommendedModel: rule.recommendedModel ?? null,
+        thresholdPct: rule.pct,
       };
     }
   }
-  return { action: null, recommendedModel: null };
+  return { action: null, recommendedModel: null, thresholdPct: null };
 }
 
 export async function computeBudgetStatus(
@@ -228,13 +230,14 @@ export async function computeBudgetStatus(
   const usedPct = amount > 0 ? spent / amount : 0;
   const projectedPct = amount > 0 ? projectedP50 / amount : 0;
 
+  const rules = policy?.length ? policy : defaultPolicy(budget.thresholds ?? []);
+  const { action, recommendedModel, thresholdPct } = pickPolicy(usedPct, projectedPct, rules);
+
   let status: BudgetStatus["status"] = "ok";
   if (usedPct >= 1) status = "exceeded";
-  else if (breachDate && projectedPct >= 1) status = "projected-breach";
-  else if (usedPct >= 0.8 || projectedPct >= 0.8) status = "warn";
-
-  const rules = policy?.length ? policy : defaultPolicy(budget.thresholds ?? []);
-  const { action, recommendedModel } = pickPolicy(usedPct, projectedPct, rules);
+  else if (thresholdPct != null) {
+    status = breachDate && projectedPct >= thresholdPct ? "projected-breach" : "warn";
+  }
 
   // Burn-down series for current month
   const mtdDaily = await dailyScopedSpend(budget.orgId, {
@@ -282,6 +285,7 @@ export async function computeBudgetStatus(
     name: budget.name,
     status,
     policyAction: action,
+    policyThresholdPct: thresholdPct,
     recommendedModel,
     amount,
     spent,
@@ -350,7 +354,7 @@ export async function refreshBudgetSnapshots(orgId: string): Promise<BudgetStatu
 
     // Fire threshold alerts (dedupe by threshold for current day)
     if (status.policyAction && (status.status === "warn" || status.status === "projected-breach" || status.status === "exceeded")) {
-      const thresh = status.status === "exceeded" ? 1 : 0.8;
+      const thresh = status.status === "exceeded" ? 1 : (status.policyThresholdPct ?? 0.8);
       const today = new Date().toISOString().slice(0, 10);
       const existing = await db
         .select()

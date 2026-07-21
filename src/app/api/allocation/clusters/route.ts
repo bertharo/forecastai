@@ -29,7 +29,7 @@ export async function GET() {
       providerName: r.providerName,
       total: Number(r.total),
       allocated: Number(r.allocated),
-      allocatedPct: Number(r.total) ? Number(r.allocated) / Number(r.total) : 1,
+      allocatedPct: Number(r.total) ? Number(r.allocated) / Number(r.total) : 0,
       spend: Number(r.spend),
     })),
   });

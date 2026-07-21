@@ -287,6 +287,7 @@ export async function getBriefFacts(
         and b.email <> ''
       left join provider_key_registry pkr
         on pkr.org_id = ${orgId}::uuid
+        and pkr.provider_id = b.provider_id
         and pkr.kind = 'api_key'
         and pkr.external_id = b.api_key
         and b.api_key <> ''
@@ -367,6 +368,7 @@ export async function getBriefFacts(
       with base as (
         select
           cr.effective_cost::numeric as spend,
+          cr.provider_id,
           lower(trim(coalesce(cr.tags->>'email', cr.tags->>'user_email', ''))) as email,
           coalesce(nullif(trim(cr.tags->>'api_key'), ''), nullif(trim(cr.tags->>'apiKey'), ''), '') as api_key
         from cost_records cr
@@ -396,6 +398,7 @@ export async function getBriefFacts(
           and b.email <> ''
         left join provider_key_registry pkr
           on pkr.org_id = ${orgId}::uuid
+          and pkr.provider_id = b.provider_id
           and pkr.kind = 'api_key'
           and pkr.external_id = b.api_key
           and b.api_key <> ''

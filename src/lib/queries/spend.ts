@@ -213,20 +213,35 @@ export async function getSpendSummary(
     );
   }
   const vals = [...dayTotals.values()];
-  const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-  const anomalies = [...dayTotals.entries()]
-    .filter(([, v]) => mean > 0 && v > mean * 2)
-    .map(([day, amount]) => ({ day, amount, vsBaseline: amount / mean }))
-    .slice(-5);
+  const total = vals.reduce((a, b) => a + b, 0);
+  const MIN_ANOMALY_SAMPLE_DAYS = 5;
+  // Baseline excludes the day being tested so a single large day can't dilute
+  // its own comparison mean.
+  const anomalies =
+    vals.length >= MIN_ANOMALY_SAMPLE_DAYS
+      ? [...dayTotals.entries()]
+          .map(([day, amount]) => {
+            const baselineMean = (total - amount) / (vals.length - 1);
+            return { day, amount, vsBaseline: baselineMean > 0 ? amount / baselineMean : 0, baselineMean };
+          })
+          .filter((a) => a.baselineMean > 0 && a.amount > a.baselineMean * 2)
+          .map(({ day, amount, vsBaseline }) => ({ day, amount, vsBaseline }))
+          .slice(-5)
+      : [];
 
   const trailingAmt = Number(trailing.effective);
   const trailingValue = Number(trailing.value);
-  const runRate = (trailingAmt / 30) * (365 / 12);
+  const trailingDays = Math.max(
+    1,
+    (trailingEnd.getTime() - trailingStart.getTime()) / (24 * 60 * 60 * 1000)
+  );
+  const runRate = (trailingAmt / trailingDays) * (365 / 12);
 
   const totalSpendAlloc = Number(alloc.totalSpend) || 0;
   const allocatedSpend = Number(alloc.allocatedSpend) || 0;
+  // No spend in window means no allocation signal, not "fully allocated".
   const allocatedPct =
-    totalSpendAlloc > 0 ? allocatedSpend / totalSpendAlloc : 1;
+    totalSpendAlloc > 0 ? allocatedSpend / totalSpendAlloc : 0;
 
   const [budget] = await db
     .select()
@@ -279,7 +294,7 @@ export async function getSpendSummary(
           name: budget.name,
           amount: Number(budget.amount),
           period: budget.period as "monthly" | "quarterly" | "annual",
-          mtdPct: Number(mtd.effective) / Number(budget.amount),
+          mtdPct: Number(budget.amount) > 0 ? Number(mtd.effective) / Number(budget.amount) : 0,
         }
       : null,
   };

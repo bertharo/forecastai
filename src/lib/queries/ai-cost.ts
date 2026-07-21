@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
+import { and, eq, gte, lt, lte, sql, desc } from "drizzle-orm";
 import { computeMetric, type MetricResult } from "@/lib/metrics/compute";
 import {
   needsCodingToolImportProjection,
@@ -114,18 +114,34 @@ export async function getAiCostSummary(
     .groupBy(s.aiToolDaily.day, s.aiToolDaily.toolKey)
     .orderBy(s.aiToolDaily.day);
 
+  const prWhere = and(
+    eq(s.pullRequests.orgId, orgId),
+    gte(s.pullRequests.mergedAt, period.start),
+    lt(s.pullRequests.mergedAt, period.end),
+    sql`${s.pullRequests.mergedAt} is not null`
+  );
+
   const [prAgg] = await db
     .select({
       merged: sql<string>`count(*)`,
     })
     .from(s.pullRequests)
-    .where(
-      and(
-        eq(s.pullRequests.orgId, orgId),
-        gte(s.pullRequests.mergedAt, new Date(from)),
-        sql`${s.pullRequests.mergedAt} is not null`
-      )
-    );
+    .where(prWhere);
+
+  const prByTeam = await db
+    .select({
+      nodeId: s.contributors.dimensionNodeId,
+      merged: sql<string>`count(*)`,
+    })
+    .from(s.pullRequests)
+    .innerJoin(s.contributors, eq(s.pullRequests.authorContributorId, s.contributors.id))
+    .where(prWhere)
+    .groupBy(s.contributors.dimensionNodeId);
+
+  const mergedPrsByTeam = new Map<string, number>();
+  for (const r of prByTeam) {
+    if (r.nodeId) mergedPrsByTeam.set(r.nodeId, Number(r.merged));
+  }
 
   const spend = Number(agg?.spend ?? 0);
   const mergedPrs = Number(prAgg?.merged ?? 0);
@@ -175,16 +191,16 @@ export async function getAiCostSummary(
       spend: Number(r.spend),
       tokens: Number(r.tokens),
     })),
-    byTeam: byTeam.map((r) => ({
-      nodeId: r.nodeId,
-      team: r.team,
-      spend: Number(r.spend),
-      tokens: Number(r.tokens),
-      costPerPr:
-        mergedPrs > 0 && Number(r.spend) > 0
-          ? Number(r.spend) / Math.max(1, mergedPrs) // rough; refined below if needed
-          : 0,
-    })),
+    byTeam: byTeam.map((r) => {
+      const teamMergedPrs = mergedPrsByTeam.get(r.nodeId) ?? 0;
+      return {
+        nodeId: r.nodeId,
+        team: r.team,
+        spend: Number(r.spend),
+        tokens: Number(r.tokens),
+        costPerPr: teamMergedPrs > 0 ? Number(r.spend) / teamMergedPrs : 0,
+      };
+    }),
     daily: daily.map((r) => ({
       day: String(r.day),
       toolKey: r.toolKey,
