@@ -65,12 +65,34 @@ export async function computeContentHash(headers: string[], rows: RawRow[]): Pro
   return sha256Hex(rowsToCsv(headers, rows));
 }
 
-export function chunkRows(rows: RawRow[], size = 2000): RawRow[][] {
-  const out: RawRow[][] = [];
-  for (let i = 0; i < rows.length; i += size) {
-    out.push(rows.slice(i, i + size));
+/**
+ * Splits rows into chunks capped by *serialized byte size*, not a fixed row
+ * count — a fixed row count silently breaks down for wide real-world CSVs
+ * (many columns, long values): a fixed 2000-row chunk that's fine for a
+ * narrow 6-column export can still exceed the platform's request-size limit
+ * for a wider one. maxBytes defaults to 500KB, ~9x headroom under Vercel's
+ * ~4.5MB request body ceiling even after JSON-string escaping overhead.
+ */
+export function chunkRowsByBytes(
+  headers: string[],
+  rows: RawRow[],
+  maxBytes = 500_000
+): RawRow[][] {
+  const chunks: RawRow[][] = [];
+  let current: RawRow[] = [];
+  let currentBytes = 0;
+  for (const row of rows) {
+    const rowBytes = rowsToCsv(headers, [row]).length + 1;
+    if (current.length > 0 && currentBytes + rowBytes > maxBytes) {
+      chunks.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(row);
+    currentBytes += rowBytes;
   }
-  return out;
+  if (current.length > 0) chunks.push(current);
+  return chunks;
 }
 
 /** Rebuild CSV text from rows (preview paste / client hashing). */

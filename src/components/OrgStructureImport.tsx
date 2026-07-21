@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { safeJsonResponse } from "@/lib/import/uploadClient";
 
 type PreviewNode = {
   key: string;
@@ -42,7 +43,13 @@ export function OrgStructureImport({ bare }: { bare?: boolean } = { bare: false 
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action, csv }),
       });
-      const data = await res.json();
+      const data = (await safeJsonResponse(res)) as {
+        ok: boolean;
+        errors: string[];
+        nodes: PreviewNode[];
+        adapterContract?: string;
+        error?: string;
+      };
       if (!res.ok) {
         setPreview(data);
         throw new Error(data.error || "Request failed");

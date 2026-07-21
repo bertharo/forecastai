@@ -7,7 +7,7 @@ import { OrgStructureImport } from "@/components/OrgStructureImport";
 import { RosterImport } from "@/components/RosterImport";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
-  chunkRows,
+  chunkRowsByBytes,
   computeContentHash,
   isExcelFileName,
   parseCsv,
@@ -173,7 +173,11 @@ export default function ImportPage() {
         : "csv";
     setSourceKind(kind);
     const isExcel = isExcelFileName(payload.fileName);
-    const chunkedEligible = !isExcel && kind === "csv";
+    // Chunking applies to any plain-text tabular upload (usage CSV or
+    // invoice/seats CSV) — only binary Excel and JSONL keep the single-POST
+    // path. Gating this on kind === "csv" alone used to send invoice/seats
+    // CSVs through the whole-file path regardless of size.
+    const chunkedEligible = !isExcel && kind !== "jsonl";
     setUseChunkedUpload(chunkedEligible);
     setBusy(true);
     try {
@@ -610,6 +614,7 @@ export default function ImportPage() {
           contentHash: uploadHash,
           rowCount: parsedRows.length,
           mappingTemplateId: templateId || null,
+          sourceKind,
         }),
       });
       const startData = await safeJsonResponse(startRes);
@@ -629,7 +634,7 @@ export default function ImportPage() {
       }
       batchId = startData.batchId as string;
 
-      const chunks = chunkRows(parsedRows, 2000);
+      const chunks = chunkRowsByBytes(headers, parsedRows);
       let written = 0;
       let skipped = 0;
       let errored = 0;
@@ -649,7 +654,7 @@ export default function ImportPage() {
                 batchId,
                 content: chunkContent,
                 columnMap,
-                sourceKind: "csv",
+                sourceKind,
               }),
             });
             const data = await safeJsonResponse(res);

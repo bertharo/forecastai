@@ -107,11 +107,12 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
+    const chunkSourceKind = body.sourceKind === "invoice" ? "invoice" : "csv";
     const [batch] = await db
       .insert(s.importBatches)
       .values({
         orgId: org.id,
-        sourceKind: "csv",
+        sourceKind: chunkSourceKind,
         fileName: body.fileName,
         contentHash: body.contentHash,
         mappingTemplateId: body.mappingTemplateId || null,
@@ -145,12 +146,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const chunkSourceKind = body.sourceKind === "invoice" ? "invoice" : "csv";
     let parsed: { headers: string[]; rows: ReturnType<typeof parseTabularUpload>["rows"] };
     try {
       parsed = parseTabularUpload({
         fileName: batch.fileName,
         content: body.content,
-        sourceKind: "csv",
+        sourceKind: chunkSourceKind,
       });
     } catch (e) {
       return NextResponse.json(
@@ -164,7 +166,7 @@ export async function POST(req: NextRequest) {
       batchId: batch.id,
       rows: parsed.rows,
       columnMap: body.columnMap ?? {},
-      sourceKind: "csv",
+      sourceKind: chunkSourceKind,
       skipProjection: true,
     });
 
