@@ -10,11 +10,17 @@ import { resolveDashboardPeriod } from "@/lib/queries/period";
 
 export async function getAiCostSummary(
   orgId: string,
-  opts?: { days?: number; teamNodeId?: string | null; toolKey?: string | null }
+  opts?: {
+    days?: number;
+    teamNodeId?: string | null;
+    toolKey?: string | null;
+    asOf?: Date;
+  }
 ) {
   const days = opts?.days ?? 30;
-  // Same grain-aware window as Brief / FinOps.
-  const period = await resolveDashboardPeriod(orgId, days);
+  // Same grain-aware window as Brief / FinOps, anchored at asOf when given
+  // (e.g. "as of last month") instead of the current moment.
+  const period = await resolveDashboardPeriod(orgId, days, opts?.asOf ?? new Date());
   const from = period.start.toISOString().slice(0, 10);
   const to = new Date(period.end.getTime() - 1).toISOString().slice(0, 10);
 
@@ -169,13 +175,31 @@ export async function getAiCostSummary(
     filters: { days: String(days) },
   });
 
+  const activeContributors = Number(agg?.contributors ?? 0);
+  const avgSpendPerUserMetric = computeMetric({
+    formula: "AI spend ÷ active contributors",
+    value: activeContributors > 0 ? spend / activeContributors : 0,
+    inputs: [
+      { name: "ai_spend", value: spend, unit: "USD" },
+      { name: "active_contributors", value: activeContributors, unit: "users" },
+    ],
+    window: { from, to },
+    filters: {
+      days: String(days),
+      ...(opts?.toolKey ? { tool: opts.toolKey } : {}),
+      ...(opts?.teamNodeId ? { team: opts.teamNodeId } : {}),
+    },
+    notes: activeContributors === 0 ? ["No active contributors in window"] : undefined,
+  });
+
   return {
     from,
     to,
     spend: spendMetric,
     tokens: Number(agg?.tokens ?? 0),
     sessions: Number(agg?.sessions ?? 0),
-    activeContributors: Number(agg?.contributors ?? 0),
+    activeContributors,
+    avgSpendPerUser: avgSpendPerUserMetric,
     costPerPr: costPerPrMetric,
     mergedPrs,
     byTool: byTool.map((r) => ({

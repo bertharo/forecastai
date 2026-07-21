@@ -28,9 +28,11 @@ export default async function AiCostPage({
   const days = Number(typeof sp.days === "string" ? sp.days : 30);
   const tool = typeof sp.tool === "string" ? sp.tool : null;
   const team = typeof sp.team === "string" ? sp.team : null;
+  const asOfParam = typeof sp.asOf === "string" ? sp.asOf : null;
+  const asOf = asOfParam ? new Date(`${asOfParam}T00:00:00.000Z`) : undefined;
 
   const [summary, overlaps, nodes] = await Promise.all([
-    getAiCostSummary(org.id, { days, toolKey: tool, teamNodeId: team }),
+    getAiCostSummary(org.id, { days, toolKey: tool, teamNodeId: team, asOf }),
     findOverlappingAiSources(org.id, days),
     getDimensionNodes(org.id),
   ]);
@@ -63,7 +65,12 @@ export default async function AiCostPage({
 
       <AiCostActions days={days} tools={summary.byTool.map((t) => t.toolKey)} teams={teams.map((t) => ({ id: t.id, key: t.key, name: t.displayName }))} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="muted text-[12px]">
+        Showing spend through {summary.to}
+        {asOfParam ? ` (as of ${asOfParam})` : ""}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <div className="row-card">
           <div className="muted text-[11px] uppercase">Coding-tool spend</div>
           <div className="mt-1 text-[1.75rem] font-bold">
@@ -99,6 +106,19 @@ export default async function AiCostPage({
           <div className="muted text-[11px] uppercase">Active contributors</div>
           <div className="kpi mt-1" style={{ fontSize: "1.75rem" }}>
             {summary.activeContributors}
+          </div>
+        </div>
+        <div className="row-card">
+          <div className="muted text-[11px] uppercase">Avg spend / user</div>
+          <div className="mt-1 text-[1.75rem] font-bold">
+            <Metric
+              metric={summary.avgSpendPerUser}
+              display={summary.activeContributors ? usd(summary.avgSpendPerUser.value) : "—"}
+            />
+          </div>
+          <div className="muted mt-1 text-[11px]">
+            Across {summary.activeContributors} active user
+            {summary.activeContributors === 1 ? "" : "s"}
           </div>
         </div>
       </div>

@@ -3,6 +3,23 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** 7 days before today, UTC. */
+function lastWeekDate(): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 7);
+  return isoDate(d);
+}
+
+/** Last day of the previous calendar month, UTC. */
+function lastMonthDate(): string {
+  const d = new Date();
+  return isoDate(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)));
+}
+
 export function AiCostActions({
   days,
   tools,
@@ -60,6 +77,39 @@ export function AiCostActions({
           ))}
         </select>
       </label>
+      <label className="text-[12px]">
+        As of
+        <input
+          type="date"
+          className="select mt-1 block"
+          value={params.get("asOf") ?? ""}
+          max={isoDate(new Date())}
+          onChange={(e) => setParam("asOf", e.target.value)}
+        />
+      </label>
+      <div className="flex items-end gap-1">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setParam("asOf", "")}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setParam("asOf", lastWeekDate())}
+        >
+          Last week
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => setParam("asOf", lastMonthDate())}
+        >
+          Last month
+        </button>
+      </div>
       <label className="text-[12px]">
         Tool
         <select
