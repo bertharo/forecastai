@@ -1,7 +1,76 @@
 /** Browser helpers for CSV + Excel uploads (no Node / xlsx deps). */
 
+export type RawRow = Record<string, string>;
+
 export function isExcelFileName(fileName: string): boolean {
   return /\.(xlsx|xls|xlsm)$/i.test(fileName);
+}
+
+/**
+ * KEEP IN SYNC with parseCsv in src/lib/import/parse.ts — this is a
+ * deliberate duplicate (not a shared import) because parse.ts also exports
+ * contentHash/rowContentHash via Node's `crypto`, which would break a
+ * client bundle. Drift between the two silently breaks whole-file dedup
+ * (see computeContentHash below), since the client and server would then
+ * canonicalize the same file differently.
+ */
+export function parseCsv(text: string): { headers: string[]; rows: RawRow[] } {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim().length);
+  if (lines.length === 0) return { headers: [], rows: [] };
+
+  const parseLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = "";
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else inQ = !inQ;
+      } else if (ch === "," && !inQ) {
+        out.push(cur.trim());
+        cur = "";
+      } else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+
+  const headers = parseLine(lines[0]);
+  const rows: RawRow[] = [];
+  for (const line of lines.slice(1)) {
+    const cols = parseLine(line);
+    const row: RawRow = {};
+    headers.forEach((h, i) => {
+      row[h] = cols[i] ?? "";
+    });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+/** Browser-native SHA-256 (Web Crypto) — matches Node's createHash("sha256") for identical input bytes. */
+export async function sha256Hex(text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Mirrors the server's contentHash(rowsToCsv(headers, rows)) exactly — see parse.ts. */
+export async function computeContentHash(headers: string[], rows: RawRow[]): Promise<string> {
+  return sha256Hex(rowsToCsv(headers, rows));
+}
+
+export function chunkRows(rows: RawRow[], size = 2000): RawRow[][] {
+  const out: RawRow[][] = [];
+  for (let i = 0; i < rows.length; i += size) {
+    out.push(rows.slice(i, i + size));
+  }
+  return out;
 }
 
 /** Rebuild CSV text from rows (preview paste / client hashing). */

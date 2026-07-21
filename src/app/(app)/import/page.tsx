@@ -5,7 +5,17 @@ import Link from "next/link";
 import { IMPORT_TARGETS } from "@/lib/import/parse";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
 import { RosterImport } from "@/components/RosterImport";
-import { isExcelFileName, readUploadPayload, safeJsonResponse } from "@/lib/import/uploadClient";
+import { ProgressBar } from "@/components/ProgressBar";
+import {
+  chunkRows,
+  computeContentHash,
+  isExcelFileName,
+  parseCsv,
+  readUploadPayload,
+  rowsToCsv,
+  safeJsonResponse,
+  type RawRow,
+} from "@/lib/import/uploadClient";
 
 type Template = {
   id: string;
@@ -126,6 +136,17 @@ export default function ImportPage() {
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Chunked CSV upload path (large files) — bypasses the whole-file preview
+  // and import POSTs that can hit a platform request-size limit.
+  const [useChunkedUpload, setUseChunkedUpload] = useState(false);
+  const [parsedRows, setParsedRows] = useState<RawRow[]>([]);
+  const [uploadHash, setUploadHash] = useState("");
+  const [chunkStatus, setChunkStatus] = useState<"idle" | "uploading" | "done" | "failed">(
+    "idle"
+  );
+  const [chunkDone, setChunkDone] = useState(0);
+  const [chunkTotal, setChunkTotal] = useState(0);
+
   const refresh = useCallback(async () => {
     const res = await fetch("/api/import");
     const data = await res.json();
@@ -140,6 +161,7 @@ export default function ImportPage() {
   const onFile = async (file: File) => {
     setMessage(null);
     setErrors([]);
+    setChunkStatus("idle");
     const payload = await readUploadPayload(file);
     setFileName(payload.fileName);
     setContent(payload.content ?? "");
@@ -150,25 +172,53 @@ export default function ImportPage() {
         ? "invoice"
         : "csv";
     setSourceKind(kind);
+    const isExcel = isExcelFileName(payload.fileName);
+    const chunkedEligible = !isExcel && kind === "csv";
+    setUseChunkedUpload(chunkedEligible);
     setBusy(true);
     try {
-      const res = await fetch("/api/import", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          action: "preview",
-          fileName: payload.fileName,
-          content: payload.content,
-          base64: payload.base64,
-          sourceKind: isExcelFileName(payload.fileName) ? "excel" : kind,
-        }),
-      });
-      const data = await safeJsonResponse(res);
-      if (!res.ok) throw new Error((data.error as string) || "Could not read file");
-      const hdrs: string[] = (data.headers as string[]) ?? [];
+      let hdrs: string[];
+      let duplicateBatchId: string | null = null;
+
+      if (chunkedEligible) {
+        // Parse locally — no whole-file POST, so this never hits a
+        // platform request-size limit no matter how large the file is.
+        const parsedLocal = parseCsv(payload.content ?? "");
+        hdrs = parsedLocal.headers;
+        setParsedRows(parsedLocal.rows);
+        setPreview(parsedLocal.rows.slice(0, 50));
+        setRowCount(parsedLocal.rows.length);
+        const hash = await computeContentHash(parsedLocal.headers, parsedLocal.rows);
+        setUploadHash(hash);
+
+        const dupRes = await fetch("/api/import", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "checkDuplicate", contentHash: hash }),
+        });
+        const dupData = await safeJsonResponse(dupRes);
+        duplicateBatchId = (dupData.duplicateBatchId as string) ?? null;
+      } else {
+        const res = await fetch("/api/import", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "preview",
+            fileName: payload.fileName,
+            content: payload.content,
+            base64: payload.base64,
+            sourceKind: isExcel ? "excel" : kind,
+          }),
+        });
+        const data = await safeJsonResponse(res);
+        if (!res.ok) throw new Error((data.error as string) || "Could not read file");
+        hdrs = (data.headers as string[]) ?? [];
+        setPreview((data.preview as Record<string, string>[]) ?? []);
+        setRowCount(Number(data.rowCount ?? 0));
+        duplicateBatchId = (data.duplicateBatchId as string) ?? null;
+      }
+
       setHeaders(hdrs);
-      setPreview((data.preview as Record<string, string>[]) ?? []);
-      setRowCount(Number(data.rowCount ?? 0));
       const norm = (h: string) => h.toLowerCase().replace(/[\s\-]+/g, "_");
       const lower = new Set(hdrs.map(norm));
       const byLower = Object.fromEntries(hdrs.map((h) => [norm(h), h]));
@@ -309,7 +359,7 @@ export default function ImportPage() {
             : "Guessed columns from your headers — check the mapping, then upload."
         );
       }
-      if (data.duplicateBatchId) {
+      if (duplicateBatchId) {
         setMessage(
           "You’ve already uploaded this file. Undo it under Past uploads if you want to try again."
         );
@@ -408,7 +458,7 @@ export default function ImportPage() {
     return null;
   };
 
-  const runImport = async () => {
+  const runImportLegacy = async () => {
     setBusy(true);
     setMessage(
       rowCount > 5000
@@ -540,6 +590,126 @@ export default function ImportPage() {
       setBusy(false);
     }
   };
+
+  const CHUNK_RETRY_LIMIT = 2;
+
+  const runChunkedImport = async () => {
+    setBusy(true);
+    setErrors([]);
+    setChunkStatus("uploading");
+    setChunkDone(0);
+    setChunkTotal(parsedRows.length);
+    let batchId: string | null = null;
+    try {
+      const startRes = await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "startBatch",
+          fileName,
+          contentHash: uploadHash,
+          rowCount: parsedRows.length,
+          mappingTemplateId: templateId || null,
+        }),
+      });
+      const startData = await safeJsonResponse(startRes);
+      if (!startRes.ok) {
+        if (startData.error === "duplicate_file") {
+          setChunkStatus("idle");
+          setMessage(
+            "This file is already uploaded. See Past uploads (you can Undo and retry)."
+          );
+          await refresh();
+          setTab("history");
+          return;
+        }
+        throw new Error(
+          (startData.message as string) || (startData.error as string) || "Upload failed to start"
+        );
+      }
+      batchId = startData.batchId as string;
+
+      const chunks = chunkRows(parsedRows, 2000);
+      let written = 0;
+      let skipped = 0;
+      let errored = 0;
+      let rowsDone = 0;
+
+      for (const chunk of chunks) {
+        const chunkContent = rowsToCsv(headers, chunk);
+        let chunkResult: Record<string, unknown> | null = null;
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt <= CHUNK_RETRY_LIMIT && !chunkResult; attempt++) {
+          try {
+            const res = await fetch("/api/import", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                action: "importChunk",
+                batchId,
+                content: chunkContent,
+                columnMap,
+                sourceKind: "csv",
+              }),
+            });
+            const data = await safeJsonResponse(res);
+            if (!res.ok) throw new Error((data.error as string) || "Chunk upload failed");
+            chunkResult = data;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        if (!chunkResult) {
+          throw lastErr instanceof Error ? lastErr : new Error("Chunk upload failed after retries");
+        }
+        written += Number(chunkResult.written ?? 0);
+        skipped += Number(chunkResult.skipped ?? 0);
+        errored += Number(chunkResult.errored ?? 0);
+        rowsDone += chunk.length;
+        setChunkDone(rowsDone);
+      }
+
+      const finishRes = await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "finishBatch", batchId }),
+      });
+      const finishData = await safeJsonResponse(finishRes);
+      setChunkStatus("done");
+      setMessage(
+        `Done — ${finishData.written ?? written} rows added` +
+          (Number(finishData.skipped ?? skipped) ? ` · ${finishData.skipped ?? skipped} already had` : "") +
+          (Number(finishData.errored ?? errored) ? ` · ${finishData.errored ?? errored} had problems` : "")
+      );
+      setErrors(
+        (finishData.errors as { row: number; field?: string; message: string }[]) ?? []
+      );
+      await refresh();
+      setTab("history");
+    } catch (e) {
+      setChunkStatus("failed");
+      if (batchId) {
+        // Close the batch out instead of leaving it stuck at "importing" —
+        // whatever chunks succeeded before the failure still count.
+        await fetch("/api/import", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "finishBatch", batchId }),
+        }).catch(() => {});
+      }
+      setMessage(
+        (e instanceof Error ? e.message : String(e)) +
+          (chunkDone > 0
+            ? ` (${chunkDone.toLocaleString()} of ${chunkTotal.toLocaleString()} rows made it in before this — see Past uploads)`
+            : "")
+      );
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runImport = () => (useChunkedUpload ? runChunkedImport() : runImportLegacy());
 
   const rollback = async (id: string) => {
     if (!confirm("Undo this upload? Those spend rows will be removed.")) return;
@@ -922,6 +1092,14 @@ export default function ImportPage() {
                 <p className="text-[12px]" style={{ color: "var(--muted)" }}>
                   Fill When, Vendor, and How much to continue.
                 </p>
+              )}
+              {chunkStatus === "uploading" && (
+                <div className="space-y-1">
+                  <ProgressBar pct={(chunkDone / Math.max(1, chunkTotal)) * 100} />
+                  <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+                    {chunkDone.toLocaleString()} of {chunkTotal.toLocaleString()} rows uploaded
+                  </p>
+                </div>
               )}
             </div>
           )}

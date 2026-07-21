@@ -23,13 +23,15 @@ export async function executeUsageImport(opts: {
   rows: RawRow[];
   columnMap: ColumnMap;
   sourceKind: "csv" | "jsonl" | "invoice";
+  /** Chunked callers rebuild the AI-daily projection once at the end instead — see finishBatch in the import API route. */
+  skipProjection?: boolean;
 }): Promise<{
   written: number;
   skipped: number;
   errored: number;
   errors: ImportError[];
 }> {
-  const { orgId, batchId, rows, columnMap, sourceKind } = opts;
+  const { orgId, batchId, rows, columnMap, sourceKind, skipProjection } = opts;
   const [providers, meters, skus] = await Promise.all([
     db.select().from(s.providers),
     db.select().from(s.meters),
@@ -261,7 +263,7 @@ export async function executeUsageImport(opts: {
 
   // AI Cost reads ai_tool_daily (connector sync). Project coding-tool import
   // rows into the same grain so person/team views stay filled.
-  if (written > 0) {
+  if (written > 0 && !skipProjection) {
     await projectCodingToolImportsToAiDaily(orgId);
   }
 
@@ -322,7 +324,17 @@ export async function rollbackImportBatch(orgId: string, batchId: string) {
   return { ok: true, deletedCosts: costIds.length, deletedUsage: usageIds.length };
 }
 
-/** Successful (or in-progress) batch for this file hash — failed uploads do not block retry. */
+/** A chunked upload stuck at "importing" longer than this was abandoned (closed tab, dead network). */
+const STALE_IMPORTING_MINUTES = 20;
+
+/**
+ * Successful (or in-progress) batch for this file hash — failed uploads do
+ * not block retry. A chunked upload can leave a batch at "importing" for as
+ * long as the browser takes to send every chunk; if that status has sat
+ * stale past STALE_IMPORTING_MINUTES, treat it as abandoned (mark it
+ * "failed" so it stops blocking) rather than letting it block re-uploads of
+ * the same file forever.
+ */
 export async function findActiveBatchByHash(orgId: string, hash: string) {
   const [batch] = await db
     .select()
@@ -337,6 +349,18 @@ export async function findActiveBatchByHash(orgId: string, hash: string) {
       )
     )
     .limit(1);
+
+  if (batch?.status === "importing") {
+    const ageMinutes = (Date.now() - batch.createdAt.getTime()) / 60_000;
+    if (ageMinutes > STALE_IMPORTING_MINUTES) {
+      await db
+        .update(s.importBatches)
+        .set({ status: "failed" })
+        .where(eq(s.importBatches.id, batch.id));
+      return undefined;
+    }
+  }
+
   return batch;
 }
 

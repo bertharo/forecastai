@@ -7,13 +7,15 @@ import {
   executeUsageImport,
   findActiveBatchByHash,
   listTemplates,
+  type ImportError,
 } from "@/lib/import/execute";
+import { projectCodingToolImportsToAiDaily } from "@/lib/ai-tools/from-import";
 import {
   isExcelFileName,
   parseTabularUpload,
   rowsToCsv,
 } from "@/lib/import/spreadsheet";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 /** Large files / SheetJS need the Node runtime (not Edge). */
 export const runtime = "nodejs";
@@ -43,14 +45,196 @@ export async function POST(req: NextRequest) {
   if (!org) return NextResponse.json({ error: "No org" }, { status: 400 });
 
   const body = (await req.json()) as {
-    action?: "preview" | "import";
+    action?: "preview" | "import" | "checkDuplicate" | "startBatch" | "importChunk" | "finishBatch";
     fileName?: string;
     content?: string;
     base64?: string;
     sourceKind?: "csv" | "jsonl" | "invoice" | "excel";
     columnMap?: ColumnMap;
     mappingTemplateId?: string | null;
+    contentHash?: string;
+    batchId?: string;
+    rowCount?: number;
   };
+
+  // Chunked CSV upload path (see src/app/(app)/import/page.tsx) — none of
+  // these send a whole file in the body, so they're handled before the
+  // "fileName + content/base64 required" guard below.
+  if (body.action === "checkDuplicate") {
+    if (!body.contentHash) {
+      return NextResponse.json({ error: "contentHash required" }, { status: 400 });
+    }
+    const existing = await findActiveBatchByHash(org.id, body.contentHash);
+    const canRetryPartial =
+      !!existing && existing.status === "completed" && (existing.rowsErrored ?? 0) > 0;
+    return NextResponse.json({
+      duplicateBatchId: existing && !canRetryPartial ? existing.id : null,
+    });
+  }
+
+  if (body.action === "startBatch") {
+    if (!body.fileName || !body.contentHash) {
+      return NextResponse.json(
+        { error: "fileName and contentHash required" },
+        { status: 400 }
+      );
+    }
+    const [orgMeta] = await db
+      .select({ sampleAt: s.organizations.sampleDataLoadedAt })
+      .from(s.organizations)
+      .where(eq(s.organizations.id, org.id))
+      .limit(1);
+    if (orgMeta?.sampleAt) {
+      return NextResponse.json(
+        {
+          error: "sample_active",
+          message:
+            "Sample data is active in this workspace. Reset to clean sample (or clear sample) before importing CSVs so numbers stay consistent.",
+        },
+        { status: 409 }
+      );
+    }
+    const existing = await findActiveBatchByHash(org.id, body.contentHash);
+    const canRetryPartial =
+      !!existing && existing.status === "completed" && (existing.rowsErrored ?? 0) > 0;
+    if (existing && !canRetryPartial) {
+      return NextResponse.json(
+        {
+          error: "duplicate_file",
+          message: "This file was already imported. Rollback the prior batch to re-import.",
+          batchId: existing.id,
+        },
+        { status: 409 }
+      );
+    }
+    const [batch] = await db
+      .insert(s.importBatches)
+      .values({
+        orgId: org.id,
+        sourceKind: "csv",
+        fileName: body.fileName,
+        contentHash: body.contentHash,
+        mappingTemplateId: body.mappingTemplateId || null,
+        status: "importing",
+        rowCount: body.rowCount ?? 0,
+        createdBy: "demo",
+      })
+      .returning();
+    return NextResponse.json({ batchId: batch.id });
+  }
+
+  if (body.action === "importChunk") {
+    if (!body.batchId || !body.content) {
+      return NextResponse.json(
+        { error: "batchId and content required" },
+        { status: 400 }
+      );
+    }
+    const [batch] = await db
+      .select()
+      .from(s.importBatches)
+      .where(and(eq(s.importBatches.id, body.batchId), eq(s.importBatches.orgId, org.id)))
+      .limit(1);
+    if (!batch) {
+      return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    }
+    if (batch.status !== "importing") {
+      return NextResponse.json(
+        { error: `Batch is ${batch.status}, not accepting more rows` },
+        { status: 400 }
+      );
+    }
+
+    let parsed: { headers: string[]; rows: ReturnType<typeof parseTabularUpload>["rows"] };
+    try {
+      parsed = parseTabularUpload({
+        fileName: batch.fileName,
+        content: body.content,
+        sourceKind: "csv",
+      });
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : String(e) },
+        { status: 400 }
+      );
+    }
+
+    const result = await executeUsageImport({
+      orgId: org.id,
+      batchId: batch.id,
+      rows: parsed.rows,
+      columnMap: body.columnMap ?? {},
+      sourceKind: "csv",
+      skipProjection: true,
+    });
+
+    await db
+      .update(s.importBatches)
+      .set({
+        rowsWritten: sql`${s.importBatches.rowsWritten} + ${result.written}`,
+        rowsSkipped: sql`${s.importBatches.rowsSkipped} + ${result.skipped}`,
+        rowsErrored: sql`${s.importBatches.rowsErrored} + ${result.errored}`,
+        errorReport: sql`${s.importBatches.errorReport} || ${JSON.stringify(result.errors)}::jsonb`,
+      })
+      .where(eq(s.importBatches.id, batch.id));
+
+    return NextResponse.json({
+      written: result.written,
+      skipped: result.skipped,
+      errored: result.errored,
+    });
+  }
+
+  if (body.action === "finishBatch") {
+    if (!body.batchId) {
+      return NextResponse.json({ error: "batchId required" }, { status: 400 });
+    }
+    const [batch] = await db
+      .select()
+      .from(s.importBatches)
+      .where(and(eq(s.importBatches.id, body.batchId), eq(s.importBatches.orgId, org.id)))
+      .limit(1);
+    if (!batch) {
+      return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    }
+
+    const written = batch.rowsWritten ?? 0;
+    const errored = batch.rowsErrored ?? 0;
+    const finalStatus = errored > 0 && written === 0 ? "failed" : "completed";
+
+    await db
+      .update(s.importBatches)
+      .set({ status: finalStatus })
+      .where(eq(s.importBatches.id, batch.id));
+
+    if (written > 0) {
+      await projectCodingToolImportsToAiDaily(org.id);
+    }
+
+    await db.insert(s.auditLogs).values({
+      orgId: org.id,
+      actorLabel: "demo",
+      action: "import.completed",
+      entityType: "import_batch",
+      entityId: batch.id,
+      after: {
+        written,
+        skipped: batch.rowsSkipped ?? 0,
+        errored,
+        fileName: batch.fileName,
+        format: "csv",
+      },
+    });
+
+    return NextResponse.json({
+      batchId: batch.id,
+      status: finalStatus,
+      written,
+      skipped: batch.rowsSkipped ?? 0,
+      errored,
+      errors: (batch.errorReport ?? []) as ImportError[],
+    });
+  }
 
   if (!body.fileName || (!body.content && !body.base64)) {
     return NextResponse.json(
