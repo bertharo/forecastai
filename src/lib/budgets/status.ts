@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import type { BudgetPolicyAction, BudgetPolicyRule } from "@/db/schema";
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 function monthBounds(d = new Date()) {
@@ -504,6 +504,32 @@ export async function createBudget(
     if (!node) throw new Error("Team not found in this workspace");
     dimensionTypeId = node.dimensionTypeId;
     scopeType = "dimension";
+  }
+
+  // A budget already exists for this exact scope (e.g. "whole company," or
+  // this same team) — amend it with a new version instead of creating a
+  // second budget at the same scope.
+  const [existing] = await db
+    .select()
+    .from(s.budgets)
+    .where(
+      and(
+        eq(s.budgets.orgId, orgId),
+        eq(s.budgets.scopeType, scopeType),
+        dimensionNodeId
+          ? eq(s.budgets.dimensionNodeId, dimensionNodeId)
+          : isNull(s.budgets.dimensionNodeId)
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    await createBudgetVersion(existing.id, {
+      amount,
+      changeNote: input.changeNote ?? "Updated budget",
+      author: "plan",
+    });
+    return existing;
   }
 
   const thresholds = [0.5, 0.8, 1.0];
