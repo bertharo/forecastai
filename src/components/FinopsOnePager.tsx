@@ -1,32 +1,88 @@
 import Link from "next/link";
 import { pct, usd } from "@/lib/format";
-import type { BriefFacts } from "@/lib/queries/brief";
+import type { BriefFacts, BriefDimensionRollup } from "@/lib/queries/brief";
 import { EmptyState } from "@/components/EmptyState";
+
+const VISIBLE_ROWS = 8;
+
+function DimensionCard({
+  dim,
+  totalSpend,
+}: {
+  dim: BriefDimensionRollup;
+  totalSpend: number;
+}) {
+  const denom = dim.rows.reduce((a, r) => a + r.spend, 0) || totalSpend || 1;
+  const visible = dim.rows.slice(0, VISIBLE_ROWS);
+  const hidden = dim.rows.slice(VISIBLE_ROWS);
+  const hiddenSpend = hidden.reduce((a, r) => a + r.spend, 0);
+  const hiddenShare = denom > 0 ? hiddenSpend / denom : 0;
+
+  return (
+    <div className="panel p-4">
+      <div className="text-[13px] font-semibold">{dim.displayName}</div>
+      <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+        {dim.sourceColumn}
+        {dim.role === "primary" ? " · primary" : dim.role === "secondary" ? " · secondary" : ""}
+      </p>
+      <div className="mt-3 space-y-2">
+        {visible.map((d) => (
+          <div
+            key={`${d.label}-${d.source}`}
+            className="flex items-center justify-between gap-2 text-[13px]"
+          >
+            <span className="min-w-0 truncate font-medium">{d.label}</span>
+            <span className="shrink-0 font-semibold">
+              {usd(d.spend)}{" "}
+              <span className="font-normal" style={{ color: "var(--muted)" }}>
+                {pct(d.spend / denom, 0)}
+              </span>
+            </span>
+          </div>
+        ))}
+        {hidden.length > 0 && (
+          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+            +{hidden.length} more · {usd(hiddenSpend)} ({pct(hiddenShare, 0)} of spend)
+          </p>
+        )}
+        {dim.rows.length === 0 && (
+          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+            No spend for this dimension in the period
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
   if (facts.empty) {
     return (
       <EmptyState
-        message="No spend yet. Connect a source or import a CSV to see vendor and cost-center rollup."
+        message="No spend yet. Connect a source or import a CSV to see vendor and org rollups."
         action={{ href: "/connectors", label: "Open Sources" }}
       />
     );
   }
 
-  const { attribution, byVendor, byDepartment, byCostCenter, findings, period } = facts;
-  const deptTotal =
-    byDepartment.reduce((a, r) => a + r.spend, 0) || attribution.totalSpend || 1;
-  const ccTotal =
-    byCostCenter.reduce((a, r) => a + r.spend, 0) || attribution.totalSpend || 1;
-  const hasRosterCc = byCostCenter.some(
-    (r) => r.source === "roster" && (r.costCenter || r.costCenterPath)
-  );
+  if (facts.periodEmpty) {
+    return (
+      <EmptyState
+        message={`No spend in ${facts.period.label}. All-time total is ${usd(facts.allTimeSpend)} — pick a period that matches your data grain.`}
+        action={{ href: "/connectors", label: "Open Sources" }}
+      />
+    );
+  }
+
+  const { attribution, byVendor, byDimensions, findings, period, needsDimensionConfig } =
+    facts;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[12px] font-medium" style={{ color: "var(--muted)" }}>
           Period · {period.label}
+          {period.grain === "monthly" ? " (calendar months)" : ""}
           {facts.allTimeSpend > 0.01 &&
           Math.abs(facts.allTimeSpend - facts.totalSpend) > 0.02 ? (
             <span title="Sum of every cost row (matches full spreadsheet import)">
@@ -100,84 +156,34 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
           </div>
         </div>
 
-        <div className="panel p-4">
-          <div className="text-[13px] font-semibold">By cost center</div>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
-            {hasRosterCc
-              ? "People CSV cost-center chain (deepest level) · path shows L02–L07"
-              : "Via roster email or key → team map"}
-          </p>
-          <div className="mt-3 space-y-2">
-            {byCostCenter.slice(0, 8).map((d) => (
-              <div
-                key={`${d.label}-${d.source}-${d.costCenterPath ?? ""}`}
-                className="flex items-center justify-between gap-2 text-[13px]"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{d.label}</span>
-                  {d.costCenterPath && d.costCenterPath !== d.label ? (
-                    <span
-                      className="block truncate text-[11px]"
-                      style={{ color: "var(--muted)" }}
-                      title={d.costCenterPath}
-                    >
-                      {d.costCenterPath}
-                    </span>
-                  ) : d.department && d.department !== d.label ? (
-                    <span
-                      className="block truncate text-[11px]"
-                      style={{ color: "var(--muted)" }}
-                    >
-                      {d.department}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 font-semibold">
-                  {usd(d.spend)}{" "}
-                  <span className="font-normal" style={{ color: "var(--muted)" }}>
-                    {pct(d.spend / ccTotal, 0)}
-                  </span>
-                </span>
-              </div>
-            ))}
-            {byCostCenter.length === 0 && (
-              <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-                Import people with Cost Center Chain levels to roll spend up by cost center
-              </p>
-            )}
+        {needsDimensionConfig ? (
+          <div className="panel flex flex-col justify-center p-4">
+            <div className="text-[13px] font-semibold">Configure your org dimensions</div>
+            <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
+              Choose which people-CSV attributes to roll spend by on Home.
+            </p>
+            <Link href="/connectors#org-dimensions" className="btn mt-4 inline-flex w-fit">
+              Open Sources
+            </Link>
           </div>
-        </div>
+        ) : byDimensions[0] ? (
+          <DimensionCard dim={byDimensions[0]} totalSpend={attribution.totalSpend} />
+        ) : (
+          <div className="panel p-4">
+            <div className="text-[13px] font-semibold">Org dimensions</div>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+              Import a people CSV, then enable dimensions on Sources.
+            </p>
+            <Link href="/connectors#org-dimensions" className="mt-3 inline-block text-[13px] underline">
+              Open Sources
+            </Link>
+          </div>
+        )}
       </div>
 
-      {byDepartment.some((d) => d.source === "roster") ? (
-        <div className="panel p-4">
-          <div className="text-[13px] font-semibold">By department</div>
-          <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
-            Mid chain level (usually L04) from the people roster
-          </p>
-          <div className="mt-3 space-y-2">
-            {byDepartment.slice(0, 8).map((d) => (
-              <div
-                key={`${d.department}-${d.source}-${d.costCenter ?? ""}-${d.costCenterPath ?? ""}`}
-                className="flex items-center justify-between gap-2 text-[13px]"
-              >
-                <span className="min-w-0 truncate">
-                  {d.department}
-                  {d.costCenter ? (
-                    <span style={{ color: "var(--muted)" }}> · {d.costCenter}</span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 font-semibold">
-                  {usd(d.spend)}{" "}
-                  <span className="font-normal" style={{ color: "var(--muted)" }}>
-                    {pct(d.spend / deptTotal, 0)}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {byDimensions.slice(1).map((dim) => (
+        <DimensionCard key={dim.key} dim={dim} totalSpend={attribution.totalSpend} />
+      ))}
 
       {facts.sampleDataLoadedAt ? (
         <p className="text-[12px]" style={{ color: "var(--muted)" }}>

@@ -64,9 +64,9 @@ export function RosterImport() {
       <div>
         <h2 className="text-[15px] font-semibold">People</h2>
         <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-          Upload people as CSV or Excel. We join spend on <strong>Email</strong>. Cost center
-          chain levels L02–L07 are stored in full; L04 → department, deepest filled → cost
-          center for rollups.
+          Upload people as CSV or Excel. We join spend on <strong>Email</strong>. Every
+          other column is stored as an attribute you can enable as an org dimension on
+          Sources.
         </p>
       </div>
       <FileDropZone
@@ -115,20 +115,16 @@ export function RosterImport() {
         <summary className="cursor-pointer">What columns do I need?</summary>
         <p className="mt-2">
           Required: <strong>Email</strong> (or <strong>Project Worker</strong> if it contains
-          the email). Optional: Project Worker as display name, plus Cost Center Chain levels
-          02–07 (all filled levels kept). Level 04 → department; deepest filled level → cost
-          center. Excel: first sheet
-          only.
+          the email). Optional: display name plus any attribute columns (org unit, cost
+          center, location, …). After import, enable dimensions on Sources. Excel: first
+          sheet only.
         </p>
         <pre className="mono mt-2 overflow-x-auto text-[11px]" style={{ color: "var(--fg)" }}>
 {`Email
 Project Worker
-Cost Center Chain - Level 02
-Cost Center Chain - Level 03
-Cost Center Chain - Level 04
-Cost Center Chain - Level 05
-Cost Center Chain - Level 06
-Cost Center Chain - Level 07`}
+Business Unit
+Team
+Cost Center`}
         </pre>
       </details>
       {payload && (

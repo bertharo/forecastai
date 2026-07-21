@@ -245,6 +245,10 @@ export async function loadFinopsSamplePack(orgId: string) {
         displayName: p.name,
         department: p.dept,
         costCenter: p.cc,
+        attributes: {
+          department: p.dept,
+          cost_center: p.cc,
+        },
         employmentStatus: p.status,
         startedOn: p.startedOn,
         endedOn: p.endedOn,
@@ -527,6 +531,9 @@ export async function loadFinopsSamplePack(orgId: string) {
     .update(s.organizations)
     .set({ sampleDataLoadedAt: new Date() })
     .where(eq(s.organizations.id, orgId));
+
+  const { ensurePeopleDimensionConfig } = await import("@/lib/roster/dimensions");
+  await ensurePeopleDimensionConfig(orgId);
 
   const [unmappedRow] = await db
     .select({ n: sql<string>`count(*)` })

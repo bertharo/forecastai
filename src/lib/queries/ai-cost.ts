@@ -6,15 +6,15 @@ import {
   needsCodingToolImportProjection,
   projectCodingToolImportsToAiDaily,
 } from "@/lib/ai-tools/from-import";
-import { trailingBriefPeriod } from "@/lib/queries/brief";
+import { resolveDashboardPeriod } from "@/lib/queries/period";
 
 export async function getAiCostSummary(
   orgId: string,
   opts?: { days?: number; teamNodeId?: string | null; toolKey?: string | null }
 ) {
   const days = opts?.days ?? 30;
-  // Same UTC window as Brief / FinOps so trailing-30d math matches across pages.
-  const period = trailingBriefPeriod(days);
+  // Same grain-aware window as Brief / FinOps.
+  const period = await resolveDashboardPeriod(orgId, days);
   const from = period.start.toISOString().slice(0, 10);
   const to = new Date(period.end.getTime() - 1).toISOString().slice(0, 10);
 

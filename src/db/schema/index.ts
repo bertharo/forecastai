@@ -13,6 +13,27 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+/** Per-workspace people-CSV dimension configuration (grouping for Home rollups). */
+export type PeopleDimensionColumnConfig = {
+  /** Stable key in contributors.attributes */
+  key: string;
+  /** Original CSV header */
+  sourceColumn: string;
+  displayName: string;
+  enabled: boolean;
+  /** Exactly one primary; optionally one secondary — Home default order only */
+  role: "primary" | "secondary" | null;
+  suggestion: "identifier" | "constant" | "dimension";
+  distinctCount: number;
+  sampleValues: string[];
+};
+
+export type PeopleDimensionConfig = {
+  columns: PeopleDimensionColumnConfig[];
+  profiledAt: string | null;
+  rowCount: number;
+};
+
 /** Demo org + multi-tenant ready */
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -27,6 +48,14 @@ export const organizations = pgTable("organizations", {
   isPrivate: boolean("is_private").notNull().default(false),
   /** When set, workspace is showing deterministic FinOps sample fixtures — show watermark. */
   sampleDataLoadedAt: timestamp("sample_data_loaded_at", { withTimezone: true }),
+  /**
+   * User-defined people-CSV dimensions (enabled columns + primary/secondary).
+   * Changing this updates rollups without re-import.
+   */
+  peopleDimensionConfig: jsonb("people_dimension_config")
+    .$type<PeopleDimensionConfig>()
+    .notNull()
+    .default({ columns: [], profiledAt: null, rowCount: 0 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -805,20 +834,29 @@ export const contributors = pgTable(
     githubId: text("github_id"),
     externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
     dimensionNodeId: uuid("dimension_node_id").references(() => dimensionNodes.id),
-    /** HRIS department label (join key for FinOps dept rollup) */
+    /**
+     * @deprecated Prefer attributes. Kept for migration of pre-dimension workspaces.
+     */
     department: text("department"),
+    /** @deprecated Prefer attributes. */
     costCenter: text("cost_center"),
     /**
-     * Filled Cost Center Chain levels from people CSV, keyed by padded level
-     * ("02"…"07"). Intermediate levels are preserved here; department / costCenter
-     * remain the collapsed mid + deepest values for legacy rollups.
+     * @deprecated Prefer attributes. Legacy chain keyed by padded level ("02"…"07").
      */
     costCenterChain: jsonb("cost_center_chain")
       .$type<Record<string, string>>()
       .notNull()
       .default({}),
-    /** Filled chain joined for display, e.g. "Acme › Technology › Engineering › …" */
+    /** @deprecated Prefer attributes. */
     costCenterPath: text("cost_center_path"),
+    /**
+     * Full people-CSV attribute map (source column key → value).
+     * Every non-identity column is stored here; grouping is config-driven.
+     */
+    attributes: jsonb("attributes")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
     /** active | terminated | leave | contractor */
     employmentStatus: text("employment_status").notNull().default("active"),
     startedOn: date("started_on"),

@@ -20,10 +20,7 @@ export async function GET() {
     .select({
       email: s.contributors.email,
       displayName: s.contributors.displayName,
-      department: s.contributors.department,
-      costCenter: s.contributors.costCenter,
-      costCenterChain: s.contributors.costCenterChain,
-      costCenterPath: s.contributors.costCenterPath,
+      attributes: s.contributors.attributes,
       employmentStatus: s.contributors.employmentStatus,
       endedOn: s.contributors.endedOn,
     })
@@ -35,16 +32,7 @@ export async function GET() {
   return NextResponse.json({
     count: Number(countRow?.n ?? 0),
     sample,
-    templateHeaders: [
-      "Email",
-      "Project Worker",
-      "Cost Center Chain - Level 02",
-      "Cost Center Chain - Level 03",
-      "Cost Center Chain - Level 04",
-      "Cost Center Chain - Level 05",
-      "Cost Center Chain - Level 06",
-      "Cost Center Chain - Level 07",
-    ],
+    templateHeaders: ["Email", "Project Worker", "Business Unit", "Team", "Cost Center"],
     acceptedFormats: [".csv", ".xlsx", ".xls", ".xlsm"],
   });
 }

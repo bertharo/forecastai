@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { attributesFromLegacyFields } from "@/lib/roster/dimensions";
 
 export type ContributorUpsertInput = {
   email: string;
@@ -8,11 +9,15 @@ export type ContributorUpsertInput = {
   githubLogin?: string | null;
   githubId?: string | null;
   dimensionNodeId?: string | null;
+  /** Full people-CSV attribute map */
+  attributes?: Record<string, string> | null;
+  /** @deprecated migrated into attributes */
   department?: string | null;
+  /** @deprecated migrated into attributes */
   costCenter?: string | null;
-  /** Filled Cost Center Chain levels keyed by padded level ("02"…"07") */
+  /** @deprecated migrated into attributes */
   costCenterChain?: Record<string, string> | null;
-  /** Display path of filled chain levels */
+  /** @deprecated */
   costCenterPath?: string | null;
   employmentStatus?: string | null;
   startedOn?: string | null; // YYYY-MM-DD
@@ -33,48 +38,63 @@ export async function upsertContributor(orgId: string, input: ContributorUpsertI
     .where(and(eq(s.contributors.orgId, orgId), eq(s.contributors.email, email)))
     .limit(1);
 
-  const patch = {
-    displayName: input.displayName,
-    githubLogin: input.githubLogin,
-    githubId: input.githubId,
-    dimensionNodeId: input.dimensionNodeId,
-    department: input.department,
-    costCenter: input.costCenter,
-    costCenterChain: input.costCenterChain,
-    costCenterPath: input.costCenterPath,
-    employmentStatus: input.employmentStatus,
-    startedOn: input.startedOn,
-    endedOn: input.endedOn,
-  };
+  const attributes =
+    input.attributes !== undefined
+      ? attributesFromLegacyFields({
+          attributes: input.attributes ?? {},
+          department: input.department,
+          costCenter: input.costCenter,
+          costCenterChain: input.costCenterChain,
+        })
+      : attributesFromLegacyFields({
+          attributes: existing?.attributes ?? {},
+          department:
+            input.department !== undefined ? input.department : existing?.department,
+          costCenter:
+            input.costCenter !== undefined ? input.costCenter : existing?.costCenter,
+          costCenterChain:
+            input.costCenterChain !== undefined
+              ? input.costCenterChain
+              : existing?.costCenterChain,
+        });
+
+  // Keep legacy columns populated when attributes carry the familiar keys (sample / scripts)
+  const department =
+    input.department !== undefined
+      ? input.department
+      : attributes.department ?? existing?.department ?? null;
+  const costCenter =
+    input.costCenter !== undefined
+      ? input.costCenter
+      : attributes.cost_center ?? existing?.costCenter ?? null;
 
   if (existing) {
     const [updated] = await db
       .update(s.contributors)
       .set({
-        displayName: patch.displayName ?? existing.displayName,
+        displayName: input.displayName ?? existing.displayName,
         githubLogin:
-          patch.githubLogin !== undefined ? patch.githubLogin : existing.githubLogin,
-        githubId: patch.githubId !== undefined ? patch.githubId : existing.githubId,
+          input.githubLogin !== undefined ? input.githubLogin : existing.githubLogin,
+        githubId: input.githubId !== undefined ? input.githubId : existing.githubId,
         dimensionNodeId:
-          patch.dimensionNodeId !== undefined
-            ? patch.dimensionNodeId
+          input.dimensionNodeId !== undefined
+            ? input.dimensionNodeId
             : existing.dimensionNodeId,
-        department:
-          patch.department !== undefined ? patch.department : existing.department,
-        costCenter:
-          patch.costCenter !== undefined ? patch.costCenter : existing.costCenter,
+        department,
+        costCenter,
         costCenterChain:
-          patch.costCenterChain !== undefined
-            ? (patch.costCenterChain ?? {})
+          input.costCenterChain !== undefined
+            ? (input.costCenterChain ?? {})
             : existing.costCenterChain,
         costCenterPath:
-          patch.costCenterPath !== undefined
-            ? patch.costCenterPath
+          input.costCenterPath !== undefined
+            ? input.costCenterPath
             : existing.costCenterPath,
-        employmentStatus: patch.employmentStatus ?? existing.employmentStatus,
+        attributes,
+        employmentStatus: input.employmentStatus ?? existing.employmentStatus,
         startedOn:
-          patch.startedOn !== undefined ? patch.startedOn : existing.startedOn,
-        endedOn: patch.endedOn !== undefined ? patch.endedOn : existing.endedOn,
+          input.startedOn !== undefined ? input.startedOn : existing.startedOn,
+        endedOn: input.endedOn !== undefined ? input.endedOn : existing.endedOn,
         externalIds: {
           ...(existing.externalIds ?? {}),
           ...(input.externalIds ?? {}),
@@ -95,10 +115,11 @@ export async function upsertContributor(orgId: string, input: ContributorUpsertI
       githubLogin: input.githubLogin ?? null,
       githubId: input.githubId ?? null,
       dimensionNodeId: input.dimensionNodeId ?? null,
-      department: input.department ?? null,
-      costCenter: input.costCenter ?? null,
+      department: department ?? null,
+      costCenter: costCenter ?? null,
       costCenterChain: input.costCenterChain ?? {},
       costCenterPath: input.costCenterPath ?? null,
+      attributes,
       employmentStatus: status,
       startedOn: input.startedOn ?? null,
       endedOn: input.endedOn ?? null,

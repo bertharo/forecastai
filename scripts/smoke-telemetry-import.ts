@@ -57,33 +57,39 @@ async function main() {
     skipped: roster.skipped,
     errors: roster.errors,
     detected: roster.detected,
+    attributeKeys: roster.attributeKeys,
   });
 
   const people = await db
     .select({
       email: s.contributors.email,
-      department: s.contributors.department,
-      costCenter: s.contributors.costCenter,
-      costCenterChain: s.contributors.costCenterChain,
-      costCenterPath: s.contributors.costCenterPath,
+      attributes: s.contributors.attributes,
     })
     .from(s.contributors)
     .where(eq(s.contributors.orgId, org.id));
   console.log("people rows", people);
 
+  const [orgRow] = await db
+    .select({ config: s.organizations.peopleDimensionConfig })
+    .from(s.organizations)
+    .where(eq(s.organizations.id, org.id))
+    .limit(1);
+
   const alex = people.find((p) => p.email === "alex.chen@acme.example");
+  const attrs = alex?.attributes ?? {};
+  const enabled = (orgRow?.config?.columns ?? []).filter((c) => c.enabled);
   const ok =
     roster.upserted === 4 &&
-    people.some((p) => p.department === "Engineering" && p.costCenter === "CC-ENG-AI-01") &&
     people.some((p) => p.email === "jordan.lee@acme.example") &&
-    alex?.costCenterPath?.includes("Engineering") &&
-    alex?.costCenterChain?.["04"] === "Engineering" &&
-    alex?.costCenterChain?.["07"] === "CC-ENG-AI-01";
+    attrs.cost_center_chain_level_04 === "Engineering" &&
+    attrs.cost_center_chain_level_07 === "CC-ENG-AI-01" &&
+    attrs.cost_center_chain_level_02 === "Acme Corp" &&
+    enabled.length >= 1;
   if (!ok) {
-    console.error("SMOKE FAILED");
+    console.error("SMOKE FAILED", { attrs, enabled });
     process.exit(1);
   }
-  console.log("OK");
+  console.log("OK", { enabled: enabled.map((c) => c.key) });
 }
 
 main().catch((e) => {

@@ -50,7 +50,7 @@ export function ContributorsPanel({ count }: { count: number }) {
     setBusy(true);
     setMsg(null);
     try {
-      // Prefer full roster importer (handles Project worker + CC chain + Excel)
+      // Prefer full roster importer (handles email + arbitrary attribute columns + Excel)
       const res = await fetch("/api/roster", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -80,7 +80,7 @@ export function ContributorsPanel({ count }: { count: number }) {
       <p className="muted mb-3 text-[13px]">
         Who uses AI tools — so spend can land on the right person and team.{" "}
         <strong>{count}</strong> added. Drop a CSV/Excel or paste rows (email, name,
-        GitHub, team — or Project worker + cost-center chain).
+        and any org attributes). Enable dimensions below after import.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <label className="text-[12px]">

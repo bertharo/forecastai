@@ -6,16 +6,21 @@ import { db } from "@/db";
 import * as s from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { countUnmappedKeys } from "@/lib/keys/registry";
+import {
+  enabledDimensionsInOrder,
+  ensurePeopleDimensionConfig,
+} from "@/lib/roster/dimensions";
+import {
+  periodForGrain,
+  resolveDashboardPeriod,
+  rollingPeriod,
+  type DashboardPeriod,
+  type SpendGrain,
+} from "@/lib/queries/period";
 
 const MONEY_EPS = 0.02;
 
-export type BriefPeriod = {
-  days: number;
-  start: Date;
-  end: Date;
-  /** Inclusive display labels, e.g. "Jun 17 – Jul 17" */
-  label: string;
-};
+export type BriefPeriod = DashboardPeriod;
 
 export type BriefAttribution = {
   totalSpend: number;
@@ -31,24 +36,20 @@ export type BriefAttribution = {
 };
 
 export type BriefVendorRow = { key: string; name: string; spend: number };
-export type BriefDeptRow = {
-  department: string;
-  costCenter: string | null;
-  /** Full filled chain path when present (people CSV L02–L07) */
-  costCenterPath: string | null;
+
+export type BriefDimensionValueRow = {
+  label: string;
   spend: number;
   source: "roster" | "key_registry" | "unallocated";
 };
 
-/** Spend rolled up by leaf cost center (or department / team when no CC). */
-export type BriefCostCenterRow = {
-  /** Primary label: cost center code/name, else department, else Unallocated */
-  label: string;
-  costCenter: string | null;
-  department: string | null;
-  costCenterPath: string | null;
-  spend: number;
-  source: "roster" | "key_registry" | "unallocated";
+/** One Home card per enabled people-CSV dimension */
+export type BriefDimensionRollup = {
+  key: string;
+  sourceColumn: string;
+  displayName: string;
+  role: "primary" | "secondary" | null;
+  rows: BriefDimensionValueRow[];
 };
 
 export type BriefFinding = {
@@ -81,9 +82,15 @@ export type BriefFacts = {
    */
   allTimeSpend: number;
   byVendor: BriefVendorRow[];
-  byDepartment: BriefDeptRow[];
-  /** Roster cost-center rollup (leaf CC + path); falls back to dept / key team */
-  byCostCenter: BriefCostCenterRow[];
+  /** Config-driven people attribute rollups (primary first) */
+  byDimensions: BriefDimensionRollup[];
+  /** True when people exist but no dimensions are enabled */
+  needsDimensionConfig: boolean;
+  /**
+   * True when the labeled period has no cost rows but all-time spend exists.
+   * UI must show an empty state — never a total from outside the label.
+   */
+  periodEmpty: boolean;
   attribution: BriefAttribution;
   findings: BriefFinding[];
   unmappedKeyCount: number;
@@ -107,30 +114,26 @@ function asRows<T>(result: unknown): T[] {
   return [];
 }
 
-function formatPeriodLabel(start: Date, end: Date): string {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-  // end is exclusive; show last inclusive day
-  const last = new Date(end.getTime() - 1);
-  return `${fmt.format(start)} – ${fmt.format(last)}`;
+/** @deprecated Prefer resolveBriefPeriod — rolling day window only. */
+export function trailingBriefPeriod(days = 30, now = new Date()): BriefPeriod {
+  return rollingPeriod(days, now);
 }
 
-/** Canonical Brief period (default trailing 30d, UTC day bounds). */
-export function trailingBriefPeriod(days = 30, now = new Date()): BriefPeriod {
-  const end = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  );
-  const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - days);
-  return {
-    days,
-    start,
-    end,
-    label: formatPeriodLabel(start, end),
-  };
+/** Grain-aware Brief period (calendar months when spend is monthly). */
+export async function resolveBriefPeriod(
+  orgId: string,
+  days = 30,
+  now = new Date()
+): Promise<BriefPeriod> {
+  return resolveDashboardPeriod(orgId, days, now);
+}
+
+export function briefPeriodForGrain(
+  grain: SpendGrain,
+  days = 30,
+  now = new Date()
+): BriefPeriod {
+  return periodForGrain(grain, days, now);
 }
 
 function nearlyEqual(a: number, b: number, eps = MONEY_EPS): boolean {
@@ -156,7 +159,7 @@ export async function workspaceHasUserImports(orgId: string): Promise<boolean> {
 
 export function checkBriefInvariants(facts: BriefFacts): BriefInvariantViolation[] {
   const v: BriefInvariantViolation[] = [];
-  const { attribution: a, totalSpend, byVendor, byDepartment, byCostCenter } = facts;
+  const { attribution: a, totalSpend, byVendor, byDimensions } = facts;
 
   const vendorSum = byVendor.reduce((s, r) => s + r.spend, 0);
   if (!nearlyEqual(vendorSum, totalSpend)) {
@@ -168,24 +171,16 @@ export function checkBriefInvariants(facts: BriefFacts): BriefInvariantViolation
     });
   }
 
-  const deptSum = byDepartment.reduce((s, r) => s + r.spend, 0);
-  if (!nearlyEqual(deptSum, totalSpend)) {
-    v.push({
-      id: "dept_sum",
-      message: `sum(by_department) ≠ total`,
-      expected: totalSpend,
-      actual: deptSum,
-    });
-  }
-
-  const ccSum = byCostCenter.reduce((s, r) => s + r.spend, 0);
-  if (!nearlyEqual(ccSum, totalSpend)) {
-    v.push({
-      id: "cost_center_sum",
-      message: `sum(by_cost_center) ≠ total`,
-      expected: totalSpend,
-      actual: ccSum,
-    });
+  for (const dim of byDimensions) {
+    const dimSum = dim.rows.reduce((s, r) => s + r.spend, 0);
+    if (!nearlyEqual(dimSum, totalSpend)) {
+      v.push({
+        id: `dim_sum_${dim.key}`,
+        message: `sum(by_dimension:${dim.key}) ≠ total`,
+        expected: totalSpend,
+        actual: dimSum,
+      });
+    }
   }
 
   if (!nearlyEqual(a.emailJoinSpend + a.keyRegistrySpend, a.attributedSpend)) {
@@ -240,13 +235,21 @@ export function checkBriefInvariants(facts: BriefFacts): BriefInvariantViolation
 
 /**
  * Single fact set for the Brief page. All spend slices share `period`.
+ * When `period` is omitted, resolves a grain-aware window for the org.
  */
 export async function getBriefFacts(
   orgId: string,
-  period: BriefPeriod = trailingBriefPeriod()
+  period?: BriefPeriod
 ): Promise<BriefFacts> {
-  const startIso = period.start.toISOString();
-  const endIso = period.end.toISOString();
+  const resolvedPeriod = period ?? (await resolveBriefPeriod(orgId, 30));
+  const startIso = resolvedPeriod.start.toISOString();
+  const endIso = resolvedPeriod.end.toISOString();
+
+  const dimConfig = await ensurePeopleDimensionConfig(orgId);
+  const enabledDims = enabledDimensionsInOrder(dimConfig);
+  const needsDimensionConfig =
+    enabledDims.length === 0 &&
+    (dimConfig.rowCount > 0 || dimConfig.columns.length > 0);
 
   const classified = await db.execute(sql`
     with base as (
@@ -269,8 +272,6 @@ export async function getBriefFacts(
         b.api_key,
         b.seat_status,
         c.id as contributor_id,
-        c.department as roster_dept,
-        c.cost_center as roster_cc,
         c.employment_status,
         pkr.id as registry_id,
         pkr.dimension_node_id as key_node_id,
@@ -354,99 +355,76 @@ export async function getBriefFacts(
   `);
   const allTimeSpend = Number(asRows<{ spend: string }>(allTimeRows)[0]?.spend ?? 0);
 
-  const deptRows = await db.execute(sql`
-    with base as (
-      select
-        cr.effective_cost::numeric as spend,
-        lower(trim(coalesce(cr.tags->>'email', cr.tags->>'user_email', ''))) as email,
-        coalesce(nullif(trim(cr.tags->>'api_key'), ''), nullif(trim(cr.tags->>'apiKey'), ''), '') as api_key
-      from cost_records cr
-      where cr.org_id = ${orgId}::uuid
-        and cr.charge_period_start >= ${startIso}::timestamptz
-        and cr.charge_period_start < ${endIso}::timestamptz
-    ),
-    joined as (
-      select
-        b.spend,
-        case
-          when c.id is not null and coalesce(c.department, '') <> '' then c.department
-          when c.id is null and n.display_name is not null then n.display_name
-          else 'Unallocated'
-        end as department,
-        case
-          when c.id is not null then c.cost_center
-          else null
-        end as cost_center,
-        case
-          when c.id is not null then nullif(trim(c.cost_center_path), '')
-          else null
-        end as cost_center_path,
-        case
-          when c.id is not null and coalesce(c.department, '') <> '' then 'roster'
-          when c.id is null and pkr.dimension_node_id is not null then 'key_registry'
-          else 'unallocated'
-        end as source
-      from base b
-      left join contributors c
-        on c.org_id = ${orgId}::uuid
-        and c.email = b.email
-        and b.email <> ''
-      left join provider_key_registry pkr
-        on pkr.org_id = ${orgId}::uuid
-        and pkr.kind = 'api_key'
-        and pkr.external_id = b.api_key
-        and b.api_key <> ''
-        and c.id is null
-      left join dimension_nodes n on n.id = pkr.dimension_node_id
-    )
-    select
-      department,
-      cost_center,
-      cost_center_path,
-      source,
-      coalesce(sum(spend), 0)::text as spend
-    from joined
-    group by department, cost_center, cost_center_path, source
-    order by sum(spend) desc
-  `);
+  const periodEmpty = totalSpend < 0.01 && allTimeSpend > 0.01;
 
-  const byDepartment = asRows<{
-    department: string;
-    cost_center: string | null;
-    cost_center_path: string | null;
-    source: string;
-    spend: string;
-  }>(deptRows).map((r) => ({
-    department: r.department,
-    costCenter: r.cost_center,
-    costCenterPath: r.cost_center_path,
-    spend: Number(r.spend),
-    source: r.source as BriefDeptRow["source"],
-  }));
-
-  // Leaf cost-center rollup (people chain deepest level); path kept for hierarchy context.
-  const ccMap = new Map<string, BriefCostCenterRow>();
-  for (const row of byDepartment) {
-    const label =
-      (row.costCenter && row.costCenter.trim()) ||
-      (row.department !== "Unallocated" ? row.department : null) ||
-      "Unallocated";
-    const key = `${row.source}::${label}::${row.costCenterPath ?? ""}`;
-    const existing = ccMap.get(key);
-    if (existing) {
-      existing.spend += row.spend;
-    } else {
-      ccMap.set(key, {
+  // Config-driven attribute rollups — one query per enabled dimension
+  const byDimensions: BriefDimensionRollup[] = [];
+  for (const dim of enabledDims) {
+    // Validate key: only alphanumeric + underscore (normalized header keys)
+    if (!/^[a-z0-9_]+$/i.test(dim.key)) continue;
+    const attrKey = dim.key;
+    const dimRows = await db.execute(sql`
+      with base as (
+        select
+          cr.effective_cost::numeric as spend,
+          lower(trim(coalesce(cr.tags->>'email', cr.tags->>'user_email', ''))) as email,
+          coalesce(nullif(trim(cr.tags->>'api_key'), ''), nullif(trim(cr.tags->>'apiKey'), ''), '') as api_key
+        from cost_records cr
+        where cr.org_id = ${orgId}::uuid
+          and cr.charge_period_start >= ${startIso}::timestamptz
+          and cr.charge_period_start < ${endIso}::timestamptz
+      ),
+      joined as (
+        select
+          b.spend,
+          case
+            when c.id is not null and nullif(trim(c.attributes->>${attrKey}), '') is not null
+              then trim(c.attributes->>${attrKey})
+            when c.id is null and n.display_name is not null then n.display_name
+            else 'Unallocated'
+          end as label,
+          case
+            when c.id is not null and nullif(trim(c.attributes->>${attrKey}), '') is not null
+              then 'roster'
+            when c.id is null and pkr.dimension_node_id is not null then 'key_registry'
+            else 'unallocated'
+          end as source
+        from base b
+        left join contributors c
+          on c.org_id = ${orgId}::uuid
+          and c.email = b.email
+          and b.email <> ''
+        left join provider_key_registry pkr
+          on pkr.org_id = ${orgId}::uuid
+          and pkr.kind = 'api_key'
+          and pkr.external_id = b.api_key
+          and b.api_key <> ''
+          and c.id is null
+        left join dimension_nodes n on n.id = pkr.dimension_node_id
+      )
+      select
         label,
-        costCenter: row.costCenter,
-        department: row.department === "Unallocated" ? null : row.department,
-        costCenterPath: row.costCenterPath,
-        spend: row.spend,
-        source: row.source,
-      });
-    }
+        source,
+        coalesce(sum(spend), 0)::text as spend
+      from joined
+      group by label, source
+      order by sum(spend) desc
+    `);
+
+    byDimensions.push({
+      key: dim.key,
+      sourceColumn: dim.sourceColumn,
+      displayName: dim.displayName,
+      role: dim.role,
+      rows: asRows<{ label: string; source: string; spend: string }>(dimRows).map(
+        (r) => ({
+          label: r.label,
+          spend: Number(r.spend),
+          source: r.source as BriefDimensionValueRow["source"],
+        })
+      ),
+    });
   }
-  const byCostCenter = [...ccMap.values()].sort((a, b) => b.spend - a.spend);
 
   // Findings — terminated seats use same period window
   const terminated = await db.execute(sql`
@@ -569,12 +547,13 @@ export async function getBriefFacts(
 
   const facts: BriefFacts = {
     orgId,
-    period,
+    period: resolvedPeriod,
     totalSpend,
     allTimeSpend,
     byVendor,
-    byDepartment,
-    byCostCenter,
+    byDimensions,
+    needsDimensionConfig,
+    periodEmpty,
     attribution,
     findings,
     unmappedKeyCount,
@@ -585,7 +564,7 @@ export async function getBriefFacts(
     sampleDataLoadedAt,
     hasUserImports,
     dataMixed,
-    empty: totalSpend < 0.01 && byVendor.length === 0 && allTimeSpend < 0.01,
+    empty: allTimeSpend < 0.01 && byVendor.length === 0,
     violations: [],
   };
 
@@ -594,7 +573,7 @@ export async function getBriefFacts(
   if (facts.violations.length > 0 && process.env.NODE_ENV !== "production") {
     console.error("[brief] invariant violations", {
       orgId,
-      period: period.label,
+      period: resolvedPeriod.label,
       violations: facts.violations,
     });
   }

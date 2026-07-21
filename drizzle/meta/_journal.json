@@ -8,6 +8,20 @@
       "when": 1784340664336,
       "tag": "0000_provider_key_registry",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784583000000,
+      "tag": "0001_contributor_cost_center_chain",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784584200000,
+      "tag": "0002_people_dimensions",
+      "breakpoints": true
     }
   ]
 }

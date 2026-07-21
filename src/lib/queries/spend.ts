@@ -2,7 +2,7 @@ import { db } from "@/db";
 import * as s from "@/db/schema";
 import { and, eq, gte, lt, sql, desc } from "drizzle-orm";
 import type { AnalyticsFilters, MetricMode } from "@/lib/queries/filters";
-import { trailingBriefPeriod } from "@/lib/queries/brief";
+import { resolveDashboardPeriod } from "@/lib/queries/period";
 
 function monthStart(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -33,8 +33,8 @@ export async function getSpendSummary(
 
   const metric = f.metric ?? "spend";
   const mtdStart = monthStart();
-  // Match Brief’s exclusive-end trailing window (not open-ended gte-only).
-  const briefPeriod = trailingBriefPeriod(30);
+  // Match Brief’s grain-aware window (calendar months when spend is monthly).
+  const briefPeriod = await resolveDashboardPeriod(orgId, 30);
   const trailingStart = briefPeriod.start;
   const trailingEnd = briefPeriod.end;
   const value = valueExpr(metric);
@@ -185,6 +185,7 @@ export async function getSpendSummary(
     .groupBy(s.dimensionNodes.displayName, s.dimensionNodes.id)
     .orderBy(desc(sql`sum(${s.costRecords.effectiveCost})`));
 
+  const chartPeriod = await resolveDashboardPeriod(orgId, 60);
   const daily = await db
     .select({
       day: sql<string>`(${s.costRecords.chargePeriodStart})::date`,
@@ -197,7 +198,8 @@ export async function getSpendSummary(
     .where(
       and(
         baseWhere,
-        gte(s.costRecords.chargePeriodStart, trailingBriefPeriod(60).start)
+        gte(s.costRecords.chargePeriodStart, chartPeriod.start),
+        lt(s.costRecords.chargePeriodStart, chartPeriod.end)
       )
     )
     .groupBy(sql`(${s.costRecords.chargePeriodStart})::date`, s.providers.key)

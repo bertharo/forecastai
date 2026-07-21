@@ -620,7 +620,7 @@ export default function ImportPage() {
           <div>
             <h2 className="text-[15px] font-semibold">Teams</h2>
             <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-              Optional — paste your org chart if you want BU → department → team slices.
+              Optional — paste your org chart if you want BU → team slices.
             </p>
           </div>
           <OrgStructureImport bare />
@@ -659,7 +659,7 @@ export default function ImportPage() {
                     </div>
                     {b.status === "completed" && (
                       <p className="mt-1 text-[13px]" style={{ color: "var(--success)" }}>
-                        Spend rows are in — check Home for vendor / department totals.
+                        Spend rows are in — check Home for vendor / org-dimension totals.
                       </p>
                     )}
                     {why && b.status === "failed" && (
@@ -785,7 +785,7 @@ export default function ImportPage() {
                 <div>
                   <div className="text-[15px] font-semibold">Match your columns</div>
                   <p className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
-                    Required: when, vendor, and how much. Email helps department rollups.
+                    Required: when, vendor, and how much. Email helps org-dimension rollups.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">

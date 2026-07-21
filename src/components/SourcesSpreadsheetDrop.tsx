@@ -15,9 +15,18 @@ function looksLikePeopleHeaders(headers: string[]): boolean {
     lower.has("email") ||
     lower.has("work_email") ||
     lower.has("user_email");
-  const hasChain = [...lower].some((h) => h.startsWith("cost_center_chain_level_"));
-  const hasDept = lower.has("department") || lower.has("cost_center") || hasChain;
-  return hasWorker && (hasDept || hasChain || lower.has("display_name"));
+  // People file: email/worker plus any non-spend attribute-ish columns
+  const hasAttrs =
+    [...lower].some(
+      (h) =>
+        h.startsWith("cost_center") ||
+        h === "department" ||
+        h === "display_name" ||
+        h === "business_unit" ||
+        h === "team" ||
+        h === "org_unit"
+    ) || lower.has("display_name");
+  return hasWorker && (hasAttrs || lower.has("display_name") || lower.size >= 2);
 }
 
 function guessColumnMap(headers: string[]): Record<string, string> {
@@ -196,7 +205,7 @@ export function SourcesSpreadsheetDrop() {
       <div>
         <div className="text-[15px] font-semibold">Upload a spreadsheet</div>
         <p className="mt-2 text-[13px]" style={{ color: "var(--muted)" }}>
-          Drop people (Project worker + cost-center chain) or spend (email × month ×
+          Drop people (email + attributes) or spend (email × month ×
           tool). CSV or Excel — first sheet only.
         </p>
       </div>

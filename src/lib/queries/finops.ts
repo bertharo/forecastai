@@ -2,14 +2,7 @@ import { db } from "@/db";
 import * as s from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { countUnmappedKeys, listKeyRegistry } from "@/lib/keys/registry";
-import { getBriefFacts, trailingBriefPeriod } from "@/lib/queries/brief";
-
-function daysAgo(n: number): Date {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
+import { getBriefFacts, resolveBriefPeriod } from "@/lib/queries/brief";
 
 function asRows<T>(result: unknown): T[] {
   if (Array.isArray(result)) return result as T[];
@@ -17,93 +10,6 @@ function asRows<T>(result: unknown): T[] {
     return ((result as { rows: T[] }).rows ?? []) as T[];
   }
   return [];
-}
-
-export type DeptSpendRow = {
-  department: string;
-  costCenter: string | null;
-  costCenterPath: string | null;
-  spend: number;
-  source: "roster" | "key_registry" | "unallocated";
-};
-
-/**
- * Spend by department: email → roster department, else key-registry team name, else Unallocated.
- * Never reads department from usage CSV tags.
- */
-export async function getSpendByDepartment(
-  orgId: string,
-  days = 30
-): Promise<DeptSpendRow[]> {
-  const since = daysAgo(days);
-  const result = await db.execute(sql`
-    with base as (
-      select
-        cr.effective_cost::numeric as spend,
-        lower(trim(coalesce(cr.tags->>'email', cr.tags->>'user_email', ''))) as email,
-        coalesce(cr.tags->>'api_key', cr.tags->>'apiKey', '') as api_key
-      from cost_records cr
-      where cr.org_id = ${orgId}::uuid
-        and cr.charge_period_start >= ${since.toISOString()}::timestamptz
-    ),
-    joined as (
-      select
-        b.spend,
-        case
-          when c.department is not null and c.department <> '' then c.department
-          when n.display_name is not null then n.display_name
-          else 'Unallocated'
-        end as department,
-        case
-          when c.department is not null and c.department <> '' then c.cost_center
-          else null
-        end as cost_center,
-        case
-          when c.department is not null and c.department <> '' then nullif(trim(c.cost_center_path), '')
-          else null
-        end as cost_center_path,
-        case
-          when c.department is not null and c.department <> '' then 'roster'
-          when n.id is not null then 'key_registry'
-          else 'unallocated'
-        end as source
-      from base b
-      left join contributors c
-        on c.org_id = ${orgId}::uuid
-        and c.email = b.email
-        and b.email <> ''
-      left join provider_key_registry pkr
-        on pkr.org_id = ${orgId}::uuid
-        and pkr.kind = 'api_key'
-        and pkr.external_id = b.api_key
-        and b.api_key <> ''
-        and c.id is null
-      left join dimension_nodes n on n.id = pkr.dimension_node_id
-    )
-    select
-      department,
-      cost_center,
-      cost_center_path,
-      source,
-      coalesce(sum(spend), 0)::text as spend
-    from joined
-    group by department, cost_center, cost_center_path, source
-    order by sum(spend) desc
-  `);
-
-  return asRows<{
-    department: string;
-    cost_center: string | null;
-    cost_center_path: string | null;
-    source: string;
-    spend: string;
-  }>(result).map((r) => ({
-    department: r.department,
-    costCenter: r.cost_center,
-    costCenterPath: r.cost_center_path,
-    spend: Number(r.spend),
-    source: r.source as DeptSpendRow["source"],
-  }));
 }
 
 export type CoverageBreakdown = {
@@ -122,7 +28,7 @@ export async function getAttributionCoverage(
   orgId: string,
   days = 30
 ): Promise<CoverageBreakdown> {
-  const since = daysAgo(days);
+  const period = await resolveBriefPeriod(orgId, days);
   const result = await db.execute(sql`
     with base as (
       select
@@ -132,7 +38,8 @@ export async function getAttributionCoverage(
         coalesce(cr.tags->>'api_key', cr.tags->>'apiKey', '') as api_key
       from cost_records cr
       where cr.org_id = ${orgId}::uuid
-        and cr.charge_period_start >= ${since.toISOString()}::timestamptz
+        and cr.charge_period_start >= ${period.start.toISOString()}::timestamptz
+        and cr.charge_period_start < ${period.end.toISOString()}::timestamptz
     ),
     classified as (
       select
@@ -295,10 +202,11 @@ export async function getFinopsFindings(orgId: string): Promise<FinopsFinding[]>
 
 /** @deprecated Prefer getBriefFacts — kept for call sites that need the old shape. */
 export async function getFinopsDashboard(orgId: string, days = 30) {
-  const facts = await getBriefFacts(orgId, trailingBriefPeriod(days));
+  const period = await resolveBriefPeriod(orgId, days);
+  const facts = await getBriefFacts(orgId, period);
   return {
     byVendor: facts.byVendor,
-    byDepartment: facts.byDepartment,
+    byDimensions: facts.byDimensions,
     coverage: {
       allocatedPct: facts.attribution.attributedPct,
       totalSpend: facts.attribution.totalSpend,
@@ -320,9 +228,11 @@ export async function getFinopsDashboard(orgId: string, days = 30) {
     })),
     sampleDataLoadedAt: facts.sampleDataLoadedAt,
     empty: facts.empty,
+    periodEmpty: facts.periodEmpty,
     period: facts.period,
     violations: facts.violations,
     dataMixed: facts.dataMixed,
+    needsDimensionConfig: facts.needsDimensionConfig,
   };
 }
 

@@ -15,7 +15,7 @@ import { getAiCostSummary } from "@/lib/queries/ai-cost";
 import {
   canShowBriefForecast,
   getBriefFacts,
-  trailingBriefPeriod,
+  resolveBriefPeriod,
   type BriefFacts,
 } from "@/lib/queries/brief";
 import { Metric } from "@/components/Metric";
@@ -54,7 +54,7 @@ function BriefView({
   const gap = plan != null ? forecast - plan : 0;
   const overPct = plan != null && plan > 0 ? gap / plan : 0;
 
-  const empty = facts.empty;
+  const empty = facts.empty || facts.periodEmpty;
   const attention = empty
     ? []
     : [
@@ -258,21 +258,18 @@ function BreakdownView({
 }: {
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
   facts: BriefFacts;
-  mode: "vendor" | "team" | "feature" | "costcenter";
+  mode: "vendor" | "team" | "feature" | "dimension";
 }) {
-  const rosterCc = facts.byCostCenter.filter((r) => r.spend > 0);
+  const primaryDim = facts.byDimensions[0];
+  const dimRows = primaryDim?.rows.filter((r) => r.spend > 0) ?? [];
   const rows =
-    mode === "costcenter"
-      ? rosterCc.map((r) => ({
-          key: `${r.source}-${r.label}-${r.costCenterPath ?? ""}`,
+    mode === "dimension"
+      ? dimRows.map((r) => ({
+          key: `${r.source}-${r.label}`,
           label: r.label,
-          sub: r.costCenterPath
-            ? r.costCenterPath
-            : r.department
-              ? `Department · ${r.department}`
-              : r.source === "key_registry"
-                ? "Key → team"
-                : "Cost center",
+          sub: primaryDim
+            ? `${primaryDim.displayName} · ${primaryDim.sourceColumn}`
+            : "Org dimension",
           value: r.spend,
           tokens: 0,
           abbr: r.label.slice(0, 3).toUpperCase(),
@@ -289,11 +286,12 @@ function BreakdownView({
               abbr: r.team.slice(0, 3).toUpperCase(),
               href: `/?tab=org&node=${r.nodeId}`,
             }))
-          : // People CSV cost centers when org-chart teams are not mapped yet
-            rosterCc.map((r) => ({
-              key: `${r.source}-${r.label}-${r.costCenterPath ?? ""}`,
+          : dimRows.map((r) => ({
+              key: `${r.source}-${r.label}`,
               label: r.label,
-              sub: r.costCenterPath ?? "Cost center (roster)",
+              sub: primaryDim
+                ? `${primaryDim.displayName} (roster)`
+                : "Org dimension",
               value: r.spend,
               tokens: 0,
               abbr: r.label.slice(0, 3).toUpperCase(),
@@ -322,12 +320,21 @@ function BreakdownView({
   const total = rows.reduce((a, r) => a + r.value, 0) || 1;
   const max = Math.max(...rows.map((r) => r.value), 1);
 
+  if (facts.needsDimensionConfig && (mode === "dimension" || mode === "team")) {
+    return (
+      <EmptyState
+        message="Configure your org dimensions"
+        action={{ href: "/connectors#org-dimensions", label: "Open Sources" }}
+      />
+    );
+  }
+
   if (rows.length === 0) {
     return (
       <EmptyState
         message={
-          mode === "costcenter" || mode === "team"
-            ? "No cost-center spend yet. Import a people CSV with Cost Center Chain levels and a spend CSV with matching emails."
+          mode === "dimension" || mode === "team"
+            ? "No org-dimension spend yet. Import a people CSV and enable dimensions on Sources."
             : "No spend to break down yet."
         }
         action={{ href: "/connectors", label: "Connect a source" }}
@@ -346,7 +353,7 @@ function BreakdownView({
             </span>
           </h2>
           <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-            Same total, four lenses — vendor, feature, cost center, or team.
+            Same total, four lenses — vendor, feature, org dimension, or team.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -354,7 +361,7 @@ function BreakdownView({
             [
               ["vendor", "By vendor"],
               ["feature", "By feature"],
-              ["costcenter", "By cost center"],
+              ["dimension", primaryDim ? `By ${primaryDim.displayName}` : "By dimension"],
               ["team", "By team"],
             ] as const
           ).map(([key, label]) => (
@@ -422,6 +429,17 @@ function BreakdownView({
             </span>
           </Link>
         ))}
+        {rows.length > 12 && (
+          <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+            +{rows.length - 12} more ·{" "}
+            {usd(rows.slice(12).reduce((a, r) => a + r.value, 0))} (
+            {pct(
+              rows.slice(12).reduce((a, r) => a + r.value, 0) / total,
+              0
+            )}{" "}
+            of spend)
+          </p>
+        )}
       </div>
     </div>
   );
@@ -434,19 +452,30 @@ function ByOrgView({
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
   facts: BriefFacts;
 }) {
-  const teams = summary.byTeam;
-  const rosterCc = facts.byCostCenter.filter(
+  if (facts.needsDimensionConfig) {
+    return (
+      <EmptyState
+        message="Configure your org dimensions"
+        action={{ href: "/connectors#org-dimensions", label: "Open Sources" }}
+      />
+    );
+  }
+
+  const primaryDim = facts.byDimensions[0];
+  const dimRows = (primaryDim?.rows ?? []).filter(
     (r) => r.source === "roster" && r.spend > 0
   );
-  // Prefer roster cost-center chain when people CSV drove attribution; else org-chart teams.
-  const useRoster = rosterCc.length > 0;
-  const rows = useRoster
-    ? rosterCc.map((r) => ({
-        key: `${r.label}-${r.costCenterPath ?? ""}`,
+  const teams = summary.byTeam;
+  const useDims = dimRows.length > 0;
+  const rows = useDims
+    ? dimRows.map((r) => ({
+        key: r.label,
         title: r.label,
-        subtitle: r.costCenterPath ?? r.department ?? "Cost center",
+        subtitle: primaryDim
+          ? `${primaryDim.displayName} · ${primaryDim.sourceColumn}`
+          : "Org dimension",
         spend: r.spend,
-        href: `/?tab=breakdown&slice=costcenter`,
+        href: `/?tab=breakdown&slice=dimension`,
       }))
     : teams.map((t) => ({
         key: t.nodeId,
@@ -460,8 +489,8 @@ function ByOrgView({
   if (rows.length === 0) {
     return (
       <EmptyState
-        message="No org spend yet. Import a people CSV with Cost Center Chain levels (and spend with matching emails), or map keys to teams."
-        action={{ href: "/import#roster", label: "Import people" }}
+        message="No org spend yet. Import a people CSV, enable dimensions on Sources, or map keys to teams."
+        action={{ href: "/connectors#org-dimensions", label: "Open Sources" }}
       />
     );
   }
@@ -469,9 +498,9 @@ function ByOrgView({
   return (
     <div className="space-y-4">
       <p className="text-[14px]" style={{ color: "var(--muted)" }}>
-        {useRoster
-          ? `Cost centers from the people roster (${facts.period.label}) — ${rows.length} centers, ${usd(total)} attributed.`
-          : `Team slices for the trailing 30 days — ${rows.length} teams, ${usd(total)} attributed.`}
+        {useDims
+          ? `${primaryDim?.displayName ?? "Dimension"} from people roster (${facts.period.label}) — ${rows.length} values, ${usd(total)} attributed.`
+          : `Team slices for ${facts.period.label} — ${rows.length} teams, ${usd(total)} attributed.`}
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((t) => (
@@ -512,8 +541,10 @@ export default async function HomePage({
     const tab = typeof sp.tab === "string" ? sp.tab : "brief";
     const slice =
       typeof sp.slice === "string" &&
-      ["vendor", "team", "feature", "costcenter"].includes(sp.slice)
-        ? (sp.slice as "vendor" | "team" | "feature" | "costcenter")
+      ["vendor", "team", "feature", "dimension", "costcenter"].includes(sp.slice)
+        ? sp.slice === "costcenter"
+          ? ("dimension" as const)
+          : (sp.slice as "vendor" | "team" | "feature" | "dimension")
         : "vendor";
     const filters = parseAnalyticsFilters(sp);
     const org = await getCurrentOrg();
@@ -526,7 +557,7 @@ export default async function HomePage({
       );
     }
 
-    const briefPeriod = trailingBriefPeriod(30);
+    const briefPeriod = await resolveBriefPeriod(org.id, 30);
     const [types, nodes, summary, options, stale, clusters, aiCost, facts, unmapped, costCount, keyCount] =
       await Promise.all([
         getDimensionTypes(org.id),

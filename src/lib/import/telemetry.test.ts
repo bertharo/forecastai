@@ -46,12 +46,13 @@ describe("parseImportTimestamp month grain", () => {
     expect(parsed?.monthGrain).toBe(true);
     expect(parsed?.start.getUTCFullYear()).toBe(2026);
     expect(parsed?.start.getUTCMonth()).toBe(5);
+    expect(parsed?.start.getUTCDate()).toBe(1);
   });
 
-  it("places completed months on last day of month", () => {
+  it("stamps completed months on the first of the month", () => {
     const parsed = parseImportTimestamp("2026-01-01");
     expect(parsed?.monthGrain).toBe(true);
-    // Jan 2026 is completed relative to "today" in this workspace (Jul 2026)
-    expect(parsed?.start.getUTCDate()).toBe(31);
+    expect(parsed?.start.getUTCDate()).toBe(1);
+    expect(parsed?.start.getUTCMonth()).toBe(0);
   });
 });

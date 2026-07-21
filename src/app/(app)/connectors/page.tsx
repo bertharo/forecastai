@@ -10,6 +10,7 @@ import { AnthropicKeyForm } from "./AnthropicKeyForm";
 import { CodingToolsPanel } from "./CodingToolsPanel";
 import { ContributorsPanel } from "./ContributorsPanel";
 import { SourcesSpreadsheetDrop } from "@/components/SourcesSpreadsheetDrop";
+import { PeopleDimensionsConfig } from "@/components/PeopleDimensionsConfig";
 import { PriceCardsPanel } from "@/components/PriceCardsPanel";
 import { EmptyState } from "@/components/EmptyState";
 import { headers } from "next/headers";
@@ -108,6 +109,7 @@ export default async function ConnectorsPage() {
       </div>
 
       <ContributorsPanel count={Number(contributorCount)} />
+      <PeopleDimensionsConfig />
       <CodingToolsPanel
         github={{
           status: githubConn?.status ?? null,

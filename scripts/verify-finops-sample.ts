@@ -19,7 +19,7 @@ import { loadFinopsSamplePack } from "@/lib/demo/finopsSample";
 import {
   checkBriefInvariants,
   getBriefFacts,
-  trailingBriefPeriod,
+  resolveBriefPeriod,
 } from "@/lib/queries/brief";
 import { countUnmappedKeys, listKeyRegistry } from "@/lib/keys/registry";
 import { importRosterCsv } from "@/lib/roster/import";
@@ -39,19 +39,23 @@ async function ensureOrg(slug: string, name: string) {
 }
 
 async function assertBrief(orgId: string, label: string) {
-  const facts = await getBriefFacts(orgId, trailingBriefPeriod(30));
+  const period = await resolveBriefPeriod(orgId, 30);
+  const facts = await getBriefFacts(orgId, period);
   const violations = checkBriefInvariants(facts);
   const unmappedKeys = await countUnmappedKeys(orgId);
   const keyRows = await listKeyRegistry(orgId, { unmappedOnly: true });
 
+  const primaryDim = facts.byDimensions[0];
   const checks: Record<string, boolean> = {
     noViolations: violations.length === 0,
     vendorSum: Math.abs(
       facts.byVendor.reduce((a, r) => a + r.spend, 0) - facts.totalSpend
     ) < 0.02,
-    deptSum: Math.abs(
-      facts.byDepartment.reduce((a, r) => a + r.spend, 0) - facts.totalSpend
-    ) < 0.02,
+    dimSum:
+      !primaryDim ||
+      Math.abs(
+        primaryDim.rows.reduce((a, r) => a + r.spend, 0) - facts.totalSpend
+      ) < 0.02,
     attrPartition:
       Math.abs(
         facts.attribution.attributedSpend +
@@ -67,9 +71,7 @@ async function assertBrief(orgId: string, label: string) {
     unmappedCountAlign:
       unmappedKeys === facts.unmappedKeyCount &&
       keyRows.filter((k) => k.kind === "api_key").length === unmappedKeys,
-    supportCcDistinct: !facts.byDepartment.some(
-      (d) => d.department === "Support" && d.costCenter === "CC-220"
-    ),
+    hasDimensions: facts.byDimensions.length > 0,
   };
 
   console.log(`\n[${label}] total=${facts.totalSpend.toFixed(2)} period=${facts.period.label}`);
@@ -176,7 +178,7 @@ async function main() {
       );
     }
     // If only roster, facts may be empty of spend — still run partition (zeros ok)
-    const facts = await getBriefFacts(acmeOrg.id, trailingBriefPeriod(30));
+    const facts = await getBriefFacts(acmeOrg.id, await resolveBriefPeriod(acmeOrg.id, 30));
     const v = checkBriefInvariants(facts);
     console.log("[acme] violations", v);
     if (v.length) {

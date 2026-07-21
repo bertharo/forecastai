@@ -5,12 +5,18 @@ import { type RawRow } from "@/lib/import/parse";
 import { upsertContributor } from "@/lib/contributors/upsert";
 import { normalizeHeaderKey } from "@/lib/import/telemetry";
 import { parseTabularUpload, rowsToCsv } from "@/lib/import/spreadsheet";
+import {
+  attributesFromRow,
+  ensurePeopleDimensionConfig,
+  isIdentityColumnKey,
+  mergeProfilesIntoConfig,
+  profileAttributeColumns,
+  autoEnableLegacyVisibleColumns,
+} from "@/lib/roster/dimensions";
 
 export type RosterColumnMap = {
   email: string;
   display_name?: string;
-  department?: string;
-  cost_center?: string;
   employment_status?: string;
   started_on?: string;
   ended_on?: string;
@@ -20,8 +26,6 @@ export type RosterColumnMap = {
 const DEFAULT_MAP: RosterColumnMap = {
   email: "email",
   display_name: "display_name",
-  department: "department",
-  cost_center: "cost_center",
   employment_status: "employment_status",
   started_on: "started_on",
   ended_on: "ended_on",
@@ -47,30 +51,6 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
     "preferred_name",
     "project_worker", // name when Email column is also present
   ],
-  department: [
-    "department",
-    "dept",
-    "dept_name",
-    "org_unit",
-    "division",
-    "cost_center_chain_level_04",
-    "cost_center_chain_level_4",
-    "cost_center_chain_level_03",
-    "cost_center_chain_level_3",
-  ],
-  cost_center: [
-    "cost_center",
-    "cost_center_code",
-    "cc",
-    "costcentre",
-    "cost_centre",
-    "cost_center_chain_level_07",
-    "cost_center_chain_level_7",
-    "cost_center_chain_level_06",
-    "cost_center_chain_level_6",
-    "cost_center_chain_level_05",
-    "cost_center_chain_level_5",
-  ],
   employment_status: [
     "employment_status",
     "status",
@@ -95,20 +75,8 @@ const ALIASES: Record<keyof RosterColumnMap, string[]> = {
   team_key: ["team_key", "team", "team_id", "team_name", "squad"],
 };
 
-const CHAIN_LEVELS = [2, 3, 4, 5, 6, 7] as const;
-
 function normHeader(h: string) {
   return normalizeHeaderKey(h);
-}
-
-/** Accept Level 02 and Level 2 (and Excel en-dashes via normalizeHeaderKey). */
-function chainHeaderKeys(level: number): string[] {
-  const n = String(level);
-  const padded = n.padStart(2, "0");
-  return [
-    `cost_center_chain_level_${padded}`,
-    `cost_center_chain_level_${n}`,
-  ];
 }
 
 function normalizeRows(headers: string[], rows: Record<string, string>[]) {
@@ -146,52 +114,6 @@ function cell(row: Record<string, string>, col?: string) {
   return (row[col] ?? row[normHeader(col)] ?? "").trim();
 }
 
-function cellAny(row: Record<string, string>, keys: string[]) {
-  for (const k of keys) {
-    const v = cell(row, k);
-    if (v) return v;
-  }
-  return "";
-}
-
-/** Department from mid chain; cost center from deepest non-empty level; all filled levels kept. */
-function fromCostCenterChain(row: Record<string, string>): {
-  department: string | null;
-  costCenter: string | null;
-  chain: Record<string, string>;
-  path: string | null;
-} {
-  const levels = CHAIN_LEVELS.map((level) => ({
-    level,
-    value: cellAny(row, chainHeaderKeys(level)),
-  }));
-  const filled = levels.filter((l) => l.value);
-  if (!filled.length) {
-    return { department: null, costCenter: null, chain: {}, path: null };
-  }
-
-  const chain: Record<string, string> = {};
-  for (const l of filled) {
-    chain[String(l.level).padStart(2, "0")] = l.value;
-  }
-
-  const dept =
-    cellAny(row, chainHeaderKeys(4)) ||
-    cellAny(row, chainHeaderKeys(3)) ||
-    cellAny(row, chainHeaderKeys(5)) ||
-    filled[0].value;
-
-  const costCenter = [...filled].reverse()[0]?.value ?? null;
-  const path = filled.map((l) => l.value).join(" › ");
-  return { department: dept || null, costCenter, chain, path };
-}
-
-function hasCostCenterChain(normalizedHeaders: string[]): boolean {
-  return CHAIN_LEVELS.some((level) =>
-    chainHeaderKeys(level).some((k) => normalizedHeaders.includes(k))
-  );
-}
-
 function asDateOrNull(raw: string): string | null {
   if (!raw) return null;
   const d = raw.slice(0, 10);
@@ -201,12 +123,23 @@ function asDateOrNull(raw: string): string | null {
   return d;
 }
 
+/** Map normalized key → original header for profiling / config. */
+function sourceColumnMap(headers: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const h of headers) {
+    const key = normHeader(h);
+    if (!out[key]) out[key] = h.trim() || key;
+  }
+  return out;
+}
+
 export type RosterImportResult = {
   upserted: number;
   rows: number;
   skipped: number;
   errors: { row: number; message: string }[];
   detected: Partial<RosterColumnMap>;
+  attributeKeys: string[];
 };
 
 /** Import HRIS roster from CSV text or Excel bytes. */
@@ -249,6 +182,7 @@ export async function importRosterFile(
         },
       ],
       detected: {},
+      attributeKeys: [],
     };
   }
 
@@ -259,13 +193,24 @@ export async function importRosterFile(
       skipped: 0,
       errors: [{ row: 0, message: "File looks empty — need a header row" }],
       detected: {},
+      attributeKeys: [],
     };
   }
 
   const rows = normalizeRows(headers, rawRows);
   const normalizedHeaders = headers.map(normHeader);
   const map = resolveMap(normalizedHeaders, opts.columnMap);
-  const hasChain = hasCostCenterChain(normalizedHeaders);
+  const sources = sourceColumnMap(headers);
+
+  // project_worker used as email is identity; if a separate email exists, still skip as name-only identity
+  const excludeKeys = new Set<string>();
+  if (map.email) excludeKeys.add(normHeader(map.email));
+  if (map.display_name) excludeKeys.add(normHeader(map.display_name));
+  for (const k of Object.keys(sources)) {
+    if (isIdentityColumnKey(k)) excludeKeys.add(k);
+  }
+
+  const attributeKeys = Object.keys(sources).filter((k) => !excludeKeys.has(k));
 
   if (!map.email || !normalizedHeaders.includes(normHeader(map.email))) {
     return {
@@ -279,6 +224,7 @@ export async function importRosterFile(
         },
       ],
       detected: map,
+      attributeKeys,
     };
   }
 
@@ -314,28 +260,15 @@ export async function importRosterFile(
     }
 
     try {
-      const chain = hasChain
-        ? fromCostCenterChain(row)
-        : { department: null, costCenter: null, chain: {}, path: null };
       const teamKey = cell(row, map.team_key);
       const rawName = cell(row, map.display_name);
       const displayName =
         rawName && rawName.toLowerCase() !== email ? rawName : email.split("@")[0];
-      const department = cell(row, map.department) || chain.department;
-      const costCenter = cell(row, map.cost_center) || chain.costCenter;
+      const attributes = attributesFromRow(row, attributeKeys);
       await upsertContributor(orgId, {
         email,
         displayName,
-        department,
-        costCenter,
-        // When the sheet has chain columns, always write chain fields (even if empty)
-        // so a re-import clears stale levels for that person.
-        ...(hasChain
-          ? {
-              costCenterChain: chain.chain,
-              costCenterPath: chain.path,
-            }
-          : {}),
+        attributes,
         employmentStatus: cell(row, map.employment_status) || "active",
         startedOn: asDateOrNull(cell(row, map.started_on)),
         endedOn: asDateOrNull(cell(row, map.ended_on)),
@@ -359,12 +292,45 @@ export async function importRosterFile(
     });
   }
 
+  // Profile + persist dimension config (preserve prior enable/rename when re-importing)
+  if (upserted > 0) {
+    const profiles = profileAttributeColumns(rows, sources, { excludeKeys });
+    const [org] = await db
+      .select({ config: s.organizations.peopleDimensionConfig })
+      .from(s.organizations)
+      .where(eq(s.organizations.id, orgId))
+      .limit(1);
+
+    let config = mergeProfilesIntoConfig(org?.config, profiles, rows.length);
+    const hadEnabled = (org?.config?.columns ?? []).some((c) => c.enabled);
+    if (!hadEnabled) {
+      const looksLegacy = profiles.some(
+        (p) =>
+          p.key === "department" ||
+          p.key === "cost_center" ||
+          p.key.startsWith("cost_center_chain_level_")
+      );
+      if (looksLegacy) {
+        config = autoEnableLegacyVisibleColumns(config);
+      }
+    }
+
+    await db
+      .update(s.organizations)
+      .set({ peopleDimensionConfig: config })
+      .where(eq(s.organizations.id, orgId));
+
+    // Also run ensure to backfill any leftover legacy rows
+    await ensurePeopleDimensionConfig(orgId);
+  }
+
   return {
     upserted,
     rows: rawRows.length,
     skipped,
     errors: errors.slice(0, 40),
     detected: map,
+    attributeKeys,
   };
 }
 

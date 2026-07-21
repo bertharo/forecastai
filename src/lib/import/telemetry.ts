@@ -30,10 +30,8 @@ export function normalizeHeaderKey(h: string): string {
 
 /**
  * Parse timestamps including month-only telemetry (YYYY-MM, MM/YYYY, "June 2026").
- * Month-grain dating:
- * - completed months → last day of month (stays in trailing-30d into the next month)
- * - current month → today (so mid-month uploads are visible immediately)
- * - future months → first of that month
+ * Month-grain dating: stamp on first-of-month; dashboard period selectors snap to
+ * calendar months when spend grain is monthly.
  */
 export function parseImportTimestamp(raw: string): {
   start: Date;
@@ -45,21 +43,9 @@ export function parseImportTimestamp(raw: string): {
 
   const monthGrainDates = (y: number, mo0: number) => {
     const monthStart = new Date(Date.UTC(y, mo0, 1, 12, 0, 0));
-    const monthLast = new Date(Date.UTC(y, mo0 + 1, 0, 12, 0, 0));
     const monthEndExcl = new Date(Date.UTC(y, mo0 + 1, 1, 0, 0, 0));
-    const now = new Date();
-    const today = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0)
-    );
-    let start: Date;
-    if (monthLast.getTime() <= today.getTime()) {
-      start = monthLast;
-    } else if (monthStart.getTime() > today.getTime()) {
-      start = monthStart;
-    } else {
-      start = today;
-    }
-    return { start, end: monthEndExcl, monthGrain: true as const };
+    // Stamp on first-of-month; dashboard snaps to calendar months when grain is monthly.
+    return { start: monthStart, end: monthEndExcl, monthGrain: true as const };
   };
 
   let m = /^(\d{4})-(\d{2})$/.exec(t);
