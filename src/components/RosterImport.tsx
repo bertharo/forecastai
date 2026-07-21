@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileDropZone } from "@/components/FileDropZone";
+import { safeJsonResponse } from "@/lib/import/uploadClient";
 
 export function RosterImport() {
   const router = useRouter();
@@ -32,15 +33,16 @@ export function RosterImport() {
           fileName: payload.fileName,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "Import failed");
+      const data = await safeJsonResponse(res);
+      if (!res.ok) throw new Error((data.message as string) || (data.error as string) || "Import failed");
 
       const errList = (data.errors ?? []) as { row: number; message: string }[];
       setErrors(errList);
 
-      if (data.upserted > 0) {
+      const upserted = Number(data.upserted ?? 0);
+      if (upserted > 0) {
         setMsg(
-          `Added ${data.upserted} people` +
+          `Added ${upserted} people` +
             (data.skipped ? ` · skipped ${data.skipped}` : "")
         );
         setPayload(null);

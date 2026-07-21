@@ -49,3 +49,27 @@ export async function readUploadPayload(file: File): Promise<UploadPayload> {
     content: await file.text(),
   };
 }
+
+/**
+ * Platform request-size limits (e.g. Vercel's serverless body cap) reject an
+ * oversized upload before our route handler runs, returning a plain-text
+ * error instead of JSON — `res.json()` then throws a confusing
+ * "Unexpected token … is not valid JSON". Parse as text first so we can
+ * surface an actionable message instead.
+ */
+export async function safeJsonResponse(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 413) {
+      throw new Error(
+        "This file is too large for a single upload. Try splitting it into smaller files (e.g. by month) and uploading each separately."
+      );
+    }
+    throw new Error(
+      `Upload failed — the server returned an unexpected response (HTTP ${res.status}).`
+    );
+  }
+}

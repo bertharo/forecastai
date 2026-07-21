@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileDropZone } from "@/components/FileDropZone";
+import { safeJsonResponse } from "@/lib/import/uploadClient";
 
 export function CodingToolsPanel({
   github,
@@ -75,9 +76,9 @@ export function CodingToolsPanel({
             : { action }
         ),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Sync failed");
-      setMsg(data.message || `Wrote ${data.written} rows`);
+      const data = await safeJsonResponse(res);
+      if (!res.ok) throw new Error((data.error as string) || "Sync failed");
+      setMsg((data.message as string) || `Wrote ${data.written} rows`);
       if (action === "dx_csv") {
         setDxCsv("");
         setDxBase64(undefined);

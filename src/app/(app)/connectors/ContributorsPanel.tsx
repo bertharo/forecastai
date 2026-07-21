@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileDropZone } from "@/components/FileDropZone";
-import { rowsToCsv } from "@/lib/import/uploadClient";
+import { rowsToCsv, safeJsonResponse } from "@/lib/import/uploadClient";
 
 export function ContributorsPanel({ count }: { count: number }) {
   const router = useRouter();
@@ -60,8 +60,8 @@ export function ContributorsPanel({ count }: { count: number }) {
           fileName: fileName || "people.csv",
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "Failed");
+      const data = await safeJsonResponse(res);
+      if (!res.ok) throw new Error((data.message as string) || (data.error as string) || "Failed");
       setMsg(`Upserted ${data.upserted} people`);
       setCsv("");
       setBase64(undefined);
@@ -151,14 +151,15 @@ export function ContributorsPanel({ count }: { count: number }) {
                 sourceKind: "excel",
               }),
             });
-            const data = await res.json();
+            const data = await safeJsonResponse(res);
             if (res.ok && data.headers && data.preview) {
               const allRows = data.preview as Record<string, string>[];
+              const rowCount = Number(data.rowCount ?? 0);
               // preview is only 50 rows — still keep base64 for full upload
               setCsv(
                 rowsToCsv(data.headers as string[], allRows) +
-                  (data.rowCount > allRows.length
-                    ? `\n… (${data.rowCount} rows total — full file uploads on Import)`
+                  (rowCount > allRows.length
+                    ? `\n… (${rowCount} rows total — full file uploads on Import)`
                     : "")
               );
             } else {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { IMPORT_TARGETS } from "@/lib/import/parse";
 import { OrgStructureImport } from "@/components/OrgStructureImport";
 import { RosterImport } from "@/components/RosterImport";
-import { isExcelFileName, readUploadPayload } from "@/lib/import/uploadClient";
+import { isExcelFileName, readUploadPayload, safeJsonResponse } from "@/lib/import/uploadClient";
 
 type Template = {
   id: string;
@@ -163,12 +163,12 @@ export default function ImportPage() {
           sourceKind: isExcelFileName(payload.fileName) ? "excel" : kind,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not read file");
-      const hdrs: string[] = data.headers ?? [];
+      const data = await safeJsonResponse(res);
+      if (!res.ok) throw new Error((data.error as string) || "Could not read file");
+      const hdrs: string[] = (data.headers as string[]) ?? [];
       setHeaders(hdrs);
-      setPreview(data.preview ?? []);
-      setRowCount(data.rowCount ?? 0);
+      setPreview((data.preview as Record<string, string>[]) ?? []);
+      setRowCount(Number(data.rowCount ?? 0));
       const norm = (h: string) => h.toLowerCase().replace(/[\s\-]+/g, "_");
       const lower = new Set(hdrs.map(norm));
       const byLower = Object.fromEntries(hdrs.map((h) => [norm(h), h]));
@@ -435,7 +435,18 @@ export default function ImportPage() {
       // Race: prefer POST body; if the connection dies, fall back to polling
       const raced = await Promise.race([
         post.then(async (res) => {
-          const data = await res.json().catch(() => ({}));
+          let data: Record<string, unknown>;
+          try {
+            data = await safeJsonResponse(res);
+          } catch (e) {
+            // Non-JSON response (e.g. a platform size-limit rejection) — the
+            // batch was never created, so polling for it would just waste
+            // ~3 minutes before timing out. Surface the message directly.
+            data = {
+              error: e instanceof Error ? e.message : String(e),
+              unrecoverable: true,
+            };
+          }
           return { kind: "post" as const, res, data };
         }),
         waitForBatch(fileName, startedAt).then((batch) => ({
@@ -449,6 +460,12 @@ export default function ImportPage() {
           !raced.res.ok &&
           raced.data?.error !== "duplicate_file"
         ) {
+          // A size-limit (or other) rejection before the batch was ever
+          // created — polling for it can never succeed, so skip straight
+          // to the error instead of waiting ~3 minutes to time out.
+          if (raced.data?.unrecoverable) {
+            throw new Error((raced.data.error as string) || "Upload failed");
+          }
           // POST may 504 while work finished — check batches
           const batch = await waitForBatch(fileName, startedAt);
           if (batch?.status === "completed") {
@@ -461,7 +478,7 @@ export default function ImportPage() {
             return;
           }
           throw new Error(
-            raced.data.message || raced.data.error || "Upload failed"
+            (raced.data.message as string) || (raced.data.error as string) || "Upload failed"
           );
         }
         if (raced.data?.error === "duplicate_file") {
@@ -477,7 +494,9 @@ export default function ImportPage() {
             (raced.data.skipped ? ` · ${raced.data.skipped} already had` : "") +
             (raced.data.errored ? ` · ${raced.data.errored} had problems` : "")
         );
-        setErrors(raced.data.errors ?? []);
+        setErrors(
+          (raced.data.errors as { row: number; field?: string; message: string }[]) ?? []
+        );
         await refresh();
         setTab("history");
         return;
