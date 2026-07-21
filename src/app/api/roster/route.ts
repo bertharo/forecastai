@@ -22,6 +22,8 @@ export async function GET() {
       displayName: s.contributors.displayName,
       department: s.contributors.department,
       costCenter: s.contributors.costCenter,
+      costCenterChain: s.contributors.costCenterChain,
+      costCenterPath: s.contributors.costCenterPath,
       employmentStatus: s.contributors.employmentStatus,
       endedOn: s.contributors.endedOn,
     })

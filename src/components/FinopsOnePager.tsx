@@ -7,15 +7,20 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
   if (facts.empty) {
     return (
       <EmptyState
-        message="No spend yet. Connect a source or import a CSV to see vendor and department rollup."
+        message="No spend yet. Connect a source or import a CSV to see vendor and cost-center rollup."
         action={{ href: "/connectors", label: "Open Sources" }}
       />
     );
   }
 
-  const { attribution, byVendor, byDepartment, findings, period } = facts;
+  const { attribution, byVendor, byDepartment, byCostCenter, findings, period } = facts;
   const deptTotal =
     byDepartment.reduce((a, r) => a + r.spend, 0) || attribution.totalSpend || 1;
+  const ccTotal =
+    byCostCenter.reduce((a, r) => a + r.spend, 0) || attribution.totalSpend || 1;
+  const hasRosterCc = byCostCenter.some(
+    (r) => r.source === "roster" && (r.costCenter || r.costCenterPath)
+  );
 
   return (
     <div className="space-y-4">
@@ -96,14 +101,64 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
         </div>
 
         <div className="panel p-4">
+          <div className="text-[13px] font-semibold">By cost center</div>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+            {hasRosterCc
+              ? "People CSV cost-center chain (deepest level) · path shows L02–L07"
+              : "Via roster email or key → team map"}
+          </p>
+          <div className="mt-3 space-y-2">
+            {byCostCenter.slice(0, 8).map((d) => (
+              <div
+                key={`${d.label}-${d.source}-${d.costCenterPath ?? ""}`}
+                className="flex items-center justify-between gap-2 text-[13px]"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{d.label}</span>
+                  {d.costCenterPath && d.costCenterPath !== d.label ? (
+                    <span
+                      className="block truncate text-[11px]"
+                      style={{ color: "var(--muted)" }}
+                      title={d.costCenterPath}
+                    >
+                      {d.costCenterPath}
+                    </span>
+                  ) : d.department && d.department !== d.label ? (
+                    <span
+                      className="block truncate text-[11px]"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      {d.department}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 font-semibold">
+                  {usd(d.spend)}{" "}
+                  <span className="font-normal" style={{ color: "var(--muted)" }}>
+                    {pct(d.spend / ccTotal, 0)}
+                  </span>
+                </span>
+              </div>
+            ))}
+            {byCostCenter.length === 0 && (
+              <p className="text-[12px]" style={{ color: "var(--muted)" }}>
+                Import people with Cost Center Chain levels to roll spend up by cost center
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {byDepartment.some((d) => d.source === "roster") ? (
+        <div className="panel p-4">
           <div className="text-[13px] font-semibold">By department</div>
           <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
-            Via roster email or key → team map
+            Mid chain level (usually L04) from the people roster
           </p>
           <div className="mt-3 space-y-2">
             {byDepartment.slice(0, 8).map((d) => (
               <div
-                key={`${d.department}-${d.source}-${d.costCenter ?? ""}`}
+                key={`${d.department}-${d.source}-${d.costCenter ?? ""}-${d.costCenterPath ?? ""}`}
                 className="flex items-center justify-between gap-2 text-[13px]"
               >
                 <span className="min-w-0 truncate">
@@ -120,14 +175,9 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
                 </span>
               </div>
             ))}
-            {byDepartment.length === 0 && (
-              <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-                Import a roster to roll spend up by department
-              </p>
-            )}
           </div>
         </div>
-      </div>
+      ) : null}
 
       {facts.sampleDataLoadedAt ? (
         <p className="text-[12px]" style={{ color: "var(--muted)" }}>

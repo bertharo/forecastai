@@ -65,7 +65,8 @@ export function RosterImport() {
         <h2 className="text-[15px] font-semibold">People</h2>
         <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
           Upload people as CSV or Excel. We join spend on <strong>Email</strong>. Cost center
-          chain levels map department + cost center automatically.
+          chain levels L02–L07 are stored in full; L04 → department, deepest filled → cost
+          center for rollups.
         </p>
       </div>
       <FileDropZone
@@ -115,7 +116,8 @@ export function RosterImport() {
         <p className="mt-2">
           Required: <strong>Email</strong> (or <strong>Project Worker</strong> if it contains
           the email). Optional: Project Worker as display name, plus Cost Center Chain levels
-          02–07. Level 04 → department; deepest filled level → cost center. Excel: first sheet
+          02–07 (all filled levels kept). Level 04 → department; deepest filled level → cost
+          center. Excel: first sheet
           only.
         </p>
         <pre className="mono mt-2 overflow-x-auto text-[11px]" style={{ color: "var(--fg)" }}>

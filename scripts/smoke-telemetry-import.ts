@@ -64,15 +64,21 @@ async function main() {
       email: s.contributors.email,
       department: s.contributors.department,
       costCenter: s.contributors.costCenter,
+      costCenterChain: s.contributors.costCenterChain,
+      costCenterPath: s.contributors.costCenterPath,
     })
     .from(s.contributors)
     .where(eq(s.contributors.orgId, org.id));
   console.log("people rows", people);
 
+  const alex = people.find((p) => p.email === "alex.chen@acme.example");
   const ok =
     roster.upserted === 4 &&
     people.some((p) => p.department === "Engineering" && p.costCenter === "CC-ENG-AI-01") &&
-    people.some((p) => p.email === "jordan.lee@acme.example");
+    people.some((p) => p.email === "jordan.lee@acme.example") &&
+    alex?.costCenterPath?.includes("Engineering") &&
+    alex?.costCenterChain?.["04"] === "Engineering" &&
+    alex?.costCenterChain?.["07"] === "CC-ENG-AI-01";
   if (!ok) {
     console.error("SMOKE FAILED");
     process.exit(1);

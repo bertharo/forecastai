@@ -34,6 +34,19 @@ export type BriefVendorRow = { key: string; name: string; spend: number };
 export type BriefDeptRow = {
   department: string;
   costCenter: string | null;
+  /** Full filled chain path when present (people CSV L02–L07) */
+  costCenterPath: string | null;
+  spend: number;
+  source: "roster" | "key_registry" | "unallocated";
+};
+
+/** Spend rolled up by leaf cost center (or department / team when no CC). */
+export type BriefCostCenterRow = {
+  /** Primary label: cost center code/name, else department, else Unallocated */
+  label: string;
+  costCenter: string | null;
+  department: string | null;
+  costCenterPath: string | null;
   spend: number;
   source: "roster" | "key_registry" | "unallocated";
 };
@@ -69,6 +82,8 @@ export type BriefFacts = {
   allTimeSpend: number;
   byVendor: BriefVendorRow[];
   byDepartment: BriefDeptRow[];
+  /** Roster cost-center rollup (leaf CC + path); falls back to dept / key team */
+  byCostCenter: BriefCostCenterRow[];
   attribution: BriefAttribution;
   findings: BriefFinding[];
   unmappedKeyCount: number;
@@ -141,7 +156,7 @@ export async function workspaceHasUserImports(orgId: string): Promise<boolean> {
 
 export function checkBriefInvariants(facts: BriefFacts): BriefInvariantViolation[] {
   const v: BriefInvariantViolation[] = [];
-  const { attribution: a, totalSpend, byVendor, byDepartment } = facts;
+  const { attribution: a, totalSpend, byVendor, byDepartment, byCostCenter } = facts;
 
   const vendorSum = byVendor.reduce((s, r) => s + r.spend, 0);
   if (!nearlyEqual(vendorSum, totalSpend)) {
@@ -160,6 +175,16 @@ export function checkBriefInvariants(facts: BriefFacts): BriefInvariantViolation
       message: `sum(by_department) ≠ total`,
       expected: totalSpend,
       actual: deptSum,
+    });
+  }
+
+  const ccSum = byCostCenter.reduce((s, r) => s + r.spend, 0);
+  if (!nearlyEqual(ccSum, totalSpend)) {
+    v.push({
+      id: "cost_center_sum",
+      message: `sum(by_cost_center) ≠ total`,
+      expected: totalSpend,
+      actual: ccSum,
     });
   }
 
@@ -353,6 +378,10 @@ export async function getBriefFacts(
           else null
         end as cost_center,
         case
+          when c.id is not null then nullif(trim(c.cost_center_path), '')
+          else null
+        end as cost_center_path,
+        case
           when c.id is not null and coalesce(c.department, '') <> '' then 'roster'
           when c.id is null and pkr.dimension_node_id is not null then 'key_registry'
           else 'unallocated'
@@ -373,24 +402,51 @@ export async function getBriefFacts(
     select
       department,
       cost_center,
+      cost_center_path,
       source,
       coalesce(sum(spend), 0)::text as spend
     from joined
-    group by department, cost_center, source
+    group by department, cost_center, cost_center_path, source
     order by sum(spend) desc
   `);
 
   const byDepartment = asRows<{
     department: string;
     cost_center: string | null;
+    cost_center_path: string | null;
     source: string;
     spend: string;
   }>(deptRows).map((r) => ({
     department: r.department,
     costCenter: r.cost_center,
+    costCenterPath: r.cost_center_path,
     spend: Number(r.spend),
     source: r.source as BriefDeptRow["source"],
   }));
+
+  // Leaf cost-center rollup (people chain deepest level); path kept for hierarchy context.
+  const ccMap = new Map<string, BriefCostCenterRow>();
+  for (const row of byDepartment) {
+    const label =
+      (row.costCenter && row.costCenter.trim()) ||
+      (row.department !== "Unallocated" ? row.department : null) ||
+      "Unallocated";
+    const key = `${row.source}::${label}::${row.costCenterPath ?? ""}`;
+    const existing = ccMap.get(key);
+    if (existing) {
+      existing.spend += row.spend;
+    } else {
+      ccMap.set(key, {
+        label,
+        costCenter: row.costCenter,
+        department: row.department === "Unallocated" ? null : row.department,
+        costCenterPath: row.costCenterPath,
+        spend: row.spend,
+        source: row.source,
+      });
+    }
+  }
+  const byCostCenter = [...ccMap.values()].sort((a, b) => b.spend - a.spend);
 
   // Findings — terminated seats use same period window
   const terminated = await db.execute(sql`
@@ -518,6 +574,7 @@ export async function getBriefFacts(
     allTimeSpend,
     byVendor,
     byDepartment,
+    byCostCenter,
     attribution,
     findings,
     unmappedKeyCount,

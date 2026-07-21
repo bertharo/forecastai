@@ -154,17 +154,26 @@ function cellAny(row: Record<string, string>, keys: string[]) {
   return "";
 }
 
-/** Department from mid chain; cost center from deepest non-empty level. */
+/** Department from mid chain; cost center from deepest non-empty level; all filled levels kept. */
 function fromCostCenterChain(row: Record<string, string>): {
   department: string | null;
   costCenter: string | null;
+  chain: Record<string, string>;
+  path: string | null;
 } {
   const levels = CHAIN_LEVELS.map((level) => ({
     level,
     value: cellAny(row, chainHeaderKeys(level)),
   }));
   const filled = levels.filter((l) => l.value);
-  if (!filled.length) return { department: null, costCenter: null };
+  if (!filled.length) {
+    return { department: null, costCenter: null, chain: {}, path: null };
+  }
+
+  const chain: Record<string, string> = {};
+  for (const l of filled) {
+    chain[String(l.level).padStart(2, "0")] = l.value;
+  }
 
   const dept =
     cellAny(row, chainHeaderKeys(4)) ||
@@ -173,7 +182,8 @@ function fromCostCenterChain(row: Record<string, string>): {
     filled[0].value;
 
   const costCenter = [...filled].reverse()[0]?.value ?? null;
-  return { department: dept || null, costCenter };
+  const path = filled.map((l) => l.value).join(" › ");
+  return { department: dept || null, costCenter, chain, path };
 }
 
 function hasCostCenterChain(normalizedHeaders: string[]): boolean {
@@ -304,16 +314,28 @@ export async function importRosterFile(
     }
 
     try {
-      const chain = hasChain ? fromCostCenterChain(row) : { department: null, costCenter: null };
+      const chain = hasChain
+        ? fromCostCenterChain(row)
+        : { department: null, costCenter: null, chain: {}, path: null };
       const teamKey = cell(row, map.team_key);
       const rawName = cell(row, map.display_name);
       const displayName =
         rawName && rawName.toLowerCase() !== email ? rawName : email.split("@")[0];
+      const department = cell(row, map.department) || chain.department;
+      const costCenter = cell(row, map.cost_center) || chain.costCenter;
       await upsertContributor(orgId, {
         email,
         displayName,
-        department: cell(row, map.department) || chain.department,
-        costCenter: cell(row, map.cost_center) || chain.costCenter,
+        department,
+        costCenter,
+        // When the sheet has chain columns, always write chain fields (even if empty)
+        // so a re-import clears stale levels for that person.
+        ...(hasChain
+          ? {
+              costCenterChain: chain.chain,
+              costCenterPath: chain.path,
+            }
+          : {}),
         employmentStatus: cell(row, map.employment_status) || "active",
         startedOn: asDateOrNull(cell(row, map.started_on)),
         endedOn: asDateOrNull(cell(row, map.ended_on)),

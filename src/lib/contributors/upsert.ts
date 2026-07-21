@@ -10,6 +10,10 @@ export type ContributorUpsertInput = {
   dimensionNodeId?: string | null;
   department?: string | null;
   costCenter?: string | null;
+  /** Filled Cost Center Chain levels keyed by padded level ("02"…"07") */
+  costCenterChain?: Record<string, string> | null;
+  /** Display path of filled chain levels */
+  costCenterPath?: string | null;
   employmentStatus?: string | null;
   startedOn?: string | null; // YYYY-MM-DD
   endedOn?: string | null;
@@ -36,6 +40,8 @@ export async function upsertContributor(orgId: string, input: ContributorUpsertI
     dimensionNodeId: input.dimensionNodeId,
     department: input.department,
     costCenter: input.costCenter,
+    costCenterChain: input.costCenterChain,
+    costCenterPath: input.costCenterPath,
     employmentStatus: input.employmentStatus,
     startedOn: input.startedOn,
     endedOn: input.endedOn,
@@ -57,6 +63,14 @@ export async function upsertContributor(orgId: string, input: ContributorUpsertI
           patch.department !== undefined ? patch.department : existing.department,
         costCenter:
           patch.costCenter !== undefined ? patch.costCenter : existing.costCenter,
+        costCenterChain:
+          patch.costCenterChain !== undefined
+            ? (patch.costCenterChain ?? {})
+            : existing.costCenterChain,
+        costCenterPath:
+          patch.costCenterPath !== undefined
+            ? patch.costCenterPath
+            : existing.costCenterPath,
         employmentStatus: patch.employmentStatus ?? existing.employmentStatus,
         startedOn:
           patch.startedOn !== undefined ? patch.startedOn : existing.startedOn,
@@ -83,6 +97,8 @@ export async function upsertContributor(orgId: string, input: ContributorUpsertI
       dimensionNodeId: input.dimensionNodeId ?? null,
       department: input.department ?? null,
       costCenter: input.costCenter ?? null,
+      costCenterChain: input.costCenterChain ?? {},
+      costCenterPath: input.costCenterPath ?? null,
       employmentStatus: status,
       startedOn: input.startedOn ?? null,
       endedOn: input.endedOn ?? null,

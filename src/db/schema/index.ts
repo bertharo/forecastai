@@ -808,6 +808,17 @@ export const contributors = pgTable(
     /** HRIS department label (join key for FinOps dept rollup) */
     department: text("department"),
     costCenter: text("cost_center"),
+    /**
+     * Filled Cost Center Chain levels from people CSV, keyed by padded level
+     * ("02"…"07"). Intermediate levels are preserved here; department / costCenter
+     * remain the collapsed mid + deepest values for legacy rollups.
+     */
+    costCenterChain: jsonb("cost_center_chain")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
+    /** Filled chain joined for display, e.g. "Acme › Technology › Engineering › …" */
+    costCenterPath: text("cost_center_path"),
     /** active | terminated | leave | contractor */
     employmentStatus: text("employment_status").notNull().default("active"),
     startedOn: date("started_on"),

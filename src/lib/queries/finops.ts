@@ -22,6 +22,7 @@ function asRows<T>(result: unknown): T[] {
 export type DeptSpendRow = {
   department: string;
   costCenter: string | null;
+  costCenterPath: string | null;
   spend: number;
   source: "roster" | "key_registry" | "unallocated";
 };
@@ -58,6 +59,10 @@ export async function getSpendByDepartment(
           else null
         end as cost_center,
         case
+          when c.department is not null and c.department <> '' then nullif(trim(c.cost_center_path), '')
+          else null
+        end as cost_center_path,
+        case
           when c.department is not null and c.department <> '' then 'roster'
           when n.id is not null then 'key_registry'
           else 'unallocated'
@@ -78,21 +83,24 @@ export async function getSpendByDepartment(
     select
       department,
       cost_center,
+      cost_center_path,
       source,
       coalesce(sum(spend), 0)::text as spend
     from joined
-    group by department, cost_center, source
+    group by department, cost_center, cost_center_path, source
     order by sum(spend) desc
   `);
 
   return asRows<{
     department: string;
     cost_center: string | null;
+    cost_center_path: string | null;
     source: string;
     spend: string;
   }>(result).map((r) => ({
     department: r.department,
     costCenter: r.cost_center,
+    costCenterPath: r.cost_center_path,
     spend: Number(r.spend),
     source: r.source as DeptSpendRow["source"],
   }));

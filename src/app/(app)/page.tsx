@@ -253,41 +253,71 @@ function BriefView({
 
 function BreakdownView({
   summary,
+  facts,
   mode,
 }: {
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
-  mode: "vendor" | "team" | "feature";
+  facts: BriefFacts;
+  mode: "vendor" | "team" | "feature" | "costcenter";
 }) {
+  const rosterCc = facts.byCostCenter.filter((r) => r.spend > 0);
   const rows =
-    mode === "team"
-      ? summary.byTeam.map((r) => ({
-          key: r.nodeId,
-          label: r.team,
-          sub: "Team slice",
-          value: r.effective,
-          tokens: r.tokens,
-          abbr: r.team.slice(0, 3).toUpperCase(),
-          href: `/?tab=org&node=${r.nodeId}`,
+    mode === "costcenter"
+      ? rosterCc.map((r) => ({
+          key: `${r.source}-${r.label}-${r.costCenterPath ?? ""}`,
+          label: r.label,
+          sub: r.costCenterPath
+            ? r.costCenterPath
+            : r.department
+              ? `Department · ${r.department}`
+              : r.source === "key_registry"
+                ? "Key → team"
+                : "Cost center",
+          value: r.spend,
+          tokens: 0,
+          abbr: r.label.slice(0, 3).toUpperCase(),
+          href: `/?tab=org`,
         }))
-      : mode === "feature"
-        ? summary.byFeature.map((r) => ({
-            key: r.feature,
-            label: r.feature,
-            sub: "Feature",
-            value: r.effective,
-            tokens: r.tokens,
-            abbr: r.feature.slice(0, 3).toUpperCase(),
-            href: `/?tab=breakdown&feature=${encodeURIComponent(r.feature)}`,
-          }))
-        : summary.byProvider.map((r) => ({
-            key: r.key,
-            label: r.name,
-            sub: "Vendor",
-            value: r.effective,
-            tokens: r.tokens,
-            abbr: r.name.slice(0, 3).toUpperCase(),
-            href: `/?tab=breakdown&provider=${encodeURIComponent(r.key)}`,
-          }));
+      : mode === "team"
+        ? summary.byTeam.length > 0
+          ? summary.byTeam.map((r) => ({
+              key: r.nodeId,
+              label: r.team,
+              sub: "Team slice",
+              value: r.effective,
+              tokens: r.tokens,
+              abbr: r.team.slice(0, 3).toUpperCase(),
+              href: `/?tab=org&node=${r.nodeId}`,
+            }))
+          : // People CSV cost centers when org-chart teams are not mapped yet
+            rosterCc.map((r) => ({
+              key: `${r.source}-${r.label}-${r.costCenterPath ?? ""}`,
+              label: r.label,
+              sub: r.costCenterPath ?? "Cost center (roster)",
+              value: r.spend,
+              tokens: 0,
+              abbr: r.label.slice(0, 3).toUpperCase(),
+              href: `/?tab=org`,
+            }))
+        : mode === "feature"
+          ? summary.byFeature.map((r) => ({
+              key: r.feature,
+              label: r.feature,
+              sub: "Feature",
+              value: r.effective,
+              tokens: r.tokens,
+              abbr: r.feature.slice(0, 3).toUpperCase(),
+              href: `/?tab=breakdown&feature=${encodeURIComponent(r.feature)}`,
+            }))
+          : summary.byProvider.map((r) => ({
+              key: r.key,
+              label: r.name,
+              sub: "Vendor",
+              value: r.effective,
+              tokens: r.tokens,
+              abbr: r.name.slice(0, 3).toUpperCase(),
+              href: `/?tab=breakdown&provider=${encodeURIComponent(r.key)}`,
+            }));
 
   const total = rows.reduce((a, r) => a + r.value, 0) || 1;
   const max = Math.max(...rows.map((r) => r.value), 1);
@@ -295,7 +325,11 @@ function BreakdownView({
   if (rows.length === 0) {
     return (
       <EmptyState
-        message="No spend to break down yet."
+        message={
+          mode === "costcenter" || mode === "team"
+            ? "No cost-center spend yet. Import a people CSV with Cost Center Chain levels and a spend CSV with matching emails."
+            : "No spend to break down yet."
+        }
         action={{ href: "/connectors", label: "Connect a source" }}
       />
     );
@@ -312,15 +346,16 @@ function BreakdownView({
             </span>
           </h2>
           <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
-            Same total, three lenses — vendor, feature, or team.
+            Same total, four lenses — vendor, feature, cost center, or team.
           </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {(
             [
               ["vendor", "By vendor"],
               ["feature", "By feature"],
-              ["team", "By department"],
+              ["costcenter", "By cost center"],
+              ["team", "By team"],
             ] as const
           ).map(([key, label]) => (
             <Link
@@ -350,7 +385,7 @@ function BreakdownView({
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[14px] font-semibold">{r.label}</div>
-              <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+              <div className="truncate text-[12px]" style={{ color: "var(--muted)" }}>
                 {r.sub}
               </div>
               <div
@@ -372,14 +407,16 @@ function BreakdownView({
                 {pct(r.value / total, 0)}
               </div>
             </div>
-            <div className="w-[5.5rem] shrink-0 text-right">
-              <div className="text-[13px] font-semibold">
-                {formatCostPerMTokens(r.value, r.tokens)}
+            {r.tokens > 0 ? (
+              <div className="w-[5.5rem] shrink-0 text-right">
+                <div className="text-[13px] font-semibold">
+                  {formatCostPerMTokens(r.value, r.tokens)}
+                </div>
+                <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                  $ / M tokens
+                </div>
               </div>
-              <div className="text-[11px]" style={{ color: "var(--muted)" }}>
-                $ / M tokens
-              </div>
-            </div>
+            ) : null}
             <span style={{ color: "var(--muted)" }}>
               <IconChevron />
             </span>
@@ -392,17 +429,39 @@ function BreakdownView({
 
 function ByOrgView({
   summary,
+  facts,
 }: {
   summary: Awaited<ReturnType<typeof getSpendSummary>>;
+  facts: BriefFacts;
 }) {
   const teams = summary.byTeam;
-  const total = teams.reduce((a, t) => a + t.effective, 0) || 1;
+  const rosterCc = facts.byCostCenter.filter(
+    (r) => r.source === "roster" && r.spend > 0
+  );
+  // Prefer roster cost-center chain when people CSV drove attribution; else org-chart teams.
+  const useRoster = rosterCc.length > 0;
+  const rows = useRoster
+    ? rosterCc.map((r) => ({
+        key: `${r.label}-${r.costCenterPath ?? ""}`,
+        title: r.label,
+        subtitle: r.costCenterPath ?? r.department ?? "Cost center",
+        spend: r.spend,
+        href: `/?tab=breakdown&slice=costcenter`,
+      }))
+    : teams.map((t) => ({
+        key: t.nodeId,
+        title: t.team,
+        subtitle: "Team slice",
+        spend: t.effective,
+        href: `/?dim=team&node=${t.nodeId}`,
+      }));
+  const total = rows.reduce((a, t) => a + t.spend, 0) || 1;
 
-  if (teams.length === 0) {
+  if (rows.length === 0) {
     return (
       <EmptyState
-        message="No team spend yet. Map keys or import a roster to slice by org."
-        action={{ href: "/keys", label: "Map keys" }}
+        message="No org spend yet. Import a people CSV with Cost Center Chain levels (and spend with matching emails), or map keys to teams."
+        action={{ href: "/import#roster", label: "Import people" }}
       />
     );
   }
@@ -410,22 +469,30 @@ function ByOrgView({
   return (
     <div className="space-y-4">
       <p className="text-[14px]" style={{ color: "var(--muted)" }}>
-        Team slices for the trailing 30 days — {teams.length} teams, {usd(total)}{" "}
-        attributed.
+        {useRoster
+          ? `Cost centers from the people roster (${facts.period.label}) — ${rows.length} centers, ${usd(total)} attributed.`
+          : `Team slices for the trailing 30 days — ${rows.length} teams, ${usd(total)} attributed.`}
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {teams.map((t) => (
+        {rows.map((t) => (
           <Link
-            key={t.nodeId}
-            href={`/?dim=team&node=${t.nodeId}`}
+            key={t.key}
+            href={t.href}
             className="row-card transition-shadow hover:shadow-sm"
           >
-            <div className="text-[14px] font-semibold">{t.team}</div>
+            <div className="text-[14px] font-semibold">{t.title}</div>
+            <div
+              className="mt-1 truncate text-[12px]"
+              style={{ color: "var(--muted)" }}
+              title={t.subtitle}
+            >
+              {t.subtitle}
+            </div>
             <div className="kpi mt-2" style={{ fontSize: "1.5rem" }}>
-              {usd(t.effective)}
+              {usd(t.spend)}
             </div>
             <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
-              {pct(t.effective / total, 0)} of attributed spend
+              {pct(t.spend / total, 0)} of attributed spend
             </div>
           </Link>
         ))}
@@ -444,8 +511,9 @@ export default async function HomePage({
     const sp = await searchParams;
     const tab = typeof sp.tab === "string" ? sp.tab : "brief";
     const slice =
-      typeof sp.slice === "string" && ["vendor", "team", "feature"].includes(sp.slice)
-        ? (sp.slice as "vendor" | "team" | "feature")
+      typeof sp.slice === "string" &&
+      ["vendor", "team", "feature", "costcenter"].includes(sp.slice)
+        ? (sp.slice as "vendor" | "team" | "feature" | "costcenter")
         : "vendor";
     const filters = parseAnalyticsFilters(sp);
     const org = await getCurrentOrg();
@@ -538,9 +606,9 @@ export default async function HomePage({
         )}
 
         {tab === "breakdown" ? (
-          <BreakdownView summary={summary} mode={slice} />
+          <BreakdownView summary={summary} facts={facts} mode={slice} />
         ) : tab === "org" ? (
-          <ByOrgView summary={summary} />
+          <ByOrgView summary={summary} facts={facts} />
         ) : (
           <BriefView
             summary={summary}
