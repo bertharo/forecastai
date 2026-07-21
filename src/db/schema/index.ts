@@ -34,6 +34,41 @@ export type PeopleDimensionConfig = {
   rowCount: number;
 };
 
+/** Workspace forecast settings — seat cost optional; locked periods never overwritten. */
+export type ForecastConfig = {
+  /** Monthly seat cost USD; without this, dormant seat savings are never implied. */
+  seatCostMonthlyUsd: number | null;
+  /** Calendar months (YYYY-MM) that must not receive forecast writes / overrides. */
+  lockedPeriods: string[];
+};
+
+export const emptyForecastConfig = (): ForecastConfig => ({
+  seatCostMonthlyUsd: null,
+  lockedPeriods: [],
+});
+
+/** Typed payload for driver-based scenario overrides (stored in scenario_overrides.payload). */
+export type DriverScenarioOverridePayload = {
+  kind:
+    | "headcount"
+    | "adoption"
+    | "price_index"
+    | "spend_per_active_user"
+    | "per_user_cap"
+    | "reorg";
+  dimensionKey: string;
+  /** Dimension value the override applies to (source group for reorg). */
+  dimensionValue: string;
+  /** Receiving group for reorg — uses that group's drivers. */
+  toDimensionValue?: string;
+  /** Absolute override for the driver (or planned headcount). */
+  value?: number;
+  /** Additive headcount delta (alternative to absolute value). */
+  headcountDelta?: number;
+  /** Price / adoption changes apply from this period forward (YYYY-MM). */
+  effectiveFromPeriod?: string;
+};
+
 /** Demo org + multi-tenant ready */
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -56,6 +91,14 @@ export const organizations = pgTable("organizations", {
     .$type<PeopleDimensionConfig>()
     .notNull()
     .default({ columns: [], profiledAt: null, rowCount: 0 }),
+  /**
+   * Driver-forecast settings (seat cost, locked periods).
+   * Absent seat cost → never imply dormant seat savings.
+   */
+  forecastConfig: jsonb("forecast_config")
+    .$type<ForecastConfig>()
+    .notNull()
+    .default({ seatCostMonthlyUsd: null, lockedPeriods: [] }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -1041,4 +1084,38 @@ export const auditLogs = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("audit_logs_org_created").on(t.orgId, t.createdAt)]
+);
+
+/**
+ * Optional headcount plan by people-dimension value × calendar month.
+ * Absent → forecast holds last roster HC flat ("flat headcount — no plan loaded").
+ */
+export const headcountPlans = pgTable(
+  "headcount_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Matches people_dimension_config column key (e.g. attributes key). */
+    dimensionKey: text("dimension_key").notNull(),
+    dimensionValue: text("dimension_value").notNull(),
+    /** First day of calendar month (YYYY-MM-01). */
+    periodStart: date("period_start").notNull(),
+    plannedHeadcount: numeric("planned_headcount", {
+      precision: 12,
+      scale: 2,
+    }).notNull(),
+    source: text("source").notNull().default("csv"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("headcount_plans_org_dim_period").on(
+      t.orgId,
+      t.dimensionKey,
+      t.dimensionValue,
+      t.periodStart
+    ),
+    index("headcount_plans_org_dim").on(t.orgId, t.dimensionKey),
+  ]
 );
