@@ -66,6 +66,22 @@ export async function detectSpendGrain(orgId: string): Promise<SpendGrain> {
   return classifySpendGrainFromDays(rows.map((r) => Number(r.dom)));
 }
 
+/**
+ * Most recent charge_period_start for this org, or null with no spend at all.
+ * Unlimited aggregate query — not the sampled/limited query detectSpendGrain
+ * uses, which can't reliably answer "what's the latest date" on its own.
+ */
+export async function getMostRecentSpendDate(orgId: string): Promise<Date | null> {
+  const result = await db.execute(sql`
+    select max(charge_period_start) as max_date
+    from cost_records
+    where org_id = ${orgId}::uuid
+  `);
+  const rows = asRows<{ max_date: string | null }>(result);
+  const raw = rows[0]?.max_date;
+  return raw ? new Date(raw) : null;
+}
+
 /** Rolling UTC day window (exclusive end = tomorrow 00:00 UTC). */
 export function rollingPeriod(days = 30, now = new Date()): DashboardPeriod {
   const end = new Date(
@@ -116,11 +132,21 @@ export function periodForGrain(
     : rollingPeriod(days, now);
 }
 
+/**
+ * Resolves the dashboard window for this org, anchored at "now" when spend
+ * is current, or at the most recent real spend date when it isn't — e.g. an
+ * uploaded export whose last row is weeks or months old shouldn't read as
+ * "no spend" just because the app's clock has moved past it.
+ */
 export async function resolveDashboardPeriod(
   orgId: string,
   days = 30,
   now = new Date()
 ): Promise<DashboardPeriod> {
-  const grain = await detectSpendGrain(orgId);
-  return periodForGrain(grain, days, now);
+  const [grain, mostRecent] = await Promise.all([
+    detectSpendGrain(orgId),
+    getMostRecentSpendDate(orgId),
+  ]);
+  const anchor = mostRecent && mostRecent.getTime() < now.getTime() ? mostRecent : now;
+  return periodForGrain(grain, days, anchor);
 }
