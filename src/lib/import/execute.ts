@@ -143,6 +143,14 @@ export async function executeUsageImport(opts: {
       if (providerRaw && !tags.ai_tool) {
         tags.ai_tool = providerRaw;
       }
+      // Cursor/Perplexity catalogs may lack token meters; keep raw token counts for AI Cost.
+      if (Number.isFinite(qty) && qty > 0 && !tags.total_tokens) {
+        const looksLikeTokens =
+          meterRawLower.includes("token") ||
+          meter.consumedUnit.toLowerCase() === "tokens" ||
+          Boolean(qtyRaw);
+        if (looksLikeTokens) tags.total_tokens = String(qty);
+      }
 
       const cost =
         costRaw && Number.isFinite(Number(String(costRaw).replace(/[$,]/g, "")))

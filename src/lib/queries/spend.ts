@@ -1,17 +1,11 @@
 import { db } from "@/db";
 import * as s from "@/db/schema";
-import { and, eq, gte, sql, desc } from "drizzle-orm";
+import { and, eq, gte, lt, sql, desc } from "drizzle-orm";
 import type { AnalyticsFilters, MetricMode } from "@/lib/queries/filters";
+import { trailingBriefPeriod } from "@/lib/queries/brief";
 
 function monthStart(d = new Date()): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
-
-function daysAgo(n: number): Date {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
 }
 
 function valueExpr(metric: MetricMode) {
@@ -39,7 +33,10 @@ export async function getSpendSummary(
 
   const metric = f.metric ?? "spend";
   const mtdStart = monthStart();
-  const trailingStart = daysAgo(30);
+  // Match Brief’s exclusive-end trailing window (not open-ended gte-only).
+  const briefPeriod = trailingBriefPeriod(30);
+  const trailingStart = briefPeriod.start;
+  const trailingEnd = briefPeriod.end;
   const value = valueExpr(metric);
 
   // Subtree roll-up: match node or any descendant whose path is under selected path
@@ -83,6 +80,11 @@ export async function getSpendSummary(
     modelFilter,
     featureFilter
   );
+  const trailingWhere = and(
+    baseWhere,
+    gte(s.costRecords.chargePeriodStart, trailingStart),
+    lt(s.costRecords.chargePeriodStart, trailingEnd)
+  );
 
   const [mtd] = await db
     .select({
@@ -101,7 +103,7 @@ export async function getSpendSummary(
       qty: sql<string>`coalesce(sum(${s.costRecords.consumedQuantity}),0)`,
     })
     .from(s.costRecords)
-    .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)));
+    .where(trailingWhere);
 
   const [alloc] = await db
     .select({
@@ -111,20 +113,24 @@ export async function getSpendSummary(
       allocatedSpend: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}) filter (where ${s.costRecords.allocationStatus} = 'allocated'),0)`,
     })
     .from(s.costRecords)
-    .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)));
+    .where(trailingWhere);
 
+  // Prefer tags.ai_tool so telemetry tools (ChatGPT Enterprise vs Copilot, Gemini…)
+  // do not collapse under the shared meter provider (e.g. both → openai).
   const byProvider = await db
     .select({
-      key: s.providers.key,
-      name: s.providers.displayName,
+      key: sql<string>`coalesce(nullif(lower(trim(${s.costRecords.tags}->>'ai_tool')), ''), ${s.providers.key})`,
+      name: sql<string>`min(coalesce(nullif(trim(${s.costRecords.tags}->>'ai_tool'), ''), ${s.providers.displayName}))`,
       value: value,
       effective: sql<string>`coalesce(sum(${s.costRecords.effectiveCost}),0)`,
       tokens: tokensQtyExpr,
     })
     .from(s.costRecords)
     .innerJoin(s.providers, eq(s.costRecords.providerId, s.providers.id))
-    .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)))
-    .groupBy(s.providers.key, s.providers.displayName)
+    .where(trailingWhere)
+    .groupBy(
+      sql`coalesce(nullif(lower(trim(${s.costRecords.tags}->>'ai_tool')), ''), ${s.providers.key})`
+    )
     .orderBy(desc(sql`sum(${s.costRecords.effectiveCost})`));
 
   const bySku = await db
@@ -137,7 +143,7 @@ export async function getSpendSummary(
     })
     .from(s.costRecords)
     .innerJoin(s.skus, eq(s.costRecords.skuId, s.skus.id))
-    .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)))
+    .where(trailingWhere)
     .groupBy(s.skus.displayName, s.skus.skuId)
     .orderBy(desc(sql`sum(${s.costRecords.effectiveCost})`))
     .limit(12);
@@ -150,7 +156,7 @@ export async function getSpendSummary(
       tokens: tokensQtyExpr,
     })
     .from(s.costRecords)
-    .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, trailingStart)))
+    .where(trailingWhere)
     .groupBy(sql`${s.costRecords.tags}->>'feature'`)
     .orderBy(desc(sql`sum(${s.costRecords.effectiveCost})`));
 
@@ -175,13 +181,7 @@ export async function getSpendSummary(
       s.dimensionTypes,
       eq(s.dimensionNodes.dimensionTypeId, s.dimensionTypes.id)
     )
-    .where(
-      and(
-        baseWhere,
-        gte(s.costRecords.chargePeriodStart, trailingStart),
-        eq(s.dimensionTypes.key, "team")
-      )
-    )
+    .where(and(trailingWhere, eq(s.dimensionTypes.key, "team")))
     .groupBy(s.dimensionNodes.displayName, s.dimensionNodes.id)
     .orderBy(desc(sql`sum(${s.costRecords.effectiveCost})`));
 
@@ -194,7 +194,12 @@ export async function getSpendSummary(
     })
     .from(s.costRecords)
     .innerJoin(s.providers, eq(s.costRecords.providerId, s.providers.id))
-    .where(and(baseWhere, gte(s.costRecords.chargePeriodStart, daysAgo(60))))
+    .where(
+      and(
+        baseWhere,
+        gte(s.costRecords.chargePeriodStart, trailingBriefPeriod(60).start)
+      )
+    )
     .groupBy(sql`(${s.costRecords.chargePeriodStart})::date`, s.providers.key)
     .orderBy(sql`(${s.costRecords.chargePeriodStart})::date`);
 

@@ -137,15 +137,22 @@ export function resolveProviderKey(raw: string): string {
   }
   if (x.includes("cursor")) return "cursor";
   if (x.includes("claude") || x.includes("anthropic")) return "anthropic";
+  // Copilot before generic "gpt" so model names on Copilot rows stay on openai meters
+  // but the tool is still distinct via tags.ai_tool for FinOps by-vendor.
+  if (x.includes("copilot") || x.includes("github copilot")) return "openai";
   if (
     x.includes("openai") ||
     x.includes("chatgpt") ||
-    x.includes("gpt") ||
-    x.includes("codex")
+    x.includes("codex") ||
+    x === "gpt" ||
+    x.startsWith("gpt-") ||
+    x.startsWith("gpt_") ||
+    /\bgpt\b/.test(x)
   ) {
     return "openai";
   }
-  if (x.includes("copilot") || x.includes("github")) return "openai";
+  // Bare "github" without Copilot is ambiguous — keep on openai meters for FinOps.
+  if (x.includes("github")) return "openai";
   if (x.includes("gemini") || x.includes("google") || x.includes("vertex")) {
     return "google";
   }
@@ -160,8 +167,8 @@ export function resolveProviderKey(raw: string): string {
 
 /**
  * Map ai_tool labels → AI Cost tool keys (ai_tool_daily.tool_key).
- * Returns null when the label is not a coding tool (so generic cloud API
- * invoices stay on FinOps spend only).
+ * Returns null when the label is not a coding tool (so Gemini / Perplexity /
+ * generic cloud API invoices stay on FinOps spend only).
  */
 export function resolveCodingToolKey(raw: string): string | null {
   const x = raw.trim().toLowerCase().replace(/[\s\-]+/g, "_");
@@ -181,7 +188,13 @@ export function resolveCodingToolKey(raw: string): string | null {
   ) {
     return "chatgpt";
   }
+  // Gemini, Perplexity, Bedrock, etc. → FinOps only
   return null;
+}
+
+/** True when a coding-tool key should appear on AI Cost (Claude/Cursor/Copilot/ChatGPT/Codex). */
+export function isCodingToolLabel(raw: string): boolean {
+  return resolveCodingToolKey(raw) != null;
 }
 
 export const TELEMETRY_TEMPLATE = {

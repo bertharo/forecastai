@@ -6,20 +6,17 @@ import {
   needsCodingToolImportProjection,
   projectCodingToolImportsToAiDaily,
 } from "@/lib/ai-tools/from-import";
-
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
+import { trailingBriefPeriod } from "@/lib/queries/brief";
 
 export async function getAiCostSummary(
   orgId: string,
   opts?: { days?: number; teamNodeId?: string | null; toolKey?: string | null }
 ) {
   const days = opts?.days ?? 30;
-  const from = daysAgo(days);
-  const to = new Date().toISOString().slice(0, 10);
+  // Same UTC window as Brief / FinOps so trailing-30d math matches across pages.
+  const period = trailingBriefPeriod(days);
+  const from = period.start.toISOString().slice(0, 10);
+  const to = new Date(period.end.getTime() - 1).toISOString().slice(0, 10);
 
   // Spreadsheet imports historically wrote cost_records only. Project orphaned
   // coding-tool rows into ai_tool_daily so AI Cost matches connector syncs.

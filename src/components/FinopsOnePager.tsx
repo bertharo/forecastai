@@ -22,6 +22,13 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[12px] font-medium" style={{ color: "var(--muted)" }}>
           Period · {period.label}
+          {facts.allTimeSpend > 0.01 &&
+          Math.abs(facts.allTimeSpend - facts.totalSpend) > 0.02 ? (
+            <span title="Sum of every cost row (matches full spreadsheet import)">
+              {" "}
+              · All-time {usd(facts.allTimeSpend)}
+            </span>
+          ) : null}
         </p>
         {facts.violations.length > 0 && (
           <span
@@ -62,14 +69,19 @@ export function FinopsOnePager({ facts }: { facts: BriefFacts }) {
           title={`Email join ${usd(attribution.emailJoinSpend)} · key registry ${usd(attribution.keyRegistrySpend)} · unallocated ${usd(attribution.unallocatedSpend)}`}
         >
           {usd(attribution.attributedSpend)} of {usd(attribution.totalSpend)} mapped to teams
+          {" "}
+          ({period.label})
         </p>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="panel p-4">
           <div className="text-[13px] font-semibold">By vendor</div>
+          <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+            Spreadsheet tool labels when present (Claude, Cursor, Copilot, Gemini…)
+          </p>
           <div className="mt-3 space-y-2">
-            {byVendor.slice(0, 6).map((v) => (
+            {byVendor.slice(0, 8).map((v) => (
               <div key={v.key} className="flex items-center justify-between text-[13px]">
                 <span>{v.name}</span>
                 <span className="font-semibold">{usd(v.spend)}</span>

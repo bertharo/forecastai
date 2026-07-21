@@ -63,7 +63,7 @@ function BriefView({
           color: "var(--warning)",
           name: "AI coding tools",
           role: "AI cost",
-          body: `${usd(aiCost.spend.value)} trailing ${aiCost.from.slice(5)}→${aiCost.to.slice(5)} across ${aiCost.activeContributors} contributors · cost/PR ${aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}.`,
+          body: `${usd(aiCost.spend.value)} coding-tool spend (${aiCost.from.slice(5)}→${aiCost.to.slice(5)}; Claude/Cursor/Copilot/ChatGPT — not Gemini/Perplexity) · ${aiCost.activeContributors} contributors · cost/PR ${aiCost.mergedPrs ? usd(aiCost.costPerPr.value) : "—"}.`,
         },
         {
           initials: "PR",
@@ -141,7 +141,12 @@ function BriefView({
                 <div className="text-[13px] font-semibold">Trailing spend</div>
                 <div className="kpi mt-3">{usd(facts.totalSpend)}</div>
                 <p className="mt-3 max-w-xl text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
-                  {facts.period.label} · {pct(facts.attribution.attributedPct, 0)} attributed.
+                  {facts.period.label} · {pct(facts.attribution.attributedPct, 0)} attributed
+                  {facts.allTimeSpend > 0.01 &&
+                  Math.abs(facts.allTimeSpend - facts.totalSpend) > 0.02
+                    ? ` · all imported spend ${usd(facts.allTimeSpend)}`
+                    : ""}
+                  .
                   {!facts.hasUserPlan
                     ? " Set a plan under Plan to see forecast vs plan."
                     : ` Need ≥60 days of history for a forecast (have ${facts.historyDays}).`}

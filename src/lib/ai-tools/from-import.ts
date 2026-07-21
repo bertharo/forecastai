@@ -51,10 +51,14 @@ export async function upsertImportCodingGrains(
 
   const rows: AiToolDailyRow[] = grains.map((g) => {
     const c = g.email ? byEmail.get(g.email) : undefined;
+    // Keep one grain per email even when the roster has no match — otherwise
+    // every person collapses to contributorKey "unattributed" and overwrites.
+    const contributorKey = c?.id ?? (g.email ? `email:${g.email}` : "unattributed");
     return {
       day: g.day,
       toolKey: g.toolKey,
       contributorId: c?.id ?? null,
+      contributorKey,
       dimensionNodeId: c?.dimensionNodeId ?? null,
       spend: g.spend,
       tokensTotal: g.tokens,
@@ -82,11 +86,16 @@ export async function projectCodingToolImportsToAiDaily(
       aiTool: sql<string>`coalesce(${s.costRecords.tags}->>'ai_tool', '')`,
       email: sql<string>`lower(trim(coalesce(${s.costRecords.tags}->>'email', ${s.costRecords.tags}->>'user_email', '')))`,
       spend: sql<string>`coalesce(${s.costRecords.effectiveCost}, 0)`,
-      tokens: sql<string>`case
-        when lower(${s.costRecords.consumedUnit}) = 'tokens'
-        then coalesce(${s.costRecords.consumedQuantity}, 0)
-        else 0
-      end`,
+      // Prefer tags.total_tokens (telemetry) — Cursor/Perplexity often land on
+      // seats/premium_requests meters whose consumed_unit is not "tokens".
+      tokens: sql<string>`coalesce(
+        nullif(${s.costRecords.tags}->>'total_tokens', '')::numeric,
+        case
+          when lower(${s.costRecords.consumedUnit}) = 'tokens'
+          then coalesce(${s.costRecords.consumedQuantity}, 0)
+          else 0
+        end
+      )`,
     })
     .from(s.costRecords)
     .where(

@@ -42,7 +42,7 @@ export default async function AiCostPage({
     <div className="space-y-5">
       {noData && (
         <EmptyState
-          message="No coding-tool spend yet. Upload a people + spend spreadsheet, or sync Claude, Cursor, or Copilot under Sources."
+          message="No coding-tool spend yet (Claude, Cursor, Copilot, ChatGPT). Gemini and Perplexity stay on Brief / FinOps — they are not coding-tool grains. Upload a spend spreadsheet under Sources, or sync a coding-tool connector."
           action={{ href: "/connectors", label: "Open Sources" }}
         />
       )}
@@ -65,9 +65,12 @@ export default async function AiCostPage({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="row-card">
-          <div className="muted text-[11px] uppercase">Spend</div>
+          <div className="muted text-[11px] uppercase">Coding-tool spend</div>
           <div className="mt-1 text-[1.75rem] font-bold">
             <Metric metric={summary.spend} display={usd(summary.spend.value)} />
+          </div>
+          <div className="muted mt-1 text-[11px]">
+            Trailing {days}d · excludes Gemini / Perplexity
           </div>
         </div>
         <div className="row-card">
@@ -129,7 +132,8 @@ export default async function AiCostPage({
             })}
             {summary.byTool.length === 0 && (
               <li className="muted text-[13px]">
-                No AI tool data yet — upload a spend spreadsheet under Sources, or sync Claude/Cursor.
+                No coding-tool grains yet — Claude / Cursor / Copilot / ChatGPT from a spreadsheet
+                or connector. Gemini &amp; Perplexity appear on Brief instead.
               </li>
             )}
           </ul>

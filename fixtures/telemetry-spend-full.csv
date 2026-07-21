@@ -1,0 +1,1131 @@
+email,month,ai_tool,model,total_tokens,total_spend_dollars
+scott.thomas@company.com,2026-02-01,Gemini,gemini-2.5-flash,554234,8.08
+scott.thomas@company.com,2026-04-01,Gemini,gemini-2.5-pro,517697,6.31
+scott.thomas@company.com,2026-05-01,Gemini,gemini-2.5-pro,500593,7.59
+scott.thomas@company.com,2026-06-01,Gemini,gemini-2.5-flash,329047,5.1
+stephanie.baker@company.com,2026-02-01,Perplexity,sonar-pro,564646,11.04
+joshua.torres@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,574891,7.61
+joshua.torres@company.com,2026-02-01,GitHub Copilot,gpt-4o,393872,6.19
+joshua.torres@company.com,2026-03-01,GitHub Copilot,gpt-4o,60138,0.78
+joshua.torres@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,671259,9.9
+joshua.torres@company.com,2026-05-01,GitHub Copilot,gpt-4o,628318,8.2
+joshua.torres@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,408476,6.31
+elena.muller@company.com,2026-01-01,Claude,claude-opus-4-1,278689,5.88
+elena.muller@company.com,2026-01-01,Cursor,claude-opus-4-1,270325,5.76
+elena.muller@company.com,2026-02-01,Claude,claude-sonnet-4-5,199679,4.67
+elena.muller@company.com,2026-02-01,Cursor,gpt-4o,380487,7.44
+elena.muller@company.com,2026-03-01,Claude,claude-sonnet-4-5,490528,12.43
+elena.muller@company.com,2026-03-01,Cursor,claude-sonnet-4-5,489139,8.6
+elena.muller@company.com,2026-04-01,Claude,claude-haiku-4-5,380646,7.93
+elena.muller@company.com,2026-04-01,Cursor,claude-opus-4-1,405899,7.76
+elena.muller@company.com,2026-05-01,Claude,claude-haiku-4-5,530642,11.02
+elena.muller@company.com,2026-05-01,Cursor,gpt-4o,309065,5.65
+elena.muller@company.com,2026-06-01,Claude,claude-sonnet-4-5,639819,14.67
+elena.muller@company.com,2026-06-01,Cursor,claude-sonnet-4-5,468607,10.24
+kimberly.zhang@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,215556,3.34
+kimberly.zhang@company.com,2026-03-01,GitHub Copilot,o3-mini,591446,9.57
+kimberly.zhang@company.com,2026-04-01,GitHub Copilot,gpt-4o,476019,7.93
+kimberly.zhang@company.com,2026-05-01,GitHub Copilot,gpt-4o,422727,5.56
+kimberly.zhang@company.com,2026-06-01,GitHub Copilot,o3-mini,5000,0.07
+stephen.robinson@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,143015,1.92
+stephen.robinson@company.com,2026-01-01,Cursor,claude-sonnet-4-5,237905,5.01
+stephen.robinson@company.com,2026-02-01,GitHub Copilot,o3-mini,304413,4.18
+stephen.robinson@company.com,2026-02-01,Cursor,gpt-4o,333998,6.54
+stephen.robinson@company.com,2026-03-01,GitHub Copilot,o3-mini,297622,4.09
+stephen.robinson@company.com,2026-03-01,Cursor,claude-sonnet-4-5,423963,7.23
+stephen.robinson@company.com,2026-04-01,GitHub Copilot,gpt-4o,463222,6.16
+stephen.robinson@company.com,2026-04-01,Cursor,gpt-4o,301783,5.45
+stephen.robinson@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,200672,2.88
+stephen.robinson@company.com,2026-05-01,Cursor,claude-opus-4-1,353589,6.1
+priya.garcia@company.com,2026-01-01,Perplexity,sonar-reasoning,196544,3.45
+priya.garcia@company.com,2026-03-01,Perplexity,sonar-reasoning,324052,6.41
+priya.garcia@company.com,2026-05-01,Perplexity,sonar-reasoning,271362,4.61
+priya.garcia@company.com,2026-06-01,Perplexity,sonar-pro,422899,6.64
+carolyn.martinez@company.com,2026-01-01,Claude,claude-sonnet-4-5,588573,15.09
+carolyn.martinez@company.com,2026-01-01,Cursor,claude-sonnet-4-5,356995,6.57
+carolyn.martinez@company.com,2026-02-01,Claude,claude-haiku-4-5,624065,13.07
+carolyn.martinez@company.com,2026-02-01,Cursor,claude-opus-4-1,698897,13.95
+carolyn.martinez@company.com,2026-03-01,Claude,claude-opus-4-1,293941,7.36
+carolyn.martinez@company.com,2026-03-01,Cursor,gpt-4o,112132,2.49
+carolyn.martinez@company.com,2026-04-01,Claude,claude-sonnet-4-5,200529,5.24
+carolyn.martinez@company.com,2026-04-01,Cursor,gpt-4o,499344,10.01
+carolyn.martinez@company.com,2026-05-01,Claude,claude-sonnet-4-5,349492,8.75
+carolyn.martinez@company.com,2026-05-01,Cursor,claude-sonnet-4-5,558744,11.56
+carolyn.martinez@company.com,2026-06-01,Claude,claude-haiku-4-5,732881,15.17
+carolyn.martinez@company.com,2026-06-01,Cursor,claude-opus-4-1,366332,7.66
+edward.yamamoto@company.com,2026-01-01,Perplexity,sonar-pro,640071,12.6
+edward.yamamoto@company.com,2026-02-01,Perplexity,sonar-pro,398287,7.18
+edward.yamamoto@company.com,2026-03-01,Perplexity,sonar-reasoning,668994,12.44
+edward.yamamoto@company.com,2026-04-01,Perplexity,sonar-reasoning,437583,7.66
+edward.yamamoto@company.com,2026-05-01,Perplexity,sonar-reasoning,523425,9.93
+edward.yamamoto@company.com,2026-06-01,Perplexity,sonar-pro,482274,8.25
+raj.martin@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,400395,9.36
+raj.martin@company.com,2026-04-01,ChatGPT Enterprise,o3,369467,8.89
+raj.martin@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,847204,16.37
+raj.martin@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,442921,9.34
+samuel.baker@company.com,2026-01-01,GitHub Copilot,o3-mini,746248,10.03
+samuel.baker@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,1226687,19.9
+samuel.baker@company.com,2026-03-01,GitHub Copilot,gpt-4o,256560,3.98
+samuel.baker@company.com,2026-04-01,GitHub Copilot,gpt-4o,136862,2.26
+samuel.baker@company.com,2026-05-01,GitHub Copilot,gpt-4o,440311,6.34
+samuel.baker@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,397074,5.57
+jason.moore@company.com,2026-01-01,Perplexity,sonar-pro,330518,5.89
+jason.moore@company.com,2026-01-01,Gemini,gemini-2.5-flash,754748,11.13
+jason.moore@company.com,2026-01-01,GitHub Copilot,o3-mini,307777,4.45
+jason.moore@company.com,2026-02-01,Perplexity,sonar-pro,484920,9.52
+jason.moore@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,277896,4.71
+jason.moore@company.com,2026-03-01,Perplexity,sonar-pro,471093,7.93
+jason.moore@company.com,2026-03-01,Gemini,gemini-2.5-flash,244828,3.77
+jason.moore@company.com,2026-04-01,Perplexity,sonar-reasoning,517635,10.52
+jason.moore@company.com,2026-04-01,Gemini,gemini-2.5-flash,318008,5.11
+jason.moore@company.com,2026-04-01,GitHub Copilot,gpt-4o,448335,6.36
+jason.moore@company.com,2026-06-01,Perplexity,sonar-pro,546059,10.8
+jason.moore@company.com,2026-06-01,Gemini,gemini-2.5-pro,562613,8.49
+jason.moore@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,523094,7.27
+michelle.campbell@company.com,2026-01-01,Gemini,gemini-2.5-flash,452412,5.59
+michelle.campbell@company.com,2026-02-01,Gemini,gemini-2.5-pro,468646,6.8
+michelle.campbell@company.com,2026-04-01,Gemini,gemini-2.5-pro,706255,10.28
+michelle.campbell@company.com,2026-05-01,Gemini,gemini-2.5-flash,225535,2.91
+michelle.campbell@company.com,2026-06-01,Gemini,gemini-2.5-pro,556939,7.85
+nicholas.flores@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,5000,0.08
+nicholas.flores@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,425282,6.16
+nicholas.flores@company.com,2026-03-01,GitHub Copilot,o3-mini,489671,7.86
+nicholas.flores@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,289299,4.67
+nicholas.flores@company.com,2026-05-01,GitHub Copilot,o3-mini,493391,8.02
+nicholas.flores@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,347092,4.71
+samantha.nelson@company.com,2026-01-01,GitHub Copilot,o3-mini,567537,9.26
+samantha.nelson@company.com,2026-01-01,Cursor,gpt-4o,477815,10.8
+samantha.nelson@company.com,2026-01-01,Gemini,gemini-2.5-flash,443730,5.64
+samantha.nelson@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,751083,10.7
+samantha.nelson@company.com,2026-02-01,Gemini,gemini-2.5-flash,433947,5.87
+samantha.nelson@company.com,2026-03-01,GitHub Copilot,o3-mini,68470,0.99
+samantha.nelson@company.com,2026-03-01,Cursor,gpt-4o,541628,9.46
+samantha.nelson@company.com,2026-03-01,Gemini,gemini-2.5-pro,174768,2.48
+samantha.nelson@company.com,2026-04-01,Cursor,gpt-4o,180102,3.24
+samantha.nelson@company.com,2026-04-01,Gemini,gemini-2.5-flash,545418,6.59
+samantha.nelson@company.com,2026-05-01,GitHub Copilot,o3-mini,372613,6.34
+samantha.nelson@company.com,2026-05-01,Gemini,gemini-2.5-flash,947593,13.32
+samantha.nelson@company.com,2026-06-01,GitHub Copilot,gpt-4o,603596,9.82
+cynthia.king@company.com,2026-01-01,Claude,claude-opus-4-1,642411,17.5
+cynthia.king@company.com,2026-03-01,Claude,claude-opus-4-1,238087,5.84
+cynthia.king@company.com,2026-04-01,Claude,claude-haiku-4-5,670019,15.01
+cynthia.king@company.com,2026-06-01,Claude,claude-haiku-4-5,679596,17.31
+mary.zhang@company.com,2026-01-01,Gemini,gemini-2.5-flash,659605,8.4
+mary.zhang@company.com,2026-03-01,Gemini,gemini-2.5-pro,624923,10.03
+mary.zhang@company.com,2026-03-01,Claude,claude-haiku-4-5,12321,0.26
+mary.zhang@company.com,2026-04-01,Gemini,gemini-2.5-pro,352040,5.13
+mary.zhang@company.com,2026-04-01,Claude,claude-haiku-4-5,49633,1.09
+mary.zhang@company.com,2026-05-01,Gemini,gemini-2.5-pro,460426,6.55
+mary.zhang@company.com,2026-05-01,Claude,claude-haiku-4-5,409784,8.74
+mary.zhang@company.com,2026-06-01,Claude,claude-haiku-4-5,407271,10.56
+kenneth.davis@company.com,2026-02-01,ChatGPT Enterprise,o3,234340,5.1
+kenneth.davis@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,644290,13.89
+kenneth.davis@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,876464,17.33
+carolyn.osei@company.com,2026-01-01,Perplexity,sonar-reasoning,527513,9.88
+carolyn.osei@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,337369,7.7
+carolyn.osei@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,547238,12.61
+carolyn.osei@company.com,2026-03-01,Perplexity,sonar-pro,412631,8.15
+carolyn.osei@company.com,2026-05-01,Perplexity,sonar-pro,469873,8.81
+carolyn.osei@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,264195,5.89
+carolyn.osei@company.com,2026-06-01,Perplexity,sonar-pro,542172,9.17
+ingrid.young@company.com,2026-02-01,Gemini,gemini-2.5-pro,192399,2.56
+ingrid.young@company.com,2026-02-01,ChatGPT Enterprise,o3,414572,10.42
+ingrid.young@company.com,2026-03-01,Gemini,gemini-2.5-pro,94317,1.25
+ingrid.young@company.com,2026-03-01,Perplexity,sonar-reasoning,355738,5.54
+ingrid.young@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,480892,10.32
+ingrid.young@company.com,2026-04-01,Gemini,gemini-2.5-flash,713099,9.05
+ingrid.young@company.com,2026-04-01,Perplexity,sonar-reasoning,333687,6
+ingrid.young@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,601892,13.07
+ingrid.young@company.com,2026-05-01,Gemini,gemini-2.5-pro,546459,6.62
+ingrid.young@company.com,2026-05-01,Perplexity,sonar-reasoning,444862,7.06
+ingrid.young@company.com,2026-06-01,Gemini,gemini-2.5-flash,472487,6.35
+ingrid.young@company.com,2026-06-01,Perplexity,sonar-pro,353510,6.15
+ingrid.young@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,562940,11.57
+carolyn.kowalski@company.com,2026-01-01,Gemini,gemini-2.5-pro,506060,6.82
+carolyn.kowalski@company.com,2026-02-01,Gemini,gemini-2.5-flash,508702,7.67
+carolyn.kowalski@company.com,2026-03-01,Gemini,gemini-2.5-pro,543793,7.23
+carolyn.kowalski@company.com,2026-04-01,Gemini,gemini-2.5-pro,477443,6.34
+carolyn.kowalski@company.com,2026-05-01,Gemini,gemini-2.5-flash,271900,3.82
+carolyn.kowalski@company.com,2026-06-01,Gemini,gemini-2.5-flash,331039,5.07
+joshua.andersen@company.com,2026-01-01,ChatGPT Enterprise,o3,172099,4.04
+joshua.andersen@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,288694,6.5
+joshua.andersen@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,165643,3.94
+joshua.andersen@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,406367,7.68
+patricia.thompson@company.com,2026-02-01,Gemini,gemini-2.5-pro,187114,2.95
+patricia.thompson@company.com,2026-02-01,Claude,claude-haiku-4-5,615959,15.79
+patricia.thompson@company.com,2026-03-01,Gemini,gemini-2.5-flash,655343,8.84
+patricia.thompson@company.com,2026-03-01,Claude,claude-opus-4-1,447577,12.07
+patricia.thompson@company.com,2026-04-01,Gemini,gemini-2.5-flash,359402,4.65
+patricia.thompson@company.com,2026-04-01,Claude,claude-sonnet-4-5,374978,10.19
+patricia.thompson@company.com,2026-05-01,Gemini,gemini-2.5-pro,373508,5.2
+patricia.thompson@company.com,2026-05-01,Claude,claude-haiku-4-5,255950,5.73
+patricia.thompson@company.com,2026-06-01,Gemini,gemini-2.5-flash,593003,7.92
+patricia.thompson@company.com,2026-06-01,Claude,claude-sonnet-4-5,340165,7.65
+jerry.taylor@company.com,2026-01-01,GitHub Copilot,o3-mini,683544,11.01
+jerry.taylor@company.com,2026-02-01,GitHub Copilot,o3-mini,329166,5.58
+jerry.taylor@company.com,2026-04-01,GitHub Copilot,gpt-4o,821005,11.3
+jerry.taylor@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,572522,9.29
+david.walker@company.com,2026-02-01,Gemini,gemini-2.5-flash,237343,3.3
+david.walker@company.com,2026-02-01,Perplexity,sonar-reasoning,145827,2.48
+david.walker@company.com,2026-02-01,Cursor,claude-sonnet-4-5,374621,8.03
+david.walker@company.com,2026-03-01,Perplexity,sonar-reasoning,343034,6.88
+david.walker@company.com,2026-03-01,Cursor,claude-sonnet-4-5,631017,12.6
+david.walker@company.com,2026-04-01,Gemini,gemini-2.5-flash,446782,6.96
+david.walker@company.com,2026-04-01,Cursor,claude-sonnet-4-5,596450,11.77
+david.walker@company.com,2026-05-01,Gemini,gemini-2.5-pro,379340,5.87
+david.walker@company.com,2026-05-01,Perplexity,sonar-pro,508258,9.78
+david.walker@company.com,2026-05-01,Cursor,claude-opus-4-1,299590,5.43
+david.walker@company.com,2026-06-01,Gemini,gemini-2.5-pro,609940,9.56
+david.walker@company.com,2026-06-01,Perplexity,sonar-reasoning,766328,12.08
+david.walker@company.com,2026-06-01,Cursor,claude-sonnet-4-5,653723,14.78
+donald.scott@company.com,2026-02-01,Perplexity,sonar-reasoning,426452,8.72
+donald.scott@company.com,2026-02-01,Claude,claude-haiku-4-5,324269,7.45
+donald.scott@company.com,2026-02-01,Cursor,claude-opus-4-1,388035,6.87
+donald.scott@company.com,2026-03-01,Perplexity,sonar-reasoning,355883,7.25
+donald.scott@company.com,2026-03-01,Claude,claude-sonnet-4-5,211015,4.64
+donald.scott@company.com,2026-04-01,Perplexity,sonar-reasoning,253802,4.53
+donald.scott@company.com,2026-04-01,Claude,claude-haiku-4-5,564628,14.87
+donald.scott@company.com,2026-04-01,Cursor,claude-opus-4-1,460890,8.06
+donald.scott@company.com,2026-05-01,Perplexity,sonar-pro,84391,1.71
+donald.scott@company.com,2026-05-01,Cursor,claude-opus-4-1,516110,9.28
+donald.scott@company.com,2026-06-01,Perplexity,sonar-pro,663259,12.72
+donald.scott@company.com,2026-06-01,Claude,claude-haiku-4-5,392633,8.38
+donald.scott@company.com,2026-06-01,Cursor,claude-opus-4-1,470456,8.16
+amy.andersen@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,586653,7.49
+amy.andersen@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,468810,8.91
+amy.andersen@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,652683,13.44
+amy.andersen@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,432301,9.93
+amy.andersen@company.com,2026-04-01,GitHub Copilot,o3-mini,69107,1
+amy.andersen@company.com,2026-05-01,GitHub Copilot,gpt-4o,577641,9.06
+amy.andersen@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,629696,12.3
+amy.andersen@company.com,2026-06-01,GitHub Copilot,gpt-4o,441918,7.58
+amy.andersen@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,236798,5.71
+julie.ivanov@company.com,2026-01-01,ChatGPT Enterprise,o3,388864,7.76
+julie.ivanov@company.com,2026-01-01,Claude,claude-sonnet-4-5,709070,17.6
+julie.ivanov@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,503171,10.09
+julie.ivanov@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,451791,9.76
+julie.ivanov@company.com,2026-04-01,Claude,claude-sonnet-4-5,504117,10.79
+julie.ivanov@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,240231,5.72
+julie.ivanov@company.com,2026-05-01,Claude,claude-sonnet-4-5,341267,7.7
+julie.ivanov@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,326375,7.3
+julie.ivanov@company.com,2026-06-01,Claude,claude-haiku-4-5,524628,14.15
+priya.adams@company.com,2026-01-01,Gemini,gemini-2.5-flash,608284,8.88
+priya.adams@company.com,2026-02-01,Gemini,gemini-2.5-flash,498024,6.78
+priya.adams@company.com,2026-03-01,Gemini,gemini-2.5-flash,457295,7.09
+priya.adams@company.com,2026-04-01,Gemini,gemini-2.5-pro,578423,8.25
+priya.adams@company.com,2026-05-01,Gemini,gemini-2.5-pro,344462,4.58
+brenda.yamamoto@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,539088,12.66
+brenda.yamamoto@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,409589,7.86
+brenda.yamamoto@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,418667,9.37
+brenda.yamamoto@company.com,2026-04-01,ChatGPT Enterprise,o3,320733,6.45
+brenda.yamamoto@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,822296,20.8
+brenda.yamamoto@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,398176,8.07
+richard.ali@company.com,2026-01-01,ChatGPT Enterprise,o3,276641,6.15
+richard.ali@company.com,2026-01-01,Claude,claude-opus-4-1,213053,5.06
+richard.ali@company.com,2026-01-01,Perplexity,sonar-reasoning,737725,14.32
+richard.ali@company.com,2026-02-01,ChatGPT Enterprise,o3,251571,5.07
+richard.ali@company.com,2026-02-01,Perplexity,sonar-reasoning,569157,9.62
+richard.ali@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,555893,12.8
+richard.ali@company.com,2026-03-01,Claude,claude-opus-4-1,266664,6.91
+richard.ali@company.com,2026-03-01,Perplexity,sonar-reasoning,166385,2.86
+richard.ali@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,521247,12.9
+richard.ali@company.com,2026-04-01,Claude,claude-haiku-4-5,661438,17.49
+richard.ali@company.com,2026-06-01,Claude,claude-sonnet-4-5,391780,9.42
+richard.ali@company.com,2026-06-01,Perplexity,sonar-reasoning,432702,7.86
+jack.sanchez@company.com,2026-02-01,Perplexity,sonar-reasoning,423012,6.51
+jack.sanchez@company.com,2026-03-01,Perplexity,sonar-pro,513375,8.27
+jack.sanchez@company.com,2026-04-01,Perplexity,sonar-reasoning,500458,8.38
+jack.sanchez@company.com,2026-05-01,Perplexity,sonar-reasoning,320056,6.1
+jack.sanchez@company.com,2026-06-01,Perplexity,sonar-pro,484237,9.12
+jack.wilson@company.com,2026-01-01,GitHub Copilot,gpt-4o,304955,4.54
+jack.wilson@company.com,2026-02-01,GitHub Copilot,gpt-4o,548201,8.22
+jack.wilson@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,930979,15.62
+jack.wilson@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,381019,6.38
+emily.rodriguez@company.com,2026-01-01,Perplexity,sonar-pro,600684,9.24
+emily.rodriguez@company.com,2026-03-01,Perplexity,sonar-pro,766879,12.97
+emily.rodriguez@company.com,2026-04-01,Perplexity,sonar-reasoning,350646,6.09
+emily.rodriguez@company.com,2026-05-01,Perplexity,sonar-pro,248686,4.48
+brenda.okafor@company.com,2026-01-01,Perplexity,sonar-reasoning,253952,4.7
+brenda.okafor@company.com,2026-02-01,Perplexity,sonar-reasoning,297596,5.81
+brenda.okafor@company.com,2026-03-01,Perplexity,sonar-reasoning,202911,3.83
+brenda.okafor@company.com,2026-05-01,Perplexity,sonar-pro,562785,8.86
+brenda.okafor@company.com,2026-06-01,Perplexity,sonar-pro,439797,6.98
+melissa.clark@company.com,2026-02-01,Gemini,gemini-2.5-flash,293248,3.62
+melissa.clark@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,276469,5.22
+melissa.clark@company.com,2026-03-01,Cursor,gpt-4o,387845,8.6
+melissa.clark@company.com,2026-04-01,Gemini,gemini-2.5-pro,351292,4.74
+melissa.clark@company.com,2026-04-01,ChatGPT Enterprise,o3,402057,7.91
+melissa.clark@company.com,2026-05-01,Gemini,gemini-2.5-flash,378334,4.9
+melissa.clark@company.com,2026-05-01,Cursor,claude-opus-4-1,457123,9.13
+melissa.clark@company.com,2026-05-01,ChatGPT Enterprise,o3,570070,14.23
+melissa.clark@company.com,2026-06-01,Gemini,gemini-2.5-flash,545542,7.5
+melissa.clark@company.com,2026-06-01,Cursor,claude-opus-4-1,546101,10.33
+melissa.clark@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,434299,9.49
+david.baker@company.com,2026-01-01,Claude,claude-opus-4-1,378577,9.06
+david.baker@company.com,2026-02-01,Claude,claude-opus-4-1,718022,16.1
+david.baker@company.com,2026-03-01,Claude,claude-haiku-4-5,641836,13.92
+david.baker@company.com,2026-05-01,Claude,claude-sonnet-4-5,1037896,24.45
+david.baker@company.com,2026-06-01,Claude,claude-opus-4-1,404148,9.13
+chen.hill@company.com,2026-01-01,ChatGPT Enterprise,o3,362769,8.67
+chen.hill@company.com,2026-03-01,ChatGPT Enterprise,o3,51357,1.26
+chen.hill@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,362555,8.2
+priya.chen@company.com,2026-01-01,Cursor,claude-sonnet-4-5,417330,9.56
+priya.chen@company.com,2026-01-01,Gemini,gemini-2.5-flash,406772,6.49
+priya.chen@company.com,2026-01-01,ChatGPT Enterprise,o3,514508,10.38
+priya.chen@company.com,2026-02-01,Cursor,claude-opus-4-1,500653,10.24
+priya.chen@company.com,2026-02-01,Gemini,gemini-2.5-flash,185719,2.75
+priya.chen@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,512459,11.22
+priya.chen@company.com,2026-03-01,Cursor,claude-sonnet-4-5,769016,13.73
+priya.chen@company.com,2026-03-01,Gemini,gemini-2.5-flash,735082,11.17
+priya.chen@company.com,2026-03-01,ChatGPT Enterprise,o3,258875,6.03
+priya.chen@company.com,2026-04-01,Cursor,claude-opus-4-1,478841,8.47
+priya.chen@company.com,2026-04-01,Gemini,gemini-2.5-pro,402326,6.45
+priya.chen@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,353242,7.89
+priya.chen@company.com,2026-05-01,Cursor,gpt-4o,470867,8.53
+priya.chen@company.com,2026-05-01,Gemini,gemini-2.5-flash,632245,8.57
+priya.chen@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,268771,5.03
+priya.chen@company.com,2026-06-01,Cursor,claude-opus-4-1,509420,11.13
+fatima.kim@company.com,2026-01-01,GitHub Copilot,o3-mini,478904,7.55
+fatima.kim@company.com,2026-02-01,GitHub Copilot,o3-mini,533692,8.24
+fatima.kim@company.com,2026-03-01,GitHub Copilot,o3-mini,330924,4.48
+fatima.kim@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,609667,9.39
+fatima.kim@company.com,2026-05-01,GitHub Copilot,gpt-4o,410971,6.52
+fatima.kim@company.com,2026-06-01,GitHub Copilot,gpt-4o,557598,8.55
+joshua.roberts@company.com,2026-01-01,Gemini,gemini-2.5-pro,253528,3.17
+joshua.roberts@company.com,2026-01-01,ChatGPT Enterprise,o3,379387,8.65
+joshua.roberts@company.com,2026-02-01,Gemini,gemini-2.5-flash,666349,10.63
+joshua.roberts@company.com,2026-02-01,ChatGPT Enterprise,o3,700223,14.98
+joshua.roberts@company.com,2026-03-01,Gemini,gemini-2.5-flash,375412,4.52
+joshua.roberts@company.com,2026-03-01,ChatGPT Enterprise,o3,455304,8.61
+joshua.roberts@company.com,2026-04-01,Gemini,gemini-2.5-flash,166213,2.32
+joshua.roberts@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,325815,6.34
+joshua.roberts@company.com,2026-05-01,Gemini,gemini-2.5-flash,157819,2.38
+joshua.roberts@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,370968,9.36
+joshua.roberts@company.com,2026-06-01,Gemini,gemini-2.5-pro,247143,3.41
+joshua.roberts@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,1106329,23.89
+william.moore@company.com,2026-01-01,Cursor,claude-sonnet-4-5,523443,11.06
+william.moore@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,735138,11.47
+william.moore@company.com,2026-02-01,GitHub Copilot,gpt-4o,529833,8.02
+william.moore@company.com,2026-03-01,Cursor,claude-opus-4-1,230165,4.32
+william.moore@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,720338,9.49
+william.moore@company.com,2026-04-01,Cursor,claude-sonnet-4-5,425282,9.76
+william.moore@company.com,2026-04-01,GitHub Copilot,gpt-4o,421139,5.65
+william.moore@company.com,2026-05-01,Cursor,claude-opus-4-1,358392,6.94
+william.moore@company.com,2026-06-01,Cursor,gpt-4o,206436,4.6
+raj.chen@company.com,2026-01-01,GitHub Copilot,o3-mini,525782,7.78
+raj.chen@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,851547,13.29
+raj.chen@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,716090,10.41
+raj.chen@company.com,2026-04-01,GitHub Copilot,o3-mini,410730,5.86
+raj.chen@company.com,2026-05-01,GitHub Copilot,o3-mini,785637,12.8
+raj.chen@company.com,2026-06-01,GitHub Copilot,gpt-4o,705393,10.45
+pamela.young@company.com,2026-01-01,ChatGPT Enterprise,o3,634513,13.78
+pamela.young@company.com,2026-01-01,Perplexity,sonar-reasoning,531147,8.5
+pamela.young@company.com,2026-01-01,Cursor,claude-sonnet-4-5,712705,15.86
+pamela.young@company.com,2026-02-01,Perplexity,sonar-pro,180090,2.92
+pamela.young@company.com,2026-02-01,Cursor,gpt-4o,730832,15.61
+pamela.young@company.com,2026-03-01,ChatGPT Enterprise,gpt-4o,447592,9.78
+pamela.young@company.com,2026-03-01,Cursor,claude-opus-4-1,441960,8.69
+pamela.young@company.com,2026-05-01,Perplexity,sonar-pro,321472,5.07
+pamela.young@company.com,2026-05-01,Cursor,claude-sonnet-4-5,468127,8.84
+pamela.young@company.com,2026-06-01,Perplexity,sonar-pro,279546,4.38
+pamela.young@company.com,2026-06-01,Cursor,claude-opus-4-1,239752,5.01
+carolyn.williams@company.com,2026-01-01,Perplexity,sonar-pro,668178,11.82
+carolyn.williams@company.com,2026-02-01,Perplexity,sonar-pro,329866,6.39
+carolyn.williams@company.com,2026-03-01,Perplexity,sonar-reasoning,411046,6.9
+carolyn.williams@company.com,2026-05-01,Perplexity,sonar-reasoning,540791,10.55
+carolyn.williams@company.com,2026-06-01,Perplexity,sonar-reasoning,517965,8.45
+jason.johnson@company.com,2026-01-01,GitHub Copilot,gpt-4o,686407,10.28
+jason.johnson@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,471467,6.78
+jason.johnson@company.com,2026-02-01,Perplexity,sonar-reasoning,431948,8.62
+jason.johnson@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,544748,9.37
+jason.johnson@company.com,2026-04-01,Perplexity,sonar-pro,629685,12.86
+jason.johnson@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,263483,4.19
+jason.johnson@company.com,2026-06-01,GitHub Copilot,o3-mini,448770,5.89
+jason.jones@company.com,2026-01-01,Cursor,claude-sonnet-4-5,275476,5.73
+jason.jones@company.com,2026-02-01,Cursor,claude-sonnet-4-5,409385,7.72
+jason.jones@company.com,2026-03-01,Cursor,claude-sonnet-4-5,521430,10.22
+jason.jones@company.com,2026-04-01,Cursor,gpt-4o,477199,10.02
+jason.jones@company.com,2026-05-01,Cursor,claude-sonnet-4-5,376822,6.78
+jason.jones@company.com,2026-06-01,Cursor,claude-opus-4-1,179838,3.34
+nancy.diallo@company.com,2026-01-01,Cursor,gpt-4o,440344,9.86
+nancy.diallo@company.com,2026-01-01,GitHub Copilot,o3-mini,360292,5.03
+nancy.diallo@company.com,2026-03-01,Cursor,claude-sonnet-4-5,234822,4.07
+nancy.diallo@company.com,2026-03-01,GitHub Copilot,gpt-4o,455209,6.56
+nancy.diallo@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,671456,8.57
+nancy.diallo@company.com,2026-06-01,Cursor,claude-sonnet-4-5,646066,14.59
+nancy.diallo@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,543297,8.53
+cynthia.moore@company.com,2026-01-01,Cursor,claude-opus-4-1,180900,3.42
+cynthia.moore@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,301782,7.44
+cynthia.moore@company.com,2026-01-01,Perplexity,sonar-pro,602356,12.32
+cynthia.moore@company.com,2026-03-01,Cursor,gpt-4o,343353,5.85
+cynthia.moore@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,652030,15.57
+cynthia.moore@company.com,2026-03-01,Perplexity,sonar-pro,215240,3.87
+cynthia.moore@company.com,2026-04-01,Cursor,claude-opus-4-1,504139,10.87
+cynthia.moore@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,486081,10.83
+cynthia.moore@company.com,2026-04-01,Perplexity,sonar-pro,433680,8.86
+cynthia.moore@company.com,2026-06-01,Cursor,claude-opus-4-1,406871,9.32
+cynthia.moore@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,564112,14.17
+sven.kumar@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,123059,2.67
+sven.kumar@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,648779,8.66
+sven.kumar@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,395911,9.13
+sven.kumar@company.com,2026-03-01,GitHub Copilot,o3-mini,414764,7.02
+sven.kumar@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,358886,7.26
+sven.kumar@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,625396,12.34
+sven.kumar@company.com,2026-05-01,GitHub Copilot,o3-mini,573055,9.29
+sven.kumar@company.com,2026-05-01,ChatGPT Enterprise,o3,566633,11.59
+sven.kumar@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,356071,5.51
+sven.kumar@company.com,2026-06-01,ChatGPT Enterprise,o3,714989,14.07
+brandon.okafor@company.com,2026-01-01,Claude,claude-opus-4-1,180287,4.02
+brandon.okafor@company.com,2026-01-01,Gemini,gemini-2.5-pro,427135,6.79
+brandon.okafor@company.com,2026-01-01,Perplexity,sonar-pro,519105,10.17
+brandon.okafor@company.com,2026-02-01,Gemini,gemini-2.5-pro,496789,6.18
+brandon.okafor@company.com,2026-02-01,Perplexity,sonar-reasoning,284773,4.49
+brandon.okafor@company.com,2026-03-01,Claude,claude-sonnet-4-5,59562,1.22
+brandon.okafor@company.com,2026-03-01,Perplexity,sonar-reasoning,478784,9.52
+brandon.okafor@company.com,2026-04-01,Gemini,gemini-2.5-pro,376353,4.74
+brandon.okafor@company.com,2026-04-01,Perplexity,sonar-reasoning,273239,4.81
+brandon.okafor@company.com,2026-05-01,Claude,claude-opus-4-1,454302,10.18
+brandon.okafor@company.com,2026-05-01,Gemini,gemini-2.5-pro,262021,3.83
+brandon.okafor@company.com,2026-05-01,Perplexity,sonar-reasoning,286140,4.47
+brandon.okafor@company.com,2026-06-01,Gemini,gemini-2.5-pro,229305,3.49
+brandon.okafor@company.com,2026-06-01,Perplexity,sonar-reasoning,212740,3.81
+diego.young@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,271530,5.4
+diego.young@company.com,2026-02-01,ChatGPT Enterprise,o3,447316,8.54
+diego.young@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,936257,18.13
+diego.young@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,448795,8.56
+diego.young@company.com,2026-05-01,ChatGPT Enterprise,o3,239403,5.81
+diego.young@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,722188,16.83
+brenda.johnson@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,236610,4.72
+brenda.johnson@company.com,2026-01-01,Perplexity,sonar-reasoning,359867,6.56
+brenda.johnson@company.com,2026-02-01,Perplexity,sonar-pro,443435,8.98
+brenda.johnson@company.com,2026-03-01,ChatGPT Enterprise,o3,448898,8.57
+brenda.johnson@company.com,2026-04-01,Perplexity,sonar-reasoning,618779,12.61
+brenda.johnson@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,407295,10.24
+brenda.johnson@company.com,2026-05-01,Perplexity,sonar-reasoning,568999,10.7
+brenda.johnson@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,7841,0.13
+brenda.johnson@company.com,2026-06-01,ChatGPT Enterprise,o3,490170,9.73
+brenda.johnson@company.com,2026-06-01,Perplexity,sonar-reasoning,686635,10.98
+debra.carter@company.com,2026-01-01,Gemini,gemini-2.5-flash,632801,9.04
+debra.carter@company.com,2026-02-01,Gemini,gemini-2.5-pro,200895,2.93
+debra.carter@company.com,2026-03-01,Gemini,gemini-2.5-flash,446117,7.15
+debra.carter@company.com,2026-04-01,Gemini,gemini-2.5-pro,317343,4.87
+debra.carter@company.com,2026-05-01,Gemini,gemini-2.5-flash,316557,4.1
+anthony.green@company.com,2026-02-01,GitHub Copilot,gpt-4o,496504,8.31
+anthony.green@company.com,2026-02-01,Cursor,gpt-4o,346270,7.61
+anthony.green@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,590472,8.13
+anthony.green@company.com,2026-03-01,Cursor,claude-sonnet-4-5,406090,9.22
+anthony.green@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,601461,7.87
+anthony.green@company.com,2026-05-01,Cursor,claude-sonnet-4-5,175564,3.93
+anthony.green@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,895005,12.08
+anthony.green@company.com,2026-06-01,Cursor,claude-sonnet-4-5,602368,13.76
+stephanie.martin@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,503299,11.21
+stephanie.martin@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,673119,16.32
+stephanie.martin@company.com,2026-03-01,ChatGPT Enterprise,o3,521931,10.06
+stephanie.martin@company.com,2026-04-01,ChatGPT Enterprise,o3,462781,9.18
+stephanie.martin@company.com,2026-06-01,ChatGPT Enterprise,o3,489065,10.67
+noor.diallo@company.com,2026-01-01,Gemini,gemini-2.5-flash,599083,8.06
+noor.diallo@company.com,2026-02-01,Gemini,gemini-2.5-flash,793807,10.32
+noor.diallo@company.com,2026-03-01,Gemini,gemini-2.5-pro,453751,5.56
+noor.diallo@company.com,2026-04-01,Gemini,gemini-2.5-pro,182919,2.6
+noor.diallo@company.com,2026-05-01,Gemini,gemini-2.5-flash,718002,11.37
+noor.diallo@company.com,2026-06-01,Gemini,gemini-2.5-flash,391203,4.79
+joseph.king@company.com,2026-01-01,Cursor,claude-opus-4-1,254275,5.19
+joseph.king@company.com,2026-03-01,Cursor,claude-sonnet-4-5,356059,8.13
+joseph.king@company.com,2026-05-01,Cursor,gpt-4o,549592,9.83
+joseph.king@company.com,2026-06-01,Cursor,claude-opus-4-1,769577,17.3
+christopher.davis@company.com,2026-02-01,Claude,claude-opus-4-1,585357,15.81
+christopher.davis@company.com,2026-04-01,Claude,claude-opus-4-1,279127,5.92
+christopher.davis@company.com,2026-05-01,Claude,claude-haiku-4-5,472441,12.78
+anthony.baker@company.com,2026-01-01,Gemini,gemini-2.5-flash,24055,0.37
+anthony.baker@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,204345,3.87
+anthony.baker@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,472310,10.08
+anthony.baker@company.com,2026-03-01,Gemini,gemini-2.5-pro,644679,8.4
+anthony.baker@company.com,2026-03-01,ChatGPT Enterprise,o3,512297,12.34
+anthony.baker@company.com,2026-04-01,Gemini,gemini-2.5-flash,622014,9.94
+anthony.baker@company.com,2026-04-01,ChatGPT Enterprise,o3,237311,5.96
+anthony.baker@company.com,2026-05-01,Gemini,gemini-2.5-flash,417416,5.12
+anthony.baker@company.com,2026-05-01,ChatGPT Enterprise,o3,206842,4.88
+anthony.baker@company.com,2026-06-01,Gemini,gemini-2.5-pro,344567,4.55
+anthony.baker@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,439853,10.49
+patrick.ali@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,569835,13.8
+patrick.ali@company.com,2026-01-01,Gemini,gemini-2.5-flash,768730,9.31
+patrick.ali@company.com,2026-01-01,Perplexity,sonar-pro,399683,7.21
+patrick.ali@company.com,2026-02-01,Perplexity,sonar-reasoning,781454,12.71
+patrick.ali@company.com,2026-03-01,ChatGPT Enterprise,o3,258416,5.27
+patrick.ali@company.com,2026-03-01,Gemini,gemini-2.5-pro,734787,9.62
+patrick.ali@company.com,2026-03-01,Perplexity,sonar-pro,640096,10.53
+patrick.ali@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,201145,4.12
+patrick.ali@company.com,2026-04-01,Gemini,gemini-2.5-pro,760291,11.23
+patrick.ali@company.com,2026-04-01,Perplexity,sonar-pro,96389,1.81
+patrick.ali@company.com,2026-05-01,Gemini,gemini-2.5-flash,384357,5.02
+patrick.ali@company.com,2026-05-01,Perplexity,sonar-reasoning,174746,3.11
+patrick.ali@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,531515,10.3
+patrick.ali@company.com,2026-06-01,Gemini,gemini-2.5-flash,288290,4.11
+patrick.ali@company.com,2026-06-01,Perplexity,sonar-reasoning,424178,6.64
+donna.ramirez@company.com,2026-01-01,Gemini,gemini-2.5-flash,532138,6.92
+donna.ramirez@company.com,2026-02-01,Gemini,gemini-2.5-flash,532051,6.87
+donna.ramirez@company.com,2026-04-01,Gemini,gemini-2.5-flash,651157,9.56
+donna.ramirez@company.com,2026-05-01,Gemini,gemini-2.5-flash,589486,8.05
+amanda.carter@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,447781,9.39
+amanda.carter@company.com,2026-01-01,Perplexity,sonar-reasoning,673689,12.15
+amanda.carter@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,301096,5.99
+amanda.carter@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,459280,10.65
+amanda.carter@company.com,2026-03-01,Perplexity,sonar-pro,335910,5.54
+amanda.carter@company.com,2026-04-01,ChatGPT Enterprise,o3,488280,9.97
+amanda.carter@company.com,2026-04-01,Perplexity,sonar-pro,293114,5.23
+amanda.carter@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,790558,17.39
+amanda.carter@company.com,2026-05-01,Perplexity,sonar-reasoning,613443,11.14
+amanda.carter@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,528237,11.3
+amanda.carter@company.com,2026-06-01,Perplexity,sonar-reasoning,541447,8.7
+diego.mitchell@company.com,2026-01-01,GitHub Copilot,gpt-4o,196591,2.66
+diego.mitchell@company.com,2026-01-01,Perplexity,sonar-pro,469814,8.34
+diego.mitchell@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,356188,8.51
+diego.mitchell@company.com,2026-02-01,Perplexity,sonar-reasoning,401247,7.01
+diego.mitchell@company.com,2026-02-01,ChatGPT Enterprise,o3,672275,15.81
+diego.mitchell@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,456522,6.21
+diego.mitchell@company.com,2026-03-01,Perplexity,sonar-pro,504748,8.57
+diego.mitchell@company.com,2026-04-01,GitHub Copilot,gpt-4o,814400,13.4
+diego.mitchell@company.com,2026-04-01,Perplexity,sonar-reasoning,240137,4.35
+diego.mitchell@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,509648,12.88
+diego.mitchell@company.com,2026-05-01,GitHub Copilot,o3-mini,450078,7.58
+diego.mitchell@company.com,2026-05-01,Perplexity,sonar-pro,341944,5.65
+diego.mitchell@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,459148,10.12
+diego.mitchell@company.com,2026-06-01,GitHub Copilot,gpt-4o,486770,7.03
+diego.mitchell@company.com,2026-06-01,Perplexity,sonar-pro,403110,6.4
+diego.mitchell@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,418595,9.73
+hiroshi.chen@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,445182,8.93
+hiroshi.chen@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,729998,14.31
+debra.okafor@company.com,2026-02-01,Perplexity,sonar-reasoning,687195,11.84
+debra.okafor@company.com,2026-03-01,Perplexity,sonar-reasoning,28006,0.57
+debra.okafor@company.com,2026-04-01,Perplexity,sonar-pro,718591,14.51
+debra.okafor@company.com,2026-05-01,Perplexity,sonar-pro,454621,9.29
+linda.robinson@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,513630,10.61
+linda.robinson@company.com,2026-04-01,ChatGPT Enterprise,o3,985024,21.19
+linda.robinson@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,548065,12.59
+linda.robinson@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,455967,9.33
+rebecca.mitchell@company.com,2026-01-01,Perplexity,sonar-reasoning,524579,10.75
+rebecca.mitchell@company.com,2026-02-01,Perplexity,sonar-reasoning,616202,12.09
+rebecca.mitchell@company.com,2026-03-01,Perplexity,sonar-pro,645029,13.29
+rebecca.mitchell@company.com,2026-05-01,Perplexity,sonar-reasoning,664365,10.82
+rebecca.mitchell@company.com,2026-06-01,Perplexity,sonar-pro,690838,13.28
+angela.patel@company.com,2026-01-01,Perplexity,sonar-reasoning,168285,2.68
+angela.patel@company.com,2026-01-01,GitHub Copilot,gpt-4o,692074,8.86
+angela.patel@company.com,2026-02-01,Perplexity,sonar-pro,551763,11.36
+angela.patel@company.com,2026-02-01,GitHub Copilot,o3-mini,177156,2.75
+angela.patel@company.com,2026-03-01,Perplexity,sonar-reasoning,417098,7.16
+angela.patel@company.com,2026-03-01,GitHub Copilot,o3-mini,650302,10.9
+angela.patel@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,720846,11.94
+angela.patel@company.com,2026-05-01,Perplexity,sonar-pro,451422,7.71
+angela.patel@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,291730,4.01
+angela.patel@company.com,2026-06-01,Perplexity,sonar-pro,621641,11.43
+scott.adams@company.com,2026-01-01,Cursor,gpt-4o,542725,11.65
+scott.adams@company.com,2026-04-01,Cursor,claude-opus-4-1,699604,15.63
+scott.adams@company.com,2026-05-01,Cursor,gpt-4o,391187,8.88
+betty.kim@company.com,2026-01-01,Gemini,gemini-2.5-flash,414430,5.72
+betty.kim@company.com,2026-04-01,Gemini,gemini-2.5-flash,282701,4.01
+betty.kim@company.com,2026-06-01,Gemini,gemini-2.5-flash,643523,8.16
+laura.thompson@company.com,2026-01-01,Cursor,gpt-4o,603969,13.26
+laura.thompson@company.com,2026-02-01,Cursor,gpt-4o,694141,14.6
+laura.thompson@company.com,2026-03-01,Cursor,gpt-4o,523432,10.97
+laura.thompson@company.com,2026-05-01,Cursor,claude-sonnet-4-5,268928,5.52
+laura.thompson@company.com,2026-06-01,Cursor,claude-sonnet-4-5,387080,8.19
+laura.hall@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,264666,6.49
+laura.hall@company.com,2026-01-01,Cursor,gpt-4o,608479,11.87
+laura.hall@company.com,2026-01-01,Perplexity,sonar-pro,381557,7.84
+laura.hall@company.com,2026-02-01,Cursor,claude-opus-4-1,908256,20.27
+laura.hall@company.com,2026-02-01,Perplexity,sonar-reasoning,350000,6.55
+laura.hall@company.com,2026-03-01,ChatGPT Enterprise,o3,40567,0.94
+laura.hall@company.com,2026-03-01,Cursor,claude-sonnet-4-5,709061,16.13
+laura.hall@company.com,2026-03-01,Perplexity,sonar-reasoning,419479,8.03
+laura.hall@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,208874,4.48
+laura.hall@company.com,2026-04-01,Cursor,claude-opus-4-1,335351,6.28
+laura.hall@company.com,2026-04-01,Perplexity,sonar-pro,409687,6.59
+laura.hall@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,444203,11.19
+laura.hall@company.com,2026-05-01,Cursor,claude-sonnet-4-5,596828,11.2
+laura.hall@company.com,2026-05-01,Perplexity,sonar-pro,216636,3.73
+laura.hall@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,426242,10.06
+laura.hall@company.com,2026-06-01,Cursor,claude-sonnet-4-5,90666,1.82
+laura.hall@company.com,2026-06-01,Perplexity,sonar-reasoning,430405,7.47
+karen.mitchell@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,397710,5.63
+karen.mitchell@company.com,2026-03-01,GitHub Copilot,o3-mini,640919,10.2
+karen.mitchell@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,102633,1.65
+karen.mitchell@company.com,2026-05-01,GitHub Copilot,gpt-4o,419171,6.63
+karen.mitchell@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,558194,7.42
+joshua.kim@company.com,2026-02-01,Perplexity,sonar-pro,330670,5.65
+joshua.kim@company.com,2026-03-01,Perplexity,sonar-pro,380450,7.73
+joshua.kim@company.com,2026-04-01,Perplexity,sonar-reasoning,215692,3.72
+joshua.kim@company.com,2026-05-01,Perplexity,sonar-pro,463927,9.5
+joshua.kim@company.com,2026-06-01,Perplexity,sonar-pro,257057,4.06
+jacob.perez@company.com,2026-01-01,Cursor,gpt-4o,562587,10.68
+jacob.perez@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,5000,0.12
+jacob.perez@company.com,2026-01-01,Claude,claude-sonnet-4-5,334317,7.1
+jacob.perez@company.com,2026-02-01,Cursor,claude-opus-4-1,260536,5.93
+jacob.perez@company.com,2026-02-01,ChatGPT Enterprise,o3,285694,6.06
+jacob.perez@company.com,2026-02-01,Claude,claude-sonnet-4-5,280865,6.3
+jacob.perez@company.com,2026-03-01,Cursor,gpt-4o,597465,12
+jacob.perez@company.com,2026-03-01,ChatGPT Enterprise,o3,820326,16.38
+jacob.perez@company.com,2026-03-01,Claude,claude-sonnet-4-5,554698,11.98
+jacob.perez@company.com,2026-04-01,Cursor,claude-sonnet-4-5,363494,7.55
+jacob.perez@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,361367,7.77
+jacob.perez@company.com,2026-05-01,Cursor,claude-opus-4-1,490944,11.11
+jacob.perez@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,193643,3.65
+jacob.perez@company.com,2026-05-01,Claude,claude-sonnet-4-5,501264,13.09
+jacob.perez@company.com,2026-06-01,Cursor,claude-sonnet-4-5,481424,10.82
+jacob.perez@company.com,2026-06-01,ChatGPT Enterprise,o3,318925,6
+jacob.perez@company.com,2026-06-01,Claude,claude-haiku-4-5,310037,6.34
+fatima.thompson@company.com,2026-03-01,Perplexity,sonar-pro,382149,7.1
+fatima.thompson@company.com,2026-04-01,Perplexity,sonar-reasoning,715392,12.47
+fatima.thompson@company.com,2026-05-01,Perplexity,sonar-pro,567378,11.12
+fatima.thompson@company.com,2026-06-01,Perplexity,sonar-pro,585492,9.9
+yuki.yamamoto@company.com,2026-01-01,Cursor,claude-opus-4-1,179488,3.06
+yuki.yamamoto@company.com,2026-04-01,Cursor,claude-opus-4-1,87628,1.99
+yuki.yamamoto@company.com,2026-05-01,Cursor,claude-opus-4-1,346734,7.24
+yuki.yamamoto@company.com,2026-06-01,Cursor,claude-sonnet-4-5,604334,12.51
+yuki.diallo@company.com,2026-01-01,Gemini,gemini-2.5-pro,698510,11.23
+yuki.diallo@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,114151,2.19
+yuki.diallo@company.com,2026-02-01,Perplexity,sonar-pro,418217,7.15
+yuki.diallo@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,244411,5.03
+yuki.diallo@company.com,2026-04-01,Perplexity,sonar-reasoning,335529,6.19
+yuki.diallo@company.com,2026-04-01,Gemini,gemini-2.5-flash,347351,5.31
+yuki.diallo@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,585260,11.8
+yuki.diallo@company.com,2026-05-01,Perplexity,sonar-reasoning,454107,7.28
+yuki.diallo@company.com,2026-05-01,Gemini,gemini-2.5-flash,284919,3.76
+yuki.diallo@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,489250,11.23
+michael.gonzalez@company.com,2026-01-01,Perplexity,sonar-pro,418821,6.58
+michael.gonzalez@company.com,2026-02-01,ChatGPT Enterprise,o3,824080,19.59
+michael.gonzalez@company.com,2026-02-01,Cursor,claude-sonnet-4-5,236330,5.43
+michael.gonzalez@company.com,2026-03-01,Perplexity,sonar-reasoning,378200,6.59
+michael.gonzalez@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,434296,9.45
+michael.gonzalez@company.com,2026-03-01,Cursor,gpt-4o,301547,5.78
+michael.gonzalez@company.com,2026-05-01,Perplexity,sonar-pro,454480,7.34
+michael.gonzalez@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,351100,8.09
+michael.gonzalez@company.com,2026-05-01,Cursor,claude-opus-4-1,401941,6.93
+michael.gonzalez@company.com,2026-06-01,Perplexity,sonar-reasoning,26780,0.46
+michael.gonzalez@company.com,2026-06-01,Cursor,gpt-4o,142980,3.19
+noor.lewis@company.com,2026-02-01,Claude,claude-haiku-4-5,710247,18.73
+noor.lewis@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,291721,4.22
+noor.lewis@company.com,2026-03-01,Claude,claude-sonnet-4-5,375325,9.05
+noor.lewis@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,174540,2.5
+noor.lewis@company.com,2026-04-01,Claude,claude-haiku-4-5,635078,12.99
+noor.lewis@company.com,2026-05-01,GitHub Copilot,gpt-4o,678782,9.3
+noor.lewis@company.com,2026-05-01,Claude,claude-opus-4-1,570377,14.11
+noor.lewis@company.com,2026-06-01,GitHub Copilot,o3-mini,557731,8.32
+noor.lewis@company.com,2026-06-01,Claude,claude-sonnet-4-5,183651,4.53
+noor.flores@company.com,2026-01-01,Perplexity,sonar-pro,676401,10.94
+noor.flores@company.com,2026-01-01,Cursor,claude-sonnet-4-5,512922,11.46
+noor.flores@company.com,2026-02-01,Perplexity,sonar-reasoning,261918,4.03
+noor.flores@company.com,2026-02-01,Cursor,claude-opus-4-1,314507,6.9
+noor.flores@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,5000,0.12
+noor.flores@company.com,2026-03-01,Perplexity,sonar-pro,627354,12.29
+noor.flores@company.com,2026-03-01,Cursor,claude-sonnet-4-5,296096,5.33
+noor.flores@company.com,2026-03-01,ChatGPT Enterprise,o3,299516,6.78
+noor.flores@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,314970,7.15
+noor.flores@company.com,2026-06-01,Perplexity,sonar-pro,141334,2.83
+noor.flores@company.com,2026-06-01,Cursor,claude-sonnet-4-5,670172,15.02
+noor.flores@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,595996,14.67
+helen.anderson@company.com,2026-01-01,Perplexity,sonar-reasoning,413184,7.5
+helen.anderson@company.com,2026-01-01,Cursor,gpt-4o,489018,10.63
+helen.anderson@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,582269,14.11
+helen.anderson@company.com,2026-02-01,Perplexity,sonar-reasoning,79843,1.43
+helen.anderson@company.com,2026-02-01,Cursor,claude-sonnet-4-5,373569,7.27
+helen.anderson@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,810317,19.13
+helen.anderson@company.com,2026-04-01,Perplexity,sonar-reasoning,294981,5.02
+helen.anderson@company.com,2026-04-01,Cursor,claude-sonnet-4-5,223291,4.37
+helen.anderson@company.com,2026-04-01,ChatGPT Enterprise,o3,565779,11.95
+helen.anderson@company.com,2026-05-01,Perplexity,sonar-pro,300693,5.27
+helen.anderson@company.com,2026-05-01,Cursor,gpt-4o,549756,10.94
+helen.anderson@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,657641,13.79
+helen.anderson@company.com,2026-06-01,Perplexity,sonar-pro,447310,8.53
+helen.anderson@company.com,2026-06-01,Cursor,claude-sonnet-4-5,254212,5.1
+helen.anderson@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,243790,4.64
+frank.sanchez@company.com,2026-01-01,Claude,claude-sonnet-4-5,270434,7.12
+frank.sanchez@company.com,2026-02-01,Claude,claude-sonnet-4-5,567272,11.9
+frank.sanchez@company.com,2026-04-01,Claude,claude-haiku-4-5,499946,12.56
+frank.sanchez@company.com,2026-05-01,Claude,claude-sonnet-4-5,764259,19.11
+frank.sanchez@company.com,2026-06-01,Claude,claude-haiku-4-5,338453,9.17
+jennifer.hernandez@company.com,2026-01-01,Cursor,claude-opus-4-1,171894,3.56
+jennifer.hernandez@company.com,2026-01-01,Claude,claude-opus-4-1,431541,9.55
+jennifer.hernandez@company.com,2026-02-01,Cursor,gpt-4o,341057,7
+jennifer.hernandez@company.com,2026-02-01,Claude,claude-haiku-4-5,593911,15.12
+jennifer.hernandez@company.com,2026-02-01,Perplexity,sonar-reasoning,415591,7.67
+jennifer.hernandez@company.com,2026-03-01,Cursor,claude-sonnet-4-5,222216,4.59
+jennifer.hernandez@company.com,2026-03-01,Claude,claude-opus-4-1,325194,7.59
+jennifer.hernandez@company.com,2026-05-01,Cursor,claude-opus-4-1,386500,8.79
+jennifer.hernandez@company.com,2026-05-01,Claude,claude-haiku-4-5,449826,10.4
+jennifer.hernandez@company.com,2026-05-01,Perplexity,sonar-pro,644662,12.5
+jennifer.hernandez@company.com,2026-06-01,Cursor,gpt-4o,735167,14.62
+jennifer.hernandez@company.com,2026-06-01,Claude,claude-opus-4-1,233142,5.82
+jennifer.hernandez@company.com,2026-06-01,Perplexity,sonar-pro,507541,8.73
+nicholas.wilson@company.com,2026-01-01,Claude,claude-opus-4-1,273515,6.07
+nicholas.wilson@company.com,2026-03-01,Claude,claude-sonnet-4-5,343693,7.79
+nicholas.wilson@company.com,2026-04-01,Claude,claude-sonnet-4-5,412065,11.22
+nicholas.wilson@company.com,2026-05-01,Claude,claude-opus-4-1,439346,9.73
+nicholas.wilson@company.com,2026-06-01,Claude,claude-sonnet-4-5,318724,8.42
+jeffrey.gonzalez@company.com,2026-01-01,GitHub Copilot,gpt-4o,686907,10.81
+jeffrey.gonzalez@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,320123,5.46
+jeffrey.gonzalez@company.com,2026-03-01,GitHub Copilot,o3-mini,5000,0.08
+jeffrey.gonzalez@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,475169,6.66
+jeffrey.gonzalez@company.com,2026-05-01,GitHub Copilot,gpt-4o,263640,4.48
+sofia.osei@company.com,2026-01-01,Gemini,gemini-2.5-pro,419600,5.8
+sofia.osei@company.com,2026-02-01,Gemini,gemini-2.5-pro,573499,8.22
+sofia.osei@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,459188,7.64
+sofia.osei@company.com,2026-03-01,Gemini,gemini-2.5-flash,205955,2.77
+sofia.osei@company.com,2026-03-01,GitHub Copilot,gpt-4o,494419,7.24
+sofia.osei@company.com,2026-04-01,Gemini,gemini-2.5-flash,429017,5.34
+sofia.osei@company.com,2026-04-01,GitHub Copilot,gpt-4o,561402,9.21
+sofia.osei@company.com,2026-05-01,Gemini,gemini-2.5-flash,523656,7.99
+sofia.osei@company.com,2026-05-01,GitHub Copilot,o3-mini,356638,5.84
+sofia.osei@company.com,2026-06-01,Gemini,gemini-2.5-flash,483476,6.89
+sofia.osei@company.com,2026-06-01,GitHub Copilot,o3-mini,301692,3.98
+ashley.diallo@company.com,2026-01-01,Cursor,gpt-4o,198973,3.92
+ashley.diallo@company.com,2026-02-01,Cursor,claude-opus-4-1,487273,9.91
+ashley.diallo@company.com,2026-03-01,Cursor,gpt-4o,711815,16.21
+ashley.diallo@company.com,2026-04-01,Cursor,claude-opus-4-1,699720,14.16
+ashley.diallo@company.com,2026-05-01,Cursor,gpt-4o,353414,7.57
+ashley.diallo@company.com,2026-06-01,Cursor,gpt-4o,265646,5.26
+anthony.singh@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,507933,11.61
+anthony.singh@company.com,2026-01-01,Gemini,gemini-2.5-pro,297313,3.64
+anthony.singh@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,413510,9.49
+anthony.singh@company.com,2026-02-01,Gemini,gemini-2.5-flash,587250,8.91
+anthony.singh@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,631743,12.58
+anthony.singh@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,410005,9.56
+anthony.singh@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,478764,12.1
+diane.baker@company.com,2026-01-01,Gemini,gemini-2.5-flash,232574,3.07
+diane.baker@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,604301,11.98
+diane.baker@company.com,2026-03-01,ChatGPT Enterprise,o3,607063,13.22
+diane.baker@company.com,2026-03-01,Gemini,gemini-2.5-flash,357490,5.68
+diane.baker@company.com,2026-04-01,ChatGPT Enterprise,o3,420874,9.62
+diane.baker@company.com,2026-04-01,Gemini,gemini-2.5-flash,195653,2.58
+diane.baker@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,412234,8.91
+diane.baker@company.com,2026-05-01,Gemini,gemini-2.5-flash,464641,6.55
+diane.baker@company.com,2026-06-01,Gemini,gemini-2.5-pro,471754,6.98
+helen.king@company.com,2026-01-01,ChatGPT Enterprise,o3,640669,13.22
+helen.king@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,460952,9.95
+helen.king@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,314958,6.44
+helen.king@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,562112,13.51
+helen.king@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,310420,6.19
+ashley.harris@company.com,2026-02-01,Claude,claude-opus-4-1,421602,9.43
+ashley.harris@company.com,2026-03-01,ChatGPT Enterprise,gpt-4o,724583,13.66
+ashley.harris@company.com,2026-03-01,Claude,claude-opus-4-1,838868,18.74
+ashley.harris@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,476157,9.59
+ashley.harris@company.com,2026-04-01,Claude,claude-opus-4-1,466645,12.87
+ashley.harris@company.com,2026-05-01,ChatGPT Enterprise,o3,712659,14.01
+ashley.harris@company.com,2026-05-01,Claude,claude-opus-4-1,594878,12.44
+ashley.harris@company.com,2026-06-01,ChatGPT Enterprise,o3,588558,11.48
+ashley.harris@company.com,2026-06-01,Claude,claude-sonnet-4-5,141841,3.29
+william.white@company.com,2026-01-01,ChatGPT Enterprise,gpt-4o,542129,10.47
+william.white@company.com,2026-01-01,Claude,claude-sonnet-4-5,728652,17.35
+william.white@company.com,2026-02-01,ChatGPT Enterprise,o3,607822,14.35
+william.white@company.com,2026-02-01,Claude,claude-sonnet-4-5,693957,15.42
+william.white@company.com,2026-03-01,ChatGPT Enterprise,gpt-4o,532631,10.36
+william.white@company.com,2026-03-01,Claude,claude-opus-4-1,354664,7.27
+william.white@company.com,2026-04-01,ChatGPT Enterprise,o3,455870,8.65
+william.white@company.com,2026-04-01,Claude,claude-opus-4-1,426616,10.82
+william.white@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,493186,11.24
+william.white@company.com,2026-05-01,Claude,claude-haiku-4-5,515924,10.75
+william.white@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,474047,9.59
+william.white@company.com,2026-06-01,Claude,claude-haiku-4-5,359800,9.3
+ashley.wilson@company.com,2026-01-01,GitHub Copilot,gpt-4o,623763,9.99
+ashley.wilson@company.com,2026-01-01,Cursor,claude-sonnet-4-5,473453,9.43
+ashley.wilson@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,217654,3.31
+ashley.wilson@company.com,2026-02-01,Cursor,gpt-4o,464483,8.66
+ashley.wilson@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,568306,8.4
+ashley.wilson@company.com,2026-03-01,Cursor,claude-opus-4-1,637312,12.24
+ashley.wilson@company.com,2026-05-01,GitHub Copilot,gpt-4o,635592,9.15
+ashley.wilson@company.com,2026-05-01,Cursor,gpt-4o,282043,6.01
+ashley.wilson@company.com,2026-06-01,GitHub Copilot,o3-mini,550680,8.92
+ashley.wilson@company.com,2026-06-01,Cursor,gpt-4o,703682,13.32
+donna.campbell@company.com,2026-04-01,Claude,claude-opus-4-1,466417,11.67
+donna.campbell@company.com,2026-05-01,Claude,claude-haiku-4-5,492728,12.54
+donna.campbell@company.com,2026-06-01,Claude,claude-haiku-4-5,444137,12.01
+nancy.carter@company.com,2026-01-01,Claude,claude-sonnet-4-5,421378,10.02
+nancy.carter@company.com,2026-01-01,ChatGPT Enterprise,o3,53132,1.14
+nancy.carter@company.com,2026-01-01,Perplexity,sonar-pro,298553,5.9
+nancy.carter@company.com,2026-02-01,Perplexity,sonar-pro,528882,10.16
+nancy.carter@company.com,2026-03-01,Claude,claude-haiku-4-5,430055,10.81
+nancy.carter@company.com,2026-03-01,ChatGPT Enterprise,gpt-4o,235269,5.56
+nancy.carter@company.com,2026-03-01,Perplexity,sonar-reasoning,367433,6.96
+nancy.carter@company.com,2026-04-01,Claude,claude-sonnet-4-5,506681,11.8
+nancy.carter@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,548377,12.19
+nancy.carter@company.com,2026-04-01,Perplexity,sonar-reasoning,636114,13.16
+nancy.carter@company.com,2026-05-01,Claude,claude-haiku-4-5,319170,7.5
+nancy.carter@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,463171,9.81
+nancy.carter@company.com,2026-05-01,Perplexity,sonar-reasoning,675705,11.65
+nancy.carter@company.com,2026-06-01,Claude,claude-sonnet-4-5,373832,9.23
+nancy.carter@company.com,2026-06-01,ChatGPT Enterprise,o3,5000,0.09
+nancy.carter@company.com,2026-06-01,Perplexity,sonar-pro,473244,9.34
+jason.scott@company.com,2026-01-01,Claude,claude-haiku-4-5,420311,10.12
+jason.scott@company.com,2026-02-01,Claude,claude-sonnet-4-5,614041,13.14
+jason.scott@company.com,2026-03-01,Claude,claude-sonnet-4-5,489640,10.89
+jason.scott@company.com,2026-04-01,Claude,claude-haiku-4-5,704897,18.05
+jason.scott@company.com,2026-05-01,Claude,claude-haiku-4-5,305418,7.78
+joshua.zhang@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,593230,14.54
+joshua.zhang@company.com,2026-03-01,ChatGPT Enterprise,gpt-4o,373437,9.13
+joshua.zhang@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,679957,15.55
+joshua.zhang@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,339403,6.68
+kenneth.khan@company.com,2026-01-01,Cursor,claude-sonnet-4-5,163614,3.73
+kenneth.khan@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,5000,0.08
+kenneth.khan@company.com,2026-01-01,ChatGPT Enterprise,o3,473078,9.9
+kenneth.khan@company.com,2026-02-01,Cursor,claude-opus-4-1,350766,6.8
+kenneth.khan@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,516160,11.56
+kenneth.khan@company.com,2026-03-01,Cursor,claude-sonnet-4-5,520787,10.61
+kenneth.khan@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,451637,7.34
+kenneth.khan@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,519386,10.02
+kenneth.khan@company.com,2026-04-01,Cursor,gpt-4o,510429,10.68
+kenneth.khan@company.com,2026-04-01,GitHub Copilot,gpt-4o,604011,10.39
+kenneth.khan@company.com,2026-04-01,ChatGPT Enterprise,o3,311282,7.72
+kenneth.khan@company.com,2026-05-01,Cursor,claude-sonnet-4-5,314415,6.77
+kenneth.khan@company.com,2026-05-01,GitHub Copilot,gpt-4o,441213,6.86
+kenneth.khan@company.com,2026-06-01,Cursor,gpt-4o,315959,6.69
+kenneth.khan@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,304620,6.12
+ahmed.muller@company.com,2026-01-01,Gemini,gemini-2.5-flash,707212,10.27
+ahmed.muller@company.com,2026-01-01,Claude,claude-haiku-4-5,439025,10.8
+ahmed.muller@company.com,2026-02-01,Claude,claude-opus-4-1,417102,9.11
+ahmed.muller@company.com,2026-03-01,Gemini,gemini-2.5-flash,436881,5.91
+ahmed.muller@company.com,2026-03-01,Claude,claude-haiku-4-5,430759,9.9
+ahmed.muller@company.com,2026-04-01,Gemini,gemini-2.5-flash,470800,7.53
+ahmed.muller@company.com,2026-05-01,Gemini,gemini-2.5-pro,624978,7.93
+ahmed.muller@company.com,2026-05-01,Claude,claude-opus-4-1,186214,3.85
+ahmed.muller@company.com,2026-06-01,Gemini,gemini-2.5-flash,344239,4.67
+ahmed.muller@company.com,2026-06-01,Claude,claude-opus-4-1,382339,8.63
+karen.walker@company.com,2026-01-01,Claude,claude-opus-4-1,295483,7.76
+karen.walker@company.com,2026-01-01,Cursor,gpt-4o,705260,12.11
+karen.walker@company.com,2026-01-01,ChatGPT Enterprise,o3,239914,4.84
+karen.walker@company.com,2026-02-01,Claude,claude-sonnet-4-5,600453,16.4
+karen.walker@company.com,2026-02-01,Cursor,claude-opus-4-1,542582,11.46
+karen.walker@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,724186,17.89
+karen.walker@company.com,2026-03-01,Claude,claude-sonnet-4-5,841429,21.12
+karen.walker@company.com,2026-03-01,Cursor,claude-opus-4-1,561046,10.58
+karen.walker@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,108999,2.69
+karen.walker@company.com,2026-04-01,Claude,claude-sonnet-4-5,320974,6.91
+karen.walker@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,256947,5.01
+karen.walker@company.com,2026-05-01,Claude,claude-haiku-4-5,604991,16.58
+karen.walker@company.com,2026-05-01,Cursor,gpt-4o,479045,9.42
+karen.walker@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,581504,13.86
+karen.walker@company.com,2026-06-01,Claude,claude-haiku-4-5,391367,9.72
+karen.walker@company.com,2026-06-01,Cursor,claude-opus-4-1,465655,9.84
+karen.walker@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,579904,13.83
+emily.young@company.com,2026-01-01,Gemini,gemini-2.5-flash,408820,6.33
+emily.young@company.com,2026-05-01,Gemini,gemini-2.5-pro,280729,4.23
+maria.baker@company.com,2026-01-01,Perplexity,sonar-reasoning,312455,6.28
+maria.baker@company.com,2026-01-01,Cursor,claude-sonnet-4-5,115784,2.39
+maria.baker@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,354706,8.37
+maria.baker@company.com,2026-02-01,Perplexity,sonar-pro,678442,12.29
+maria.baker@company.com,2026-02-01,Cursor,claude-sonnet-4-5,547240,11.07
+maria.baker@company.com,2026-02-01,ChatGPT Enterprise,gpt-4o,356098,7.97
+maria.baker@company.com,2026-03-01,Perplexity,sonar-pro,521475,10.47
+maria.baker@company.com,2026-03-01,Cursor,gpt-4o,630032,12.45
+maria.baker@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,690583,17.03
+maria.baker@company.com,2026-04-01,Perplexity,sonar-pro,315827,6.06
+maria.baker@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,277712,5.79
+maria.baker@company.com,2026-06-01,Perplexity,sonar-pro,398289,7.99
+maria.baker@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,718078,16.83
+ingrid.anderson@company.com,2026-01-01,GitHub Copilot,o3-mini,273090,3.59
+ingrid.anderson@company.com,2026-02-01,Claude,claude-haiku-4-5,369017,8.99
+ingrid.anderson@company.com,2026-03-01,Claude,claude-haiku-4-5,381209,10.14
+ingrid.anderson@company.com,2026-03-01,GitHub Copilot,gpt-4o,572761,8.38
+ingrid.anderson@company.com,2026-04-01,Claude,claude-opus-4-1,706130,15.87
+ingrid.anderson@company.com,2026-04-01,GitHub Copilot,gpt-4o,464678,7.53
+ingrid.anderson@company.com,2026-06-01,Claude,claude-sonnet-4-5,446273,11.06
+ingrid.anderson@company.com,2026-06-01,GitHub Copilot,gpt-4o,276510,4.04
+cynthia.thomas@company.com,2026-02-01,Claude,claude-haiku-4-5,341631,7.65
+cynthia.thomas@company.com,2026-02-01,GitHub Copilot,gpt-4o,547193,8.59
+cynthia.thomas@company.com,2026-04-01,Claude,claude-haiku-4-5,480851,10.84
+cynthia.thomas@company.com,2026-04-01,GitHub Copilot,gpt-4o,894308,12.05
+cynthia.thomas@company.com,2026-05-01,Claude,claude-haiku-4-5,812363,20.05
+cynthia.thomas@company.com,2026-05-01,GitHub Copilot,gpt-4o,742742,10.67
+samantha.diallo@company.com,2026-01-01,Gemini,gemini-2.5-flash,387057,5.94
+samantha.diallo@company.com,2026-01-01,Claude,claude-haiku-4-5,636411,13.54
+samantha.diallo@company.com,2026-02-01,Gemini,gemini-2.5-flash,530564,7.48
+samantha.diallo@company.com,2026-02-01,Claude,claude-haiku-4-5,668814,18.36
+samantha.diallo@company.com,2026-03-01,Claude,claude-haiku-4-5,533760,14.48
+samantha.diallo@company.com,2026-04-01,Gemini,gemini-2.5-flash,435713,6.33
+samantha.diallo@company.com,2026-04-01,Claude,claude-haiku-4-5,685084,16.75
+samantha.diallo@company.com,2026-05-01,Gemini,gemini-2.5-flash,583029,7.51
+samantha.diallo@company.com,2026-05-01,Claude,claude-sonnet-4-5,101136,2.06
+cynthia.lee@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,636103,9.07
+cynthia.lee@company.com,2026-02-01,Perplexity,sonar-pro,448815,8.42
+cynthia.lee@company.com,2026-02-01,GitHub Copilot,o3-mini,488578,7.34
+cynthia.lee@company.com,2026-03-01,GitHub Copilot,o3-mini,300508,4.37
+cynthia.lee@company.com,2026-04-01,Perplexity,sonar-pro,567500,11.51
+cynthia.lee@company.com,2026-04-01,GitHub Copilot,o3-mini,770142,12.58
+cynthia.lee@company.com,2026-05-01,Perplexity,sonar-reasoning,623934,10.68
+cynthia.lee@company.com,2026-05-01,GitHub Copilot,o3-mini,309857,5.24
+christopher.zhang@company.com,2026-01-01,Perplexity,sonar-reasoning,417089,7.68
+christopher.zhang@company.com,2026-01-01,Cursor,gpt-4o,438110,7.62
+christopher.zhang@company.com,2026-02-01,Perplexity,sonar-reasoning,701287,13.92
+christopher.zhang@company.com,2026-02-01,Cursor,gpt-4o,424044,7.69
+christopher.zhang@company.com,2026-03-01,Perplexity,sonar-reasoning,406610,6.29
+christopher.zhang@company.com,2026-03-01,Cursor,gpt-4o,299713,6.67
+christopher.zhang@company.com,2026-04-01,Perplexity,sonar-reasoning,482249,7.67
+christopher.zhang@company.com,2026-04-01,Cursor,claude-sonnet-4-5,599289,13.47
+christopher.zhang@company.com,2026-05-01,Cursor,claude-opus-4-1,543036,10.81
+christopher.zhang@company.com,2026-06-01,Perplexity,sonar-reasoning,585207,9.41
+christopher.zhang@company.com,2026-06-01,Cursor,claude-opus-4-1,407317,8.7
+yuki.scott@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,363947,7.08
+yuki.scott@company.com,2026-03-01,ChatGPT Enterprise,o3,395867,8.76
+yuki.scott@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,461431,10.94
+yuki.scott@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,501167,10.43
+patricia.sanchez@company.com,2026-01-01,Claude,claude-sonnet-4-5,585528,15.98
+patricia.sanchez@company.com,2026-03-01,Claude,claude-opus-4-1,626993,14.07
+patricia.sanchez@company.com,2026-05-01,Claude,claude-opus-4-1,668261,13.88
+gregory.harris@company.com,2026-01-01,Claude,claude-sonnet-4-5,348807,8.61
+gregory.harris@company.com,2026-02-01,Cursor,claude-opus-4-1,500391,9.85
+gregory.harris@company.com,2026-02-01,Claude,claude-opus-4-1,566927,14.3
+gregory.harris@company.com,2026-03-01,Cursor,gpt-4o,190783,3.89
+gregory.harris@company.com,2026-04-01,Cursor,claude-sonnet-4-5,187175,3.98
+gregory.harris@company.com,2026-04-01,Claude,claude-sonnet-4-5,525312,14.3
+gregory.harris@company.com,2026-05-01,Cursor,gpt-4o,603335,12.79
+gregory.harris@company.com,2026-05-01,Claude,claude-opus-4-1,356514,8.44
+christopher.khan@company.com,2026-01-01,ChatGPT Enterprise,o3,532982,11.19
+christopher.khan@company.com,2026-02-01,ChatGPT Enterprise,o3,329150,7.93
+christopher.khan@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,587762,12.78
+christopher.khan@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,515805,11.51
+christopher.khan@company.com,2026-05-01,ChatGPT Enterprise,o3,521861,11.24
+christopher.khan@company.com,2026-06-01,ChatGPT Enterprise,o3,717549,16
+maria.zhang@company.com,2026-01-01,GitHub Copilot,gpt-4o,431042,7.12
+maria.zhang@company.com,2026-02-01,GitHub Copilot,o3-mini,166657,2.54
+maria.zhang@company.com,2026-03-01,GitHub Copilot,o3-mini,528241,8.67
+maria.zhang@company.com,2026-04-01,GitHub Copilot,o3-mini,486582,7.62
+susan.moore@company.com,2026-01-01,Claude,claude-sonnet-4-5,461768,10.93
+susan.moore@company.com,2026-01-01,Gemini,gemini-2.5-flash,185544,2.36
+susan.moore@company.com,2026-02-01,Claude,claude-haiku-4-5,524692,14.17
+susan.moore@company.com,2026-02-01,Gemini,gemini-2.5-flash,188911,3.03
+susan.moore@company.com,2026-03-01,Claude,claude-haiku-4-5,372493,8.39
+susan.moore@company.com,2026-03-01,Gemini,gemini-2.5-pro,503246,5.99
+susan.moore@company.com,2026-04-01,Claude,claude-sonnet-4-5,682075,15.07
+susan.moore@company.com,2026-04-01,Gemini,gemini-2.5-flash,173904,2.53
+susan.moore@company.com,2026-05-01,Claude,claude-opus-4-1,195291,4.65
+susan.moore@company.com,2026-05-01,Gemini,gemini-2.5-flash,375794,5.8
+susan.moore@company.com,2026-06-01,Claude,claude-opus-4-1,718022,15.34
+cynthia.scott@company.com,2026-02-01,Claude,claude-opus-4-1,445715,12.22
+cynthia.scott@company.com,2026-03-01,Claude,claude-opus-4-1,667777,18.1
+cynthia.scott@company.com,2026-03-01,GitHub Copilot,o3-mini,277946,4.18
+cynthia.scott@company.com,2026-04-01,Claude,claude-opus-4-1,478741,9.79
+cynthia.scott@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,637103,8.8
+cynthia.scott@company.com,2026-05-01,Claude,claude-haiku-4-5,408339,8.44
+cynthia.scott@company.com,2026-05-01,GitHub Copilot,o3-mini,428324,5.68
+cynthia.scott@company.com,2026-06-01,Claude,claude-sonnet-4-5,422671,11.24
+cynthia.scott@company.com,2026-06-01,GitHub Copilot,o3-mini,231630,3.44
+donald.davis@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,675011,16.18
+donald.davis@company.com,2026-05-01,ChatGPT Enterprise,o3,570192,12.37
+donald.davis@company.com,2026-06-01,ChatGPT Enterprise,o3,47474,1.14
+kevin.green@company.com,2026-01-01,Perplexity,sonar-reasoning,667955,12.84
+kevin.green@company.com,2026-01-01,Cursor,claude-sonnet-4-5,287354,5.87
+kevin.green@company.com,2026-02-01,Claude,claude-haiku-4-5,278319,6.93
+kevin.green@company.com,2026-02-01,Perplexity,sonar-pro,500318,9.77
+kevin.green@company.com,2026-02-01,Cursor,claude-opus-4-1,501483,9.37
+kevin.green@company.com,2026-03-01,Cursor,claude-opus-4-1,431707,8.3
+kevin.green@company.com,2026-04-01,Claude,claude-sonnet-4-5,186539,4.46
+kevin.green@company.com,2026-04-01,Perplexity,sonar-pro,408361,6.57
+kevin.green@company.com,2026-04-01,Cursor,claude-sonnet-4-5,513088,11.3
+kevin.green@company.com,2026-05-01,Claude,claude-opus-4-1,464669,11.61
+kevin.green@company.com,2026-05-01,Perplexity,sonar-reasoning,643335,10.03
+kevin.green@company.com,2026-05-01,Cursor,claude-sonnet-4-5,640180,12.71
+kevin.green@company.com,2026-06-01,Claude,claude-haiku-4-5,515144,11.38
+kevin.green@company.com,2026-06-01,Perplexity,sonar-reasoning,350472,7.01
+diane.lee@company.com,2026-01-01,Cursor,claude-opus-4-1,466026,8.81
+diane.lee@company.com,2026-02-01,Cursor,claude-sonnet-4-5,672886,15.3
+diane.lee@company.com,2026-03-01,Cursor,gpt-4o,323261,6.15
+diane.lee@company.com,2026-05-01,Cursor,claude-opus-4-1,448326,9.21
+diane.lee@company.com,2026-06-01,Cursor,claude-opus-4-1,156937,3.6
+michelle.wilson@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,330542,4.64
+luca.thompson@company.com,2026-01-01,Perplexity,sonar-pro,492210,10.06
+luca.thompson@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,523840,11.89
+luca.thompson@company.com,2026-01-01,Claude,claude-haiku-4-5,429946,10.52
+luca.thompson@company.com,2026-02-01,Perplexity,sonar-pro,445768,9.07
+luca.thompson@company.com,2026-02-01,ChatGPT Enterprise,o3,651868,15.5
+luca.thompson@company.com,2026-02-01,Claude,claude-haiku-4-5,469823,10.13
+luca.thompson@company.com,2026-04-01,Perplexity,sonar-reasoning,292129,6.04
+luca.thompson@company.com,2026-04-01,ChatGPT Enterprise,o3,479868,12.08
+luca.thompson@company.com,2026-04-01,Claude,claude-opus-4-1,511388,11.09
+luca.thompson@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,385638,8.34
+luca.thompson@company.com,2026-05-01,Claude,claude-sonnet-4-5,393996,8.24
+luca.thompson@company.com,2026-06-01,Perplexity,sonar-reasoning,659764,12.42
+lisa.miller@company.com,2026-01-01,ChatGPT Enterprise,o3,474847,11.71
+lisa.miller@company.com,2026-02-01,ChatGPT Enterprise,o3,268624,6.31
+lisa.miller@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,475070,11.45
+lisa.miller@company.com,2026-05-01,ChatGPT Enterprise,o3,373467,7.12
+lisa.miller@company.com,2026-06-01,ChatGPT Enterprise,o3,582354,12.94
+katherine.king@company.com,2026-02-01,Gemini,gemini-2.5-pro,472686,6.39
+katherine.king@company.com,2026-03-01,Gemini,gemini-2.5-pro,495666,7.21
+katherine.king@company.com,2026-05-01,Gemini,gemini-2.5-pro,489780,7.88
+katherine.king@company.com,2026-06-01,Gemini,gemini-2.5-flash,459075,6.43
+ingrid.gonzalez@company.com,2026-01-01,Claude,claude-sonnet-4-5,509491,13.28
+ingrid.gonzalez@company.com,2026-03-01,Claude,claude-haiku-4-5,464101,11.22
+ingrid.gonzalez@company.com,2026-04-01,Claude,claude-haiku-4-5,590492,15.98
+ingrid.gonzalez@company.com,2026-06-01,Claude,claude-opus-4-1,640722,17.26
+fatima.haddad@company.com,2026-01-01,Perplexity,sonar-pro,703708,14.2
+fatima.haddad@company.com,2026-01-01,Claude,claude-sonnet-4-5,472961,11.2
+fatima.haddad@company.com,2026-02-01,Perplexity,sonar-pro,632354,11.78
+fatima.haddad@company.com,2026-03-01,Perplexity,sonar-reasoning,609103,10.39
+fatima.haddad@company.com,2026-03-01,Claude,claude-haiku-4-5,297980,8.15
+fatima.haddad@company.com,2026-04-01,Claude,claude-sonnet-4-5,404916,8.61
+fatima.haddad@company.com,2026-05-01,Perplexity,sonar-reasoning,267353,5.43
+jacob.martinez@company.com,2026-01-01,Perplexity,sonar-pro,386299,5.94
+jacob.martinez@company.com,2026-01-01,Claude,claude-sonnet-4-5,860477,21.93
+jacob.martinez@company.com,2026-02-01,Perplexity,sonar-reasoning,468644,8.92
+jacob.martinez@company.com,2026-02-01,Claude,claude-haiku-4-5,424150,9.38
+jacob.martinez@company.com,2026-03-01,Perplexity,sonar-pro,645246,12.37
+jacob.martinez@company.com,2026-03-01,Claude,claude-sonnet-4-5,230730,5.28
+jacob.martinez@company.com,2026-05-01,Claude,claude-sonnet-4-5,224607,5.58
+jacob.martinez@company.com,2026-06-01,Perplexity,sonar-pro,203749,3.35
+stephanie.carter@company.com,2026-02-01,GitHub Copilot,o3-mini,506318,6.86
+stephanie.carter@company.com,2026-04-01,GitHub Copilot,o3-mini,447835,7.5
+amanda.scott@company.com,2026-01-01,Gemini,gemini-2.5-pro,699308,9.75
+amanda.scott@company.com,2026-02-01,Gemini,gemini-2.5-flash,316482,4.03
+amanda.scott@company.com,2026-03-01,Gemini,gemini-2.5-pro,362047,4.8
+amanda.scott@company.com,2026-05-01,Gemini,gemini-2.5-flash,504587,7.24
+ryan.jackson@company.com,2026-01-01,Gemini,gemini-2.5-flash,405624,5.13
+ryan.jackson@company.com,2026-01-01,Claude,claude-opus-4-1,402026,11.03
+ryan.jackson@company.com,2026-01-01,GitHub Copilot,gpt-4o,200038,2.58
+ryan.jackson@company.com,2026-02-01,Gemini,gemini-2.5-pro,568869,7.18
+ryan.jackson@company.com,2026-02-01,Claude,claude-opus-4-1,289910,7.17
+ryan.jackson@company.com,2026-02-01,GitHub Copilot,claude-sonnet-4-5,823958,12.65
+ryan.jackson@company.com,2026-03-01,Gemini,gemini-2.5-flash,335624,5.2
+ryan.jackson@company.com,2026-03-01,Claude,claude-sonnet-4-5,162364,3.64
+ryan.jackson@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,263427,4.39
+ryan.jackson@company.com,2026-04-01,Gemini,gemini-2.5-pro,637400,7.98
+ryan.jackson@company.com,2026-04-01,Claude,claude-sonnet-4-5,298549,6.99
+ryan.jackson@company.com,2026-05-01,Gemini,gemini-2.5-pro,289036,4.42
+ryan.jackson@company.com,2026-05-01,Claude,claude-sonnet-4-5,531128,12.57
+ryan.jackson@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,455351,6.64
+ryan.jackson@company.com,2026-06-01,Gemini,gemini-2.5-pro,173363,2.53
+ryan.jackson@company.com,2026-06-01,GitHub Copilot,o3-mini,555038,8.5
+noor.carter@company.com,2026-01-01,Perplexity,sonar-reasoning,619734,12.06
+noor.carter@company.com,2026-01-01,ChatGPT Enterprise,o3,594942,13.59
+noor.carter@company.com,2026-02-01,ChatGPT Enterprise,o3,784628,19.3
+noor.carter@company.com,2026-03-01,ChatGPT Enterprise,o3,370532,8.34
+noor.carter@company.com,2026-04-01,Perplexity,sonar-reasoning,215227,4.15
+noor.carter@company.com,2026-05-01,Perplexity,sonar-pro,581645,10.84
+noor.carter@company.com,2026-05-01,ChatGPT Enterprise,gpt-4o,560260,12.87
+noor.carter@company.com,2026-06-01,Perplexity,sonar-pro,554876,10.11
+noor.carter@company.com,2026-06-01,ChatGPT Enterprise,gpt-4.1,574219,14.3
+margaret.martinez@company.com,2026-01-01,Claude,claude-sonnet-4-5,456071,10.36
+margaret.martinez@company.com,2026-01-01,ChatGPT Enterprise,gpt-4.1,145566,3.38
+margaret.martinez@company.com,2026-01-01,Cursor,claude-sonnet-4-5,312245,6.25
+margaret.martinez@company.com,2026-02-01,Claude,claude-haiku-4-5,591591,14.96
+margaret.martinez@company.com,2026-02-01,ChatGPT Enterprise,o3,285311,6.6
+margaret.martinez@company.com,2026-02-01,Cursor,claude-sonnet-4-5,501256,9.09
+margaret.martinez@company.com,2026-03-01,ChatGPT Enterprise,gpt-4o,342330,6.65
+margaret.martinez@company.com,2026-03-01,Cursor,claude-opus-4-1,887886,15.88
+margaret.martinez@company.com,2026-04-01,Claude,claude-haiku-4-5,634953,16.07
+margaret.martinez@company.com,2026-04-01,ChatGPT Enterprise,o3,476548,10
+margaret.martinez@company.com,2026-04-01,Cursor,claude-opus-4-1,565471,9.69
+margaret.martinez@company.com,2026-05-01,Claude,claude-haiku-4-5,465681,11.66
+margaret.martinez@company.com,2026-05-01,ChatGPT Enterprise,o3,273366,5.99
+margaret.martinez@company.com,2026-05-01,Cursor,claude-opus-4-1,187401,4.13
+margaret.martinez@company.com,2026-06-01,Claude,claude-sonnet-4-5,573605,14.96
+margaret.martinez@company.com,2026-06-01,ChatGPT Enterprise,o3,358140,8.99
+margaret.martinez@company.com,2026-06-01,Cursor,claude-sonnet-4-5,537790,12.23
+chen.rodriguez@company.com,2026-01-01,Cursor,claude-opus-4-1,568217,10.63
+chen.rodriguez@company.com,2026-02-01,Cursor,claude-opus-4-1,714493,12.84
+chen.rodriguez@company.com,2026-03-01,Cursor,claude-opus-4-1,269547,4.79
+chen.rodriguez@company.com,2026-04-01,Cursor,claude-opus-4-1,379111,8.67
+chen.rodriguez@company.com,2026-05-01,Cursor,claude-sonnet-4-5,193194,3.9
+brian.larsen@company.com,2026-01-01,ChatGPT Enterprise,o3,544251,13.66
+brian.larsen@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,404054,9.44
+brian.larsen@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,289023,6.79
+brian.larsen@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,170284,4.01
+brian.larsen@company.com,2026-06-01,ChatGPT Enterprise,o3,356073,7.5
+emily.yamamoto@company.com,2026-01-01,GitHub Copilot,gpt-4o,364510,5.6
+emily.yamamoto@company.com,2026-02-01,GitHub Copilot,o3-mini,475157,7.87
+emily.yamamoto@company.com,2026-03-01,GitHub Copilot,claude-sonnet-4-5,520876,7.57
+emily.yamamoto@company.com,2026-04-01,GitHub Copilot,claude-sonnet-4-5,818979,11.77
+emily.yamamoto@company.com,2026-05-01,GitHub Copilot,o3-mini,312959,4.53
+nancy.chen@company.com,2026-01-01,GitHub Copilot,o3-mini,504260,8.08
+nancy.chen@company.com,2026-01-01,ChatGPT Enterprise,o3,395261,9.49
+nancy.chen@company.com,2026-01-01,Gemini,gemini-2.5-flash,425051,6.55
+nancy.chen@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,265526,6.69
+nancy.chen@company.com,2026-03-01,GitHub Copilot,gpt-4o,706660,9.88
+nancy.chen@company.com,2026-03-01,ChatGPT Enterprise,o3,460680,10.77
+nancy.chen@company.com,2026-03-01,Gemini,gemini-2.5-pro,556618,7.3
+nancy.chen@company.com,2026-04-01,GitHub Copilot,o3-mini,773004,12.76
+nancy.chen@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,441824,10.57
+nancy.chen@company.com,2026-04-01,Gemini,gemini-2.5-flash,321898,5.12
+nancy.chen@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,375260,5.09
+nancy.chen@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,321950,6.54
+nancy.chen@company.com,2026-06-01,GitHub Copilot,gpt-4o,311302,4.64
+nancy.chen@company.com,2026-06-01,ChatGPT Enterprise,o3,350698,8.01
+nancy.chen@company.com,2026-06-01,Gemini,gemini-2.5-pro,245518,2.94
+david.ramirez@company.com,2026-01-01,Perplexity,sonar-pro,659154,11.22
+david.ramirez@company.com,2026-03-01,Perplexity,sonar-reasoning,156029,2.43
+david.ramirez@company.com,2026-04-01,Perplexity,sonar-pro,111241,2.01
+david.ramirez@company.com,2026-05-01,Perplexity,sonar-pro,361433,6.16
+david.ramirez@company.com,2026-06-01,Perplexity,sonar-reasoning,386699,6.48
+carol.ramirez@company.com,2026-01-01,Gemini,gemini-2.5-flash,462892,6.52
+carol.ramirez@company.com,2026-01-01,ChatGPT Enterprise,o3,424019,9.08
+carol.ramirez@company.com,2026-02-01,Gemini,gemini-2.5-pro,521819,6.62
+carol.ramirez@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,555046,12.91
+carol.ramirez@company.com,2026-03-01,Gemini,gemini-2.5-pro,102164,1.27
+carol.ramirez@company.com,2026-05-01,Gemini,gemini-2.5-pro,648847,9.95
+carol.ramirez@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,5000,0.1
+carol.ramirez@company.com,2026-06-01,Gemini,gemini-2.5-pro,380957,4.89
+carol.ramirez@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,391448,7.86
+sofia.lewis@company.com,2026-01-01,Perplexity,sonar-pro,307257,4.83
+sofia.lewis@company.com,2026-01-01,GitHub Copilot,o3-mini,532930,8.7
+sofia.lewis@company.com,2026-03-01,GitHub Copilot,gpt-4o,472696,7.69
+sofia.lewis@company.com,2026-04-01,Perplexity,sonar-pro,516746,8.16
+sofia.lewis@company.com,2026-04-01,GitHub Copilot,o3-mini,603664,10.27
+sofia.lewis@company.com,2026-05-01,Perplexity,sonar-pro,382306,7.54
+sofia.lewis@company.com,2026-05-01,GitHub Copilot,claude-sonnet-4-5,447911,6.15
+sofia.lewis@company.com,2026-06-01,Perplexity,sonar-pro,530925,8.74
+sofia.lewis@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,436441,6.5
+noor.osei@company.com,2026-01-01,Perplexity,sonar-pro,520936,9.04
+noor.osei@company.com,2026-01-01,Cursor,claude-sonnet-4-5,602857,11.72
+noor.osei@company.com,2026-01-01,ChatGPT Enterprise,o3,512073,10.04
+noor.osei@company.com,2026-02-01,Perplexity,sonar-pro,511002,8.05
+noor.osei@company.com,2026-02-01,Cursor,gpt-4o,398894,7.53
+noor.osei@company.com,2026-02-01,ChatGPT Enterprise,o3,688384,13.9
+noor.osei@company.com,2026-03-01,Perplexity,sonar-reasoning,475655,9.44
+noor.osei@company.com,2026-03-01,Cursor,claude-opus-4-1,513380,9.86
+noor.osei@company.com,2026-04-01,Perplexity,sonar-reasoning,205857,3.24
+noor.osei@company.com,2026-04-01,ChatGPT Enterprise,gpt-4.1,550125,13.84
+noor.osei@company.com,2026-05-01,Perplexity,sonar-pro,899564,15.41
+noor.osei@company.com,2026-05-01,Cursor,gpt-4o,643573,11.41
+noor.osei@company.com,2026-05-01,ChatGPT Enterprise,gpt-4.1,143751,3.41
+noor.osei@company.com,2026-06-01,Perplexity,sonar-reasoning,451712,7.78
+noor.osei@company.com,2026-06-01,Cursor,gpt-4o,664773,11.89
+noor.osei@company.com,2026-06-01,ChatGPT Enterprise,gpt-4o,433128,8.82
+kevin.taylor@company.com,2026-01-01,Claude,claude-sonnet-4-5,739401,19.5
+kevin.taylor@company.com,2026-01-01,Cursor,claude-sonnet-4-5,504685,11.52
+kevin.taylor@company.com,2026-02-01,Claude,claude-sonnet-4-5,368156,9.53
+kevin.taylor@company.com,2026-02-01,Cursor,claude-opus-4-1,687812,14.86
+kevin.taylor@company.com,2026-03-01,Claude,claude-haiku-4-5,236616,5.75
+kevin.taylor@company.com,2026-03-01,Cursor,claude-opus-4-1,452816,9.18
+kevin.taylor@company.com,2026-04-01,Cursor,claude-sonnet-4-5,333545,6.42
+kevin.taylor@company.com,2026-05-01,Cursor,gpt-4o,554464,12.37
+kevin.taylor@company.com,2026-06-01,Claude,claude-opus-4-1,405525,8.59
+kevin.taylor@company.com,2026-06-01,Cursor,claude-opus-4-1,246696,5.01
+justin.haddad@company.com,2026-01-01,GitHub Copilot,claude-sonnet-4-5,580460,8.42
+justin.haddad@company.com,2026-01-01,ChatGPT Enterprise,o3,280388,6.38
+justin.haddad@company.com,2026-02-01,GitHub Copilot,o3-mini,672826,8.97
+justin.haddad@company.com,2026-02-01,ChatGPT Enterprise,gpt-4.1,540537,12.19
+justin.haddad@company.com,2026-03-01,GitHub Copilot,o3-mini,585597,8.41
+justin.haddad@company.com,2026-03-01,ChatGPT Enterprise,gpt-4.1,545108,11.07
+justin.haddad@company.com,2026-04-01,GitHub Copilot,gpt-4o,506028,7.15
+justin.haddad@company.com,2026-04-01,ChatGPT Enterprise,gpt-4o,414635,9.23
+justin.haddad@company.com,2026-06-01,GitHub Copilot,claude-sonnet-4-5,565413,8.98
+justin.haddad@company.com,2026-06-01,ChatGPT Enterprise,o3,367699,7.79
+stephen.taylor@company.com,2026-01-01,GitHub Copilot,o3-mini,668307,9.53
+stephen.taylor@company.com,2026-02-01,GitHub Copilot,o3-mini,608728,8.22
+stephen.taylor@company.com,2026-03-01,GitHub Copilot,gpt-4o,101077,1.65
+stephen.taylor@company.com,2026-04-01,GitHub Copilot,o3-mini,456683,6.37
+stephen.taylor@company.com,2026-05-01,GitHub Copilot,gpt-4o,128725,2.06
+stephen.taylor@company.com,2026-06-01,GitHub Copilot,o3-mini,130447,1.7
+steven.hernandez@company.com,2026-01-01,Cursor,claude-sonnet-4-5,408729,8.97
+steven.hernandez@company.com,2026-01-01,Claude,claude-opus-4-1,508865,11.97
+steven.hernandez@company.com,2026-01-01,Gemini,gemini-2.5-pro,332435,4.68
+steven.hernandez@company.com,2026-02-01,Cursor,claude-sonnet-4-5,520212,10.8
+steven.hernandez@company.com,2026-02-01,Claude,claude-sonnet-4-5,339670,9.28
+steven.hernandez@company.com,2026-02-01,Gemini,gemini-2.5-flash,392165,5.11
+steven.hernandez@company.com,2026-03-01,Cursor,gpt-4o,715785,12.43
+steven.hernandez@company.com,2026-03-01,Claude,claude-opus-4-1,334261,7.17
+steven.hernandez@company.com,2026-03-01,Gemini,gemini-2.5-flash,553130,8.58
+steven.hernandez@company.com,2026-04-01,Cursor,gpt-4o,296431,5.51
+steven.hernandez@company.com,2026-04-01,Claude,claude-sonnet-4-5,440116,10.26
+steven.hernandez@company.com,2026-05-01,Cursor,gpt-4o,693880,13.73
+steven.hernandez@company.com,2026-05-01,Claude,claude-opus-4-1,104890,2.29
+steven.hernandez@company.com,2026-05-01,Gemini,gemini-2.5-pro,634063,8.23
+steven.hernandez@company.com,2026-06-01,Cursor,claude-sonnet-4-5,417405,8.91
+steven.hernandez@company.com,2026-06-01,Claude,claude-sonnet-4-5,408362,10.86

@@ -7,6 +7,12 @@ export type AiToolDailyRow = {
   day: string; // YYYY-MM-DD
   toolKey: string;
   contributorId?: string | null;
+  /**
+   * Unique grain key. Defaults to contributorId, else must be set (e.g.
+   * `email:user@x.com`) so spreadsheet imports without a roster do not all
+   * collapse onto a single "unattributed" row and overwrite each other.
+   */
+  contributorKey?: string | null;
   dimensionNodeId?: string | null;
   spend: number;
   tokensIn?: number;
@@ -20,7 +26,10 @@ export type AiToolDailyRow = {
 export async function upsertAiToolDaily(orgId: string, rows: AiToolDailyRow[]) {
   let written = 0;
   for (const r of rows) {
-    const contributorKey = r.contributorId ?? "unattributed";
+    const contributorKey =
+      (r.contributorKey && r.contributorKey.trim()) ||
+      r.contributorId ||
+      "unattributed";
     const contentHash = createHash("sha256")
       .update(
         [

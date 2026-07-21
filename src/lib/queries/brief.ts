@@ -62,6 +62,11 @@ export type BriefFacts = {
   orgId: string;
   period: BriefPeriod;
   totalSpend: number;
+  /**
+   * Sum of all cost_records (no date window). For spreadsheet imports this is
+   * the number that must match sum(total_spend_dollars) on the sheet.
+   */
+  allTimeSpend: number;
   byVendor: BriefVendorRow[];
   byDepartment: BriefDeptRow[];
   attribution: BriefAttribution;
@@ -285,17 +290,27 @@ export async function getBriefFacts(
   const unmappedKeySpend = Number(totals?.unmapped_key_spend ?? 0);
   const attributedSpend = emailJoinSpend + keyRegistrySpend;
 
+  // Prefer tags.ai_tool so telemetry rows keep sheet labels (ChatGPT Enterprise,
+  // GitHub Copilot, Gemini, …) instead of collapsing Copilot+ChatGPT → OpenAI.
   const vendorRows = await db.execute(sql`
     select
-      p.key,
-      p.display_name as name,
+      coalesce(
+        nullif(lower(trim(cr.tags->>'ai_tool')), ''),
+        p.key
+      ) as key,
+      min(
+        coalesce(
+          nullif(trim(cr.tags->>'ai_tool'), ''),
+          p.display_name
+        )
+      ) as name,
       coalesce(sum(cr.effective_cost), 0)::text as spend
     from cost_records cr
     inner join providers p on p.id = cr.provider_id
     where cr.org_id = ${orgId}::uuid
       and cr.charge_period_start >= ${startIso}::timestamptz
       and cr.charge_period_start < ${endIso}::timestamptz
-    group by p.key, p.display_name
+    group by 1
     order by sum(cr.effective_cost) desc
   `);
 
@@ -306,6 +321,13 @@ export async function getBriefFacts(
       spend: Number(r.spend),
     })
   );
+
+  const allTimeRows = await db.execute(sql`
+    select coalesce(sum(effective_cost), 0)::text as spend
+    from cost_records
+    where org_id = ${orgId}::uuid
+  `);
+  const allTimeSpend = Number(asRows<{ spend: string }>(allTimeRows)[0]?.spend ?? 0);
 
   const deptRows = await db.execute(sql`
     with base as (
@@ -493,6 +515,7 @@ export async function getBriefFacts(
     orgId,
     period,
     totalSpend,
+    allTimeSpend,
     byVendor,
     byDepartment,
     attribution,
@@ -505,7 +528,7 @@ export async function getBriefFacts(
     sampleDataLoadedAt,
     hasUserImports,
     dataMixed,
-    empty: totalSpend < 0.01 && byVendor.length === 0,
+    empty: totalSpend < 0.01 && byVendor.length === 0 && allTimeSpend < 0.01,
     violations: [],
   };
 
