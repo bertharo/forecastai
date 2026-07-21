@@ -707,6 +707,11 @@ export default function ImportPage() {
                 </span>
                 . Also accepts Anthropic / OpenAI exports and seat invoices (CSV or Excel).
               </p>
+              <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+                Re-uploading a period you&apos;ve already loaded adds to it rather
+                than replacing it — if you&apos;re correcting data, undo the old
+                batch first under Past uploads.
+              </p>
             </div>
 
             <div

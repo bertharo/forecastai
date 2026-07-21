@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
 import { HomeTabs } from "@/components/shell/HomeTabs";
+import { PlanTabs } from "@/components/shell/PlanTabs";
 import { SampleDataWatermark } from "@/components/SampleDataWatermark";
 import { getCurrentOrg, getOrgById, listOrgs } from "@/lib/queries/org";
 import { countUnmappedKeys } from "@/lib/keys/registry";
@@ -47,6 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <TopBar orgs={orgs} currentOrg={currentOrg} />
         <Suspense fallback={null}>
           <HomeTabs />
+          <PlanTabs />
         </Suspense>
         {children}
         <SampleDataWatermark active={sampleActive} />

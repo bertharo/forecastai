@@ -208,6 +208,11 @@ export function SourcesSpreadsheetDrop() {
           Drop people (email + attributes) or spend (email × month ×
           tool). CSV or Excel — first sheet only.
         </p>
+        <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+          Re-uploading a period you&apos;ve already loaded adds to it rather than
+          replacing it — if you&apos;re correcting data, undo the old batch first
+          under Import → Past uploads.
+        </p>
       </div>
       <FileDropZone
         disabled={busy}
