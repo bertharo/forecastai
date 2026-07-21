@@ -66,19 +66,31 @@ export async function detectSpendGrain(orgId: string): Promise<SpendGrain> {
   return classifySpendGrainFromDays(rows.map((r) => Number(r.dom)));
 }
 
+/** Below this, a day's total looks like sync/demo noise rather than real activity. */
+const MEANINGFUL_DAILY_SPEND_USD = 1;
+
 /**
- * Most recent charge_period_start for this org, or null with no spend at all.
- * Unlimited aggregate query — not the sampled/limited query detectSpendGrain
- * uses, which can't reliably answer "what's the latest date" on its own.
+ * Most recent day with non-trivial total spend for this org, or null with no
+ * such day. Deliberately not just MAX(charge_period_start): background
+ * connectors (e.g. a daily demo-mode sync) can keep writing fractions of a
+ * cent right up to "today" even when real, meaningful spend stopped weeks
+ * ago — trusting the single latest row would anchor right back to a period
+ * with nothing real in it.
  */
 export async function getMostRecentSpendDate(orgId: string): Promise<Date | null> {
   const result = await db.execute(sql`
-    select max(charge_period_start) as max_date
-    from cost_records
-    where org_id = ${orgId}::uuid
+    select max(day) as max_day
+    from (
+      select (charge_period_start at time zone 'UTC')::date as day,
+        sum(effective_cost) as daily_spend
+      from cost_records
+      where org_id = ${orgId}::uuid
+      group by 1
+    ) daily
+    where daily_spend >= ${MEANINGFUL_DAILY_SPEND_USD}
   `);
-  const rows = asRows<{ max_date: string | null }>(result);
-  const raw = rows[0]?.max_date;
+  const rows = asRows<{ max_day: string | null }>(result);
+  const raw = rows[0]?.max_day;
   return raw ? new Date(raw) : null;
 }
 
