@@ -14,6 +14,12 @@ import { db } from "@/db";
 import * as s from "@/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 import { projectForecast, type FeatureDrivers, type PriceLine } from "@/lib/forecast/engine";
+import {
+  getSpendAnchorAndDaily,
+  monthlyTotals,
+  projectSpendTrend,
+} from "@/lib/forecast/trend";
+import { getObservedModelRates } from "@/lib/spend/rates";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +92,115 @@ export default async function ForecastPage({
       ])
     : [[], [], { providers: [], models: [], features: [] }];
 
+  const [budget] = org
+    ? await db
+        .select()
+        .from(s.budgets)
+        .where(eq(s.budgets.orgId, org.id))
+        .limit(1)
+    : [];
+
+  const anchorInfo = org ? await getSpendAnchorAndDaily(org.id) : null;
+
+  if (anchorInfo) {
+    // Real-trend path: fit a linear trend to actual cost_records history,
+    // anchored at the last real data point (not "today" — see trend.ts).
+    const windowed = await getSpendAnchorAndDaily(org!.id, {
+      providerKey: filters.provider || null,
+      focusSkuId: filters.model || null,
+    });
+    const daily = windowed?.daily ?? [];
+    const anchor = windowed?.anchor ?? anchorInfo.anchor;
+
+    const forecast = projectSpendTrend({ daily, anchor, horizonDays: 180 });
+    const chartData = forecast.map((d) => ({ day: d.day, p10: d.p10, p50: d.p50, p90: d.p90 }));
+    const monthP50 = forecast.slice(0, 30).reduce((a, d) => a + d.p50, 0);
+    const monthP90 = forecast.slice(0, 30).reduce((a, d) => a + d.p90, 0);
+    const dailyBudget = budget ? Number(budget.amount) / 30 : undefined;
+
+    const allModelRates = await getObservedModelRates(org!.id, {
+      from: new Date(0),
+      to: new Date(anchorInfo.anchor.getTime() + 1),
+    });
+    const modelOptions = allModelRates.map((r) => ({ skuId: r.focusSkuId, name: r.focusSkuId }));
+
+    const history = monthlyTotals(daily);
+
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="page-title">Forecast</h1>
+            <p className="muted mt-1">
+              {org?.name ?? "No org"} — linear trend fit to real spend history (filter by
+              provider / model)
+            </p>
+          </div>
+          <Suspense fallback={<div className="muted text-[12px]">Loading filters…</div>}>
+            <FilterBar
+              types={[]}
+              nodes={[]}
+              providers={options.providers}
+              models={modelOptions}
+              features={[]}
+              showMetric={false}
+            />
+          </Suspense>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="panel p-3">
+            <div className="muted text-[11px] uppercase">Next 30d P50</div>
+            <div className="kpi mt-1">
+              <Money value={monthP50} />
+            </div>
+          </div>
+          <div className="panel p-3">
+            <div className="muted text-[11px] uppercase">Next 30d P90</div>
+            <div className="kpi mt-1">
+              <Money value={monthP90} />
+            </div>
+          </div>
+          <div className="panel p-3">
+            <div className="muted text-[11px] uppercase">Budget / day</div>
+            <div className="kpi mt-1">
+              {dailyBudget != null ? <Money value={dailyBudget} /> : "—"}
+            </div>
+          </div>
+        </div>
+
+        <div className="panel p-3">
+          <h2 className="mb-2 text-sm font-medium">Fan chart (180d)</h2>
+          <FanChart data={chartData} budget={dailyBudget} />
+        </div>
+
+        <div className="panel p-3">
+          <h2 className="mb-2 text-sm font-medium">History used for this projection</h2>
+          <p className="muted mb-3 text-[12px]">
+            Linear trend fit to daily spend through {anchor.toISOString().slice(0, 10)} — the
+            last date with real data, not today. P10/P90 band comes from the historical
+            day-to-day variance.
+          </p>
+          <DataTable
+            columns={[
+              { key: "month", label: "Month" },
+              { key: "spend", label: "Actual spend", align: "right" },
+            ]}
+            rows={history.map((h) => ({
+              month: h.month,
+              spend: new Intl.NumberFormat(undefined, {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+              }).format(h.spend),
+            }))}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: no cost_records at all for this org — keep the illustrative demo tree.
   const drivers = org
     ? await db
         .select()
@@ -111,15 +226,9 @@ export default async function ForecastPage({
     }
   }
 
-  const [budget] = org
-    ? await db
-        .select()
-        .from(s.budgets)
-        .where(eq(s.budgets.orgId, org.id))
-        .limit(1)
-    : [];
-
-  let { features, lines } = demoTree();
+  const initialTree = demoTree();
+  const { lines } = initialTree;
+  let features = initialTree.features;
   if (filters.feature) {
     features = features.filter((f) => f.featureKey === filters.feature);
   }
@@ -187,7 +296,8 @@ export default async function ForecastPage({
         <div>
           <h1 className="page-title">Forecast</h1>
           <p className="muted mt-1">
-            {org?.name ?? "No org"} — driver tree × prices × adoption (filter by feature / model)
+            {org?.name ?? "No org"} — illustrative driver tree × prices × adoption (no spend
+            uploaded yet — filter by feature / model)
           </p>
         </div>
         <Suspense fallback={<div className="muted text-[12px]">Loading filters…</div>}>
@@ -256,7 +366,8 @@ export default async function ForecastPage({
       <div className="panel p-3">
         <h2 className="mb-2 text-sm font-medium">Fitted driver tree</h2>
         <p className="muted mb-3 text-[12px]">
-          Decomposition is the product insight — edit drivers in scenarios to recompute the fan.
+          Illustrative only — upload spend under Sources to see a forecast fit to your own
+          history instead of this demo tree.
         </p>
         <DataTable
           columns={[
