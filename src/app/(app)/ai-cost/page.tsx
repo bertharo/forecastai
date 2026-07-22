@@ -5,6 +5,7 @@ import { findOverlappingAiSources } from "@/lib/ai-tools/persist";
 import { Metric } from "@/components/Metric";
 import { formatCostPerMTokens, usd, pct } from "@/lib/format";
 import { AiCostActions } from "./AiCostActions";
+import { ContributorTable } from "./ContributorTable";
 import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +26,22 @@ export default async function AiCostPage({
   }
 
   const sp = await searchParams;
-  const days = Number(typeof sp.days === "string" ? sp.days : 30);
+  // Trailing window length is fixed — only the "as of" end date is
+  // user-adjustable, so there's exactly one control for "what window am I
+  // looking at" instead of two that can contradict each other.
+  const days = 30;
   const tool = typeof sp.tool === "string" ? sp.tool : null;
   const team = typeof sp.team === "string" ? sp.team : null;
   const asOfParam = typeof sp.asOf === "string" ? sp.asOf : null;
   const asOf = asOfParam ? new Date(`${asOfParam}T00:00:00.000Z`) : undefined;
+
+  /** Builds a drill-down href that keeps the current "as of" date. */
+  function drillHref(extra: Record<string, string>): string {
+    const qs = new URLSearchParams();
+    if (asOfParam) qs.set("asOf", asOfParam);
+    for (const [k, v] of Object.entries(extra)) qs.set(k, v);
+    return `/ai-cost?${qs.toString()}`;
+  }
 
   const [summary, overlaps, nodes] = await Promise.all([
     getAiCostSummary(org.id, { days, toolKey: tool, teamNodeId: team, asOf }),
@@ -63,11 +75,11 @@ export default async function AiCostPage({
         </div>
       )}
 
-      <AiCostActions days={days} tools={summary.byTool.map((t) => t.toolKey)} teams={teams.map((t) => ({ id: t.id, key: t.key, name: t.displayName }))} />
+      <AiCostActions tools={summary.byTool.map((t) => t.toolKey)} teams={teams.map((t) => ({ id: t.id, key: t.key, name: t.displayName }))} />
 
       <div className="muted text-[12px]">
-        Showing spend through {summary.to}
-        {asOfParam ? ` (as of ${asOfParam})` : ""}
+        Window: {summary.from} → {summary.to}
+        {asOfParam ? ` (as of ${asOfParam})` : " (as of today)"}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
@@ -113,7 +125,11 @@ export default async function AiCostPage({
           <div className="mt-1 text-[1.75rem] font-bold">
             <Metric
               metric={summary.avgSpendPerUser}
-              display={summary.activeContributors ? usd(summary.avgSpendPerUser.value) : "—"}
+              display={
+                summary.activeContributors
+                  ? usd(summary.avgSpendPerUser.value, { digits: 2 })
+                  : "—"
+              }
             />
           </div>
           <div className="muted mt-1 text-[11px]">
@@ -134,7 +150,7 @@ export default async function AiCostPage({
               return (
                 <li key={t.toolKey}>
                   <Link
-                    href={`/ai-cost?days=${days}&tool=${t.toolKey}`}
+                    href={drillHref({ tool: t.toolKey })}
                     className="row-card flex items-center justify-between gap-2"
                   >
                     <span className="font-medium">{t.toolKey}</span>
@@ -164,7 +180,7 @@ export default async function AiCostPage({
             {summary.byTeam.map((t) => (
               <li key={t.nodeId}>
                 <Link
-                  href={`/ai-cost?days=${days}&team=${t.nodeId}`}
+                  href={drillHref({ team: t.nodeId })}
                   className="row-card flex items-center justify-between gap-2"
                 >
                   <span className="font-medium">{t.team}</span>
@@ -188,42 +204,7 @@ export default async function AiCostPage({
 
       <div className="panel overflow-x-auto p-4">
         <h2 className="mb-3 text-sm font-semibold">By contributor</h2>
-        <table className="data">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Team</th>
-              <th className="text-right">Spend</th>
-              <th className="text-right">Tokens</th>
-              <th className="text-right">$ / M tokens</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summary.byContributor.map((c) => (
-              <tr key={c.contributorId}>
-                <td>
-                  <div className="font-medium">{c.name}</div>
-                  <div className="muted text-[11px]">{c.email}</div>
-                </td>
-                <td>{c.team ?? "—"}</td>
-                <td className="mono text-right">{usd(c.spend)}</td>
-                <td className="mono text-right">
-                  {Math.round(c.tokens).toLocaleString()}
-                </td>
-                <td className="mono text-right">
-                  {formatCostPerMTokens(c.spend, c.tokens)}
-                </td>
-              </tr>
-            ))}
-            {summary.byContributor.length === 0 && (
-              <tr>
-                <td colSpan={5} className="muted">
-                  No contributor-attributed AI spend in this window.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <ContributorTable contributors={summary.byContributor} />
       </div>
     </div>
   );

@@ -21,11 +21,9 @@ function lastMonthDate(): string {
 }
 
 export function AiCostActions({
-  days,
   tools,
   teams,
 }: {
-  days: number;
   tools: string[];
   teams: { id: string; key: string; name: string }[];
 }) {
@@ -63,20 +61,6 @@ export function AiCostActions({
 
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <label className="text-[12px]">
-        Days
-        <select
-          className="select mt-1 block"
-          value={String(days)}
-          onChange={(e) => setParam("days", e.target.value)}
-        >
-          {[14, 30, 60, 90].map((d) => (
-            <option key={d} value={d}>
-              {d}d
-            </option>
-          ))}
-        </select>
-      </label>
       <label className="text-[12px]">
         As of
         <input
