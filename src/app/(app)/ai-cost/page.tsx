@@ -6,6 +6,8 @@ import { Metric } from "@/components/Metric";
 import { formatCostPerMTokens, usd, pct } from "@/lib/format";
 import { AiCostActions } from "./AiCostActions";
 import { ContributorTable } from "./ContributorTable";
+import { PivotTable } from "./PivotTable";
+import { getAiCostPivot } from "@/lib/queries/ai-cost-pivot";
 import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
@@ -43,10 +45,13 @@ export default async function AiCostPage({
     return `/ai-cost?${qs.toString()}`;
   }
 
-  const [summary, overlaps, nodes] = await Promise.all([
+  const hier = typeof sp.hier === "string" ? sp.hier : null;
+
+  const [summary, overlaps, nodes, pivot] = await Promise.all([
     getAiCostSummary(org.id, { days, toolKey: tool, teamNodeId: team, asOf }),
     findOverlappingAiSources(org.id, days),
     getDimensionNodes(org.id),
+    getAiCostPivot(org.id, { asOf, toolKey: tool, familyBase: hier }),
   ]);
 
   const teams = nodes.filter((n) => n.path.split("/").filter(Boolean).length >= 2);
@@ -138,6 +143,13 @@ export default async function AiCostPage({
           </div>
         </div>
       </div>
+
+      {pivot && (
+        <div className="panel overflow-x-auto p-4">
+          <h2 className="mb-3 text-sm font-semibold">By org hierarchy</h2>
+          <PivotTable pivot={pivot} />
+        </div>
+      )}
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="panel p-4">
