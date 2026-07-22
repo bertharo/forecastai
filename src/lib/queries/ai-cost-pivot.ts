@@ -22,6 +22,8 @@ export type PivotNode = {
   spendByMonth: Record<string, number>;
   spend: number;
   users: number;
+  tokens: number;
+  mergedPrs: number;
   /** Synthetic bucket (top-level Unallocated or direct-under-parent) */
   synthetic: boolean;
   children: PivotNode[];
@@ -45,6 +47,8 @@ type BuildNode = {
   children: Map<string, BuildNode>;
   /** Spend landing exactly at this node (contributor path ends here) */
   directByMonth: Map<string, number>;
+  directTokens: number;
+  directPrs: number;
   /** All contributors with spend in this subtree */
   users: Set<string>;
   /** Contributors whose path ends exactly here */
@@ -57,6 +61,8 @@ function newNode(name: string, path: string): BuildNode {
     path,
     children: new Map(),
     directByMonth: new Map(),
+    directTokens: 0,
+    directPrs: 0,
     users: new Set(),
     directUsers: new Set(),
   };
@@ -72,9 +78,9 @@ function finalize(node: BuildNode, months: string[]): PivotNode {
   }
 
   const directTotal = [...node.directByMonth.values()].reduce((a, b) => a + b, 0);
-  // Direct spend on a node that also has children gets its own explicit row
-  // so child rows always sum to the parent total.
-  if (children.length > 0 && directTotal > 0.005) {
+  // Direct spend/PRs on a node that also has children get their own explicit
+  // row so child rows always sum to the parent total.
+  if (children.length > 0 && (directTotal > 0.005 || node.directPrs > 0)) {
     const direct: Record<string, number> = {};
     for (const m of months) direct[m] = node.directByMonth.get(m) ?? 0;
     children.push({
@@ -83,6 +89,8 @@ function finalize(node: BuildNode, months: string[]): PivotNode {
       spendByMonth: direct,
       spend: directTotal,
       users: node.directUsers.size,
+      tokens: node.directTokens,
+      mergedPrs: node.directPrs,
       synthetic: true,
       children: [],
     });
@@ -93,12 +101,18 @@ function finalize(node: BuildNode, months: string[]): PivotNode {
     return b.spend - a.spend;
   });
 
+  const childTokens = children.reduce((a, c) => a + c.tokens, 0);
+  const childPrs = children.reduce((a, c) => a + c.mergedPrs, 0);
   return {
     name: node.name,
     path: node.path,
     spendByMonth,
     spend: Object.values(spendByMonth).reduce((a, b) => a + b, 0),
     users: node.users.size,
+    // When a synthetic direct row exists it already carries the direct
+    // amounts, so only add them when it doesn't.
+    tokens: children.length > 0 ? childTokens : node.directTokens,
+    mergedPrs: children.length > 0 ? childPrs : node.directPrs,
     synthetic: false,
     children,
   };
@@ -151,10 +165,27 @@ export async function getAiCostPivot(
       month: sql<string>`to_char(${s.aiToolDaily.day}::date, 'YYYY-MM')`,
       contributorId: s.aiToolDaily.contributorId,
       spend: sql<string>`coalesce(sum(${s.aiToolDaily.spend}),0)`,
+      tokens: sql<string>`coalesce(sum(${s.aiToolDaily.tokensTotal}),0)`,
     })
     .from(s.aiToolDaily)
     .where(and(...filters))
     .groupBy(sql`1`, s.aiToolDaily.contributorId);
+
+  const prRows = await db
+    .select({
+      contributorId: s.pullRequests.authorContributorId,
+      merged: sql<string>`count(*)`,
+    })
+    .from(s.pullRequests)
+    .where(
+      and(
+        eq(s.pullRequests.orgId, orgId),
+        sql`${s.pullRequests.mergedAt} is not null`,
+        gte(s.pullRequests.mergedAt, new Date(`${from}T00:00:00.000Z`)),
+        lte(s.pullRequests.mergedAt, new Date(`${to}T23:59:59.999Z`))
+      )
+    )
+    .groupBy(s.pullRequests.authorContributorId);
 
   const contributors = await db
     .select({ id: s.contributors.id, attributes: s.contributors.attributes })
@@ -165,6 +196,27 @@ export async function getAiCostPivot(
   const root = newNode("All", "");
   const unallocated = newNode("Unallocated", "/__unallocated");
 
+  /** Walks (creating as needed) to the node for a contributor's path. */
+  function nodeForPath(path: string[], userId: string | null): BuildNode {
+    if (path.length === 0) {
+      if (userId) unallocated.users.add(userId);
+      return unallocated;
+    }
+    let node = root;
+    let pathStr = "";
+    for (const segment of path) {
+      pathStr += `/${segment}`;
+      let child = node.children.get(segment);
+      if (!child) {
+        child = newNode(segment, pathStr);
+        node.children.set(segment, child);
+      }
+      if (userId) child.users.add(userId);
+      node = child;
+    }
+    return node;
+  }
+
   for (const row of spendRows) {
     const spend = Number(row.spend);
     if (!(spend > 0)) continue;
@@ -172,27 +224,19 @@ export async function getAiCostPivot(
     const path = attrs ? pathForAttributes(attrs, family) : [];
     const userId = row.contributorId ?? "__unattributed";
 
-    let node: BuildNode;
-    if (path.length === 0) {
-      node = unallocated;
-      unallocated.users.add(userId);
-    } else {
-      node = root;
-      let pathStr = "";
-      for (const segment of path) {
-        pathStr += `/${segment}`;
-        let child = node.children.get(segment);
-        if (!child) {
-          child = newNode(segment, pathStr);
-          node.children.set(segment, child);
-        }
-        child.users.add(userId);
-        node = child;
-      }
-    }
+    const node = nodeForPath(path, userId);
     node.directByMonth.set(row.month, (node.directByMonth.get(row.month) ?? 0) + spend);
+    node.directTokens += Number(row.tokens);
     node.directUsers.add(userId);
     root.users.add(userId);
+  }
+
+  for (const row of prRows) {
+    const attrs = row.contributorId ? attrsById.get(row.contributorId) : undefined;
+    const path = attrs ? pathForAttributes(attrs, family) : [];
+    // PRs credit the node without counting the author as an active AI user.
+    const node = nodeForPath(path, null);
+    node.directPrs += Number(row.merged);
   }
 
   const rows = [...root.children.values()].map((c) => finalize(c, months));
